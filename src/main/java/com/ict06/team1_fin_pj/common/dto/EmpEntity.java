@@ -1,4 +1,4 @@
-package com.ict06.team1.finalpj.Authorization;
+package com.ict06.team1_fin_pj.common.dto;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
