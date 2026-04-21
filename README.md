@@ -10,7 +10,7 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
 
 ### 1. 프로젝트 경로
 
-1. `D:\DEV06\` 에서 git clone하여 프로젝트 설치 (D 드라이브 없는 경우 `C:\DEV06\`에서 클론)
+1. `D:\DEV06\` 에서 git bash 실행 -> git clone하여 프로젝트 설치 (D 드라이브 없는 경우 `C:\DEV06\`에서 클론)
 
     ```bash
     git clone https://github.com/youngeunsong/ict06_team1_finalPJ.git
@@ -24,7 +24,7 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
     git pull origin dev 
     ```
 
-### 2. 인텔리제이 환경설정 & 실행
+### 2. [백엔드] 인텔리제이 환경설정 & 실행
 
 1. **프로젝트 폴더 열기**: `Open` -> `D:\DEV06\ict06_team1_finalPJ` 선택  
 
@@ -44,27 +44,34 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
     ```  
 
 1. **로컬 DB 사용 시 주의사항**
+    * 로컬DB 연결하기: 프로젝트 처음 받으면 기본적으로 서버컴에 연결된 상태입니다. 혹시 로컬 DB를 이용해 테스트하실려면 `application-local.properties`의 내용 일부를 다음과 같이 수정해주세요:
+
+        ```bash
+        spring.datasource.url=jdbc:postgresql://localhost:5432/postgres
+        ```
+
     * 계정생성 기능 없는 상태로 해싱 적용한 로그인 기능 먼저 구현함. 따라서 DB에는 해싱값이 들어있고, 브라우저에서 사용자가 입력하는 값은 평문이어야 함
     * 이를 위해 프로젝트 실행 시 가장 먼저 `TempPassword.java` 파일 실행하여 해싱값을 생성 -> IntelliJ 콘솔에서 DB password 값 확인하여 test 계정 데이터를 update 처리하면 해싱된 값으로 저장됨.
 
-1. `src/main/java/com/ict06/team1_fin_pj/Team1FinPjApplication.java`를 실행. 정상 실행되는 지 확인.
+1. `src/main/java/com/ict06/team1_fin_pj/Team1FinPjApplication.java`를 실행. 정상 실행되는 지 확인.  
 
-<br>
-
-### 3. VisualStudio Code 환경설정 & 실행
+### 3. [프론트엔드] VisualStudio Code 환경설정 & 실행
 
 1. **프로젝트 폴더 열기**:`File` -> `Open Folder` -> `D:\DEV06\ict06_team1_finalPJ` 선택
 
-1. **처음 깃허브에서 clone해오거나 pull 해온 직후**: **반드시** `npm install`**을 먼저 cmd에 입력**해주세요. 다른 팀원이 추가한 라이브러리를 설치하는 과정입니다. 
+1. **프론트엔드 작업용 폴더로 이동하기**: `Terminal` -> `New Terminal` -> `+` 옆의 `V` -> `command prompt` 선택-> cmd에서 `cd react-frontend` 입력
+
+1. **처음 깃허브에서 clone해오거나 pull 해온 직후 입력**: **반드시** `npm install`**을 먼저 cmd에 입력**해주세요. 다른 팀원이 추가한 라이브러리를 설치하는 과정입니다.
 
 1. **프로젝트 실행**: `npm start`를 cmd에 입력.
     1. `Module not found` 에러 발생 시 : 해당 모듈을 cmd에서 설치하면 오류가 사라집니다.
 
         ```bash
+        # 예시) Module not found : react-router-dom 에러 발생 시  
         npm i react-router-dom
         ```
 
-1. **테스트 계정으로 로그인**: 이제 프로젝트를 실행하면 사번/비밀번호로 로그인이 가능
+1. **테스트 계정으로 로그인**: 이제 프로젝트를 실행하면 테스트 계정의 사번/비밀번호로 로그인이 가능
    * **테스트 계정**: 사번 20209999 / 비밀번호: 1234
     ![alt text](/readme_images/login.png)
 
