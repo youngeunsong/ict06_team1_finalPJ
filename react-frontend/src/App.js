@@ -4,6 +4,8 @@ import UserHome from './pages/auth/UserHome';
 import { useState } from 'react';
 import WelcomePage from './pages/auth/WelcomePage';
 import MyRoadmap from './pages/onboarding/MyRoadmap';
+import AttendanceManagement from './pages/attendance/AttendanceManagement';
+import AttendanceStatistics from './pages/attendance/AttendanceStatistics';
 
 // 화면 경로 연결
 function App() {
@@ -21,6 +23,13 @@ function App() {
       <Route path="/auth/userhome" element={<UserHome userInfo={userInfo} />} />
 
       <Route path="/onboarding/myroadmap" element={<MyRoadmap />} />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* 근태 관리 페이지 */}
+      <Route path="/attendance/management" element={<AttendanceManagement />} />
+
+      {/* 근태 통계 페이지 */}
+      <Route path="/attendance/stats" element={<AttendanceStatistics />} />
     </Routes>
   );
 }
