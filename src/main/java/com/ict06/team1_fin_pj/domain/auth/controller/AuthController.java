@@ -4,7 +4,6 @@ import com.ict06.team1_fin_pj.domain.auth.service.AuthServiceImpl;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
