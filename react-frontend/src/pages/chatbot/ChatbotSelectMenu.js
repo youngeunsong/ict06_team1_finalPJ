@@ -7,7 +7,7 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/[AI_secretary]main_select_document_type.png'
+import refImage from 'src/assets/images/first_demo/[AIChatbot]OpenChatbot_ClickMenuSearch.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
@@ -16,19 +16,14 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-// [AI 비서] AI 비서 메인
-const AiSecretary = () => {
+// [AI챗봇] AI 챗봇에서 메뉴 선택 페이지
+const ChatbotSelectMenu = () => {
 
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
-    
+
     return (
         <div style={containerStyle}>
-            <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
-                <h2>AI 비서</h2>
-            </header>
-
-            <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
 
             {/* 1차 시연용 영역 */}
             <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
@@ -36,28 +31,19 @@ const AiSecretary = () => {
                     <strong>시연 화면 및 관련 SQL쿼리</strong>
                 </CCardHeader>
                 <CCardBody className="p-0 d-flex flex-column">
-                    <div className="p-2 d-flex justify-content-end">
-                        {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/ai-portal/secretary/quick-start">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                빠른 시작
-                            </CButton>
-                        </Link>
 
-                        <Link to="/ai-portal/secretary/answer-to-chat">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                채팅 입력
-                            </CButton>
-                        </Link>
-                    </div>
+                    <div className="p-2 d-flex justify-content-end">
+                    {/* 시연용 화면 이동 버튼 */}
+                    <Link to="/ai-portal/chatbot/select-menu/result">
+                        <CButton
+                            color='primary'
+                            variant='outline'
+                            style={{ fontWeight: 'bold' }}
+                            >
+                            메뉴 선택
+                        </CButton>
+                    </Link>
+                </div>
 
                     {/* 레퍼런스 이미지 영역 */}
                     <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
@@ -75,4 +61,4 @@ const AiSecretary = () => {
     );
 };
 
-export default AiSecretary;
+export default ChatbotSelectMenu;

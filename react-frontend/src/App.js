@@ -25,6 +25,17 @@ import UpcomingApprovals from './pages/approval/teamLeader/UpcomingApprovals';
 import PendingApprovalDetail from './pages/approval/teamLeader/PendingApprovalDetail';
 import Employee from './pages/employee/Employee';
 import EmployeeDetail from './pages/employee/EmployeeDetail';
+import Payroll from './pages/payroll/Payroll';
+import PayrollIssue from './pages/payroll/PayrollIssue';
+import AIPortalMain from './pages/AIPortalMain';
+import AiSecretary from './pages/aiSecretary/AiSecretary';
+import Chatbot from './pages/chatbot/Chatbot';
+import AiSecretaryQuickStart from './pages/aiSecretary/AiSecretaryQuickStart';
+import AiSecretaryAnswerToChat from './pages/aiSecretary/AiSecretaryAnswerToChat';
+import ChatbotSelectMenu from './pages/chatbot/ChatbotSelectMenu';
+import ChatbotWriteMessage from './pages/chatbot/ChatbotWriteMessage';
+import ChatbotSelectMenuAction from './pages/chatbot/ChatbotSelectMenuAction';
+import RealtimeAlert from './components/RealtimeAlert';
 
 //[그룹 B] 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'));
@@ -127,6 +138,46 @@ function App() {
           {/* 인사관리 상세 페이지*/}
           <Route path="/employee/detail" element={<EmployeeDetail userInfo={userInfo} />} />
 
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : 급여관리]*/}
+          {/* 사원별 급여 확인 페이지*/}
+          <Route path="/payroll" element={<Payroll userInfo={userInfo} />} />
+
+          {/* 사원별 급여명세서 발급 페이지*/}
+          <Route path="/payroll/issue" element={<PayrollIssue userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [사내 AI 포털]*/}
+          <Route path="/ai-portal" element={<AIPortalMain userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : AI비서]*/}
+          {/* AI 비서 메인 */}
+          <Route path="/ai-portal/secretary" element={<AiSecretary userInfo={userInfo} />} />
+
+          {/* AI 비서 빠른 시작 응답 */}
+          <Route path="/ai-portal/secretary/quick-start" element={<AiSecretaryQuickStart userInfo={userInfo} />} />
+
+          {/* AI 비서 채팅에 응답 */}
+          <Route path="/ai-portal/secretary/answer-to-chat" element={<AiSecretaryAnswerToChat userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : AI챗봇]*/}
+          {/* AI 챗봇 열기 */}
+          <Route path="/ai-portal/chatbot" element={<Chatbot userInfo={userInfo} />} />
+
+          {/* AI 챗봇에서 메뉴 선택 */}
+          <Route path="/ai-portal/chatbot/select-menu" element={<ChatbotSelectMenu userInfo={userInfo} />} />
+
+          {/* AI 챗봇에서 메뉴 선택 결과*/}
+          <Route path="/ai-portal/chatbot/select-menu/result" element={<ChatbotSelectMenuAction userInfo={userInfo} />} />
+
+          {/* AI 챗봇에서 메시지 작성 페이지 */}
+          <Route path="/ai-portal/chatbot/message" element={<ChatbotWriteMessage userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+           {/* [대분류 : 실시간 알림]*/}
+           <Route path="/alert" element={<RealtimeAlert userInfo={userInfo} />} />
 
         </Route>
 

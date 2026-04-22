@@ -7,7 +7,7 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/[Payroll]employee_salary_view.png'
+import refImage from 'src/assets/images/first_demo/[AI_Secretary]answer_in_provided_format.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
@@ -16,30 +16,39 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-// [급여관리] 사원별 급여 확인 페이지
-const Payroll = () => {
+// [AI비서] 빠른 시작 결과
+const AiSecretaryQuickStart = () => {
 
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
     const sqlQuery = `
-        SELECT p.*, m.name, d.dept_name 
-        FROM payroll_master p
-        JOIN employee e ON p.emp_id = e.emp_id
-        JOIN departments d ON e.dept_id = d.dept_id
-        WHERE p.emp_id = #{empId}
-        AND p.pay_month = #{targetMonth}
-        AND p.status IN ('CONFIRMED', 'PAID');
+        -- [문서 작성] 보고서 초안 및 결재 사유 저장
+        INSERT INTO ai_log (emp_id, type, query, response, success)
+        VALUES (#{empId}, #{genType}, #{prompt}, #{resultContent}, 'Y')
+        RETURNING log_id;
+
+        -- [요약] 회의록 요약 및 액션 아이템 추출 저장
+        INSERT INTO ext_cache (cache_key, cache_data, updated_at)
+        VALUES (
+            'SUMMARY_DOC_' || #{docId}, 
+            jsonb_build_object('summary', #{summaryText}, 'action_items', #{actionItemsJson}::jsonb),
+            CURRENT_TIMESTAMP
+            );
+
+        --[보안 제어] 참조 문서 권한 검증(RAG 전처리)
+        SELECT doc_id FROM document 
+        WHERE doc_id = ANY(#{requestedDocIds}::int[])
+        AND (
+            access_lvl = 'COMMON' 
+            OR dept_id = #{userDeptId} 
+            OR writer_id = #{empId} 
+        );
     `;
 
     return (
         <div style={containerStyle}>
-            <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
-                <h2>{userInfo?.name}님의 급여 상세</h2>
-            </header>
-
-            <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
 
             {/* 1차 시연용 영역 */}
             <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
@@ -47,24 +56,12 @@ const Payroll = () => {
                     <strong>시연 화면 및 관련 SQL쿼리</strong>
                 </CCardHeader>
                 <CCardBody className="p-0 d-flex flex-column">
-                    <div className="p-2 d-flex justify-content-end">
-                        {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/payroll/issue">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                급여명세서 발급
-                            </CButton>
-                        </Link>
-                    </div>
 
                     {/* 레퍼런스 이미지 영역 */}
                     <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
                         <img 
                             src={refImage} 
-                            alt="급여명세서" 
+                            alt="빠른 시작에 대한 응답" 
                             style={{ width: '100%',
                             height: 'auto',
                             display: 'block' }} 
@@ -88,4 +85,4 @@ const Payroll = () => {
     );
 };
 
-export default Payroll;
+export default AiSecretaryQuickStart;

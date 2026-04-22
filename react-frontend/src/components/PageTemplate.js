@@ -26,6 +26,7 @@ const PageTemplate = () => {
     const handleButtonClick = () => {
         navigate('/evaluation/quiz')
     }
+    
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
 
