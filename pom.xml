@@ -99,6 +99,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!--JSOUP(웹 크롤링)-->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.18.1</version>
+		</dependency>
+
 		<!-- Test (하나로 통합) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
