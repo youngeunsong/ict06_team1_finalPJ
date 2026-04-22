@@ -39,8 +39,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
                 //요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        //회원가입, 로그인은 허용
+                        //1. 회원가입, 로그인은 허용
                         .requestMatchers("/api/auth/**").permitAll()
+                        //2. 날씨 및 뉴스 API 경로 추가
+                        .requestMatchers("/api/weather/**").permitAll()
+                        .requestMatchers("/api/news/**").permitAll()
+
                         //그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
