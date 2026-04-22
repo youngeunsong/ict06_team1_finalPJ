@@ -6,7 +6,7 @@ import React from 'react';
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
 // 페이지 이동
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
 import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png'
@@ -18,8 +18,10 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+// [대분류] 페이지명
 const PageTemplate = () => {
 
+    // 방법1. 버튼 클릭 시 링크 이동
     const navigate = useNavigate();
     const handleButtonClick = () => {
         navigate('/evaluation/quiz')
@@ -44,19 +46,21 @@ const PageTemplate = () => {
         <div style={containerStyle}>
             <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
                 <h2>🚀 {userInfo?.name}님의 성장 로드맵</h2>
+
                 <button onClick={() => navigate('/welcome')} style={{ border: 'none', background: 'none', color: '#666', cursor: 'pointer' }}>뒤로가기</button>
             </header>
 
             <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
 
-            {/* 레퍼런스 이미지 영역 */}
+            {/* 1차 시연용 영역 */}
             <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
                 <CCardHeader>
                     <strong>시연 화면 및 관련 SQL쿼리</strong>
                 </CCardHeader>
                 <CCardBody className="p-0 d-flex flex-column">
-                    {/* 시연용 화면 이동 버튼 */}
                     <div className="p-2 d-flex justify-content-end">
+                        {/* 시연용 화면 이동 버튼 */}
+                        {/* 방법1 */}
                         <CButton
                             color='primary'
                             variant='outline'
@@ -65,6 +69,17 @@ const PageTemplate = () => {
                             >
                             퀴즈 풀기
                         </CButton>
+
+                        {/* 방법2 */}
+                        <Link to="/attendance/stats">
+                            <CButton
+                                color='primary'
+                                variant='outline'
+                                style={{ fontWeight: 'bold' }}
+                                >
+                                근태통계
+                            </CButton>
+                        </Link>
                     </div>
 
                     {/* 레퍼런스 이미지 영역 */}

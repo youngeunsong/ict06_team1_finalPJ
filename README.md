@@ -96,6 +96,7 @@ v.260420
 ```xml
 ict06_team1_finalPJ                         # 스프링부트 메인 프로젝트
 ├── react-frontend/                         # 일반 직원/팀장용 React 프론트엔드
+│   ├── _nav.jsx         # 사이드바 요소 (링크 등 관리)
 │   ├── src/
 │   │   ├── styles/      # css 관련 파일
 │   │   │    ├── js      # js 형식 스타일 

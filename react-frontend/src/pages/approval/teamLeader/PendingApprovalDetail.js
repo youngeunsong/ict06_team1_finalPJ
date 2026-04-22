@@ -7,7 +7,7 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/calendar_monthly_view.png'
+import refImage from 'src/assets/images/first_demo/approval_pending_document_detail_update_status.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
@@ -16,33 +16,31 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-const Calendar = () => {
+// [전자결재] 결재 대기 문서 상세 페이지
+const PendingApprovalDetail = () => {
 
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
     const sqlQuery = `
-        INSERT INTO schedule (
-            title, start_time, end_time, content, location, 
-            type, category, creator_id, dept_id
-        ) VALUES (
-            #{title}, #{startTime}, #{endTime}, #{content}, #{location}, 
-            #{type}, #{category}, #{empId}, #{deptId}
-        ) RETURNING sched_id;
+        UPDATE approval_lines SET status = #{action}, comment = #{comment}, processed_at = CURRENT_TIMESTAMP
+        WHERE doc_id = #{docId} AND approver_id = #{userId};
 
-        UPDATE schedule 
-        SET 
-            is_deleted = 'Y',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE sched_id = #{schedId} 
-        AND creator_id = #{empId};
+        UPDATE approval_docs 
+        SET status = CASE 
+            WHEN #{action} = 'REJECTED' THEN 'REJECTED'
+            WHEN (SELECT COUNT(*) FROM approval_lines WHERE doc_id = #{docId} AND status != 'APPROVED') = 0 
+            THEN 'APPROVED'
+            ELSE 'PENDING'
+        END
+        WHERE doc_id = #{docId};
     `;
 
     return (
         <div style={containerStyle}>
             <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
-                <h2>🚀 {userInfo?.name}님의 캘린더</h2>
+                <h2>결재 재기 문서 상세</h2>
             </header>
 
             <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
@@ -53,24 +51,12 @@ const Calendar = () => {
                     <strong>시연 화면 및 관련 SQL쿼리</strong>
                 </CCardHeader>
                 <CCardBody className="p-0 d-flex flex-column">
-                    <div className="p-2 d-flex justify-content-end">
-                        {/* 시연용 화면 이동 버튼 */}
-                        {/* <Link to="#">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                일정 간편등록
-                            </CButton>
-                        </Link> */}
-                    </div>
 
                     {/* 레퍼런스 이미지 영역 */}
                     <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
                         <img 
                             src={refImage} 
-                            alt="월간뷰" 
+                            alt="문서 상세" 
                             style={{ width: '100%',
                             height: 'auto',
                             display: 'block' }} 
@@ -94,4 +80,4 @@ const Calendar = () => {
     );
 };
 
-export default Calendar;
+export default PendingApprovalDetail;

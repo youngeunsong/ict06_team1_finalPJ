@@ -1,20 +1,29 @@
 import React from 'react';
 
-// 페이지 링크 이동
-// import { Link } from 'react-router-dom';
+// CoreUI 
+import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
+
+// 페이지 이동
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import demo_image from '../../assets/images/first_demo/근태관리_근태통계.png';
+import refImage from '../../assets/images/first_demo/attendance_statistics.png';
+
+// 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
+import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 
 // 코드 하이라이터
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-// 근태 대시보드 화면
+// [근태관리] 근태 대시보드 페이지
 const AttendanceStatistics = () => {
 
+    //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
+    const [userInfo] = useOutletContext();
+
     // 핵심 SQL 
-    const sql = `
+    const sqlQuery = `
     -- 대시보드용 월간 통계 (부서별/개인별)
     SELECT 
         m.dept_id,
@@ -32,22 +41,58 @@ const AttendanceStatistics = () => {
     `; 
 
     return (
-        <div>
+        <div style={containerStyle}>
 
-            {/* 버튼 클릭하여 페이지 이동 */}
-            {/* <Link to="">
-                <button> 근태통계 </button>
-            </Link> */}
+            <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
+                <h2>{userInfo?.name}님의 근태 통계</h2>
+            </header>
 
-            {/* 화면 설계 이미지 */}
-            <img src={demo_image} alt="attendance"/>
-            <br />
-            
+            <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
 
-            {/* 핵심 SQL */}
-            <SyntaxHighlighter language='sql' style={atomDark}>
-                {sql}
-            </SyntaxHighlighter>
+            {/* 1차 시연용 영역 */}
+            <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
+                <CCardHeader>
+                    <strong>시연 화면 및 관련 SQL쿼리</strong>
+                </CCardHeader>
+                <CCardBody className="p-0 d-flex flex-column">
+                    <div className="p-2 d-flex justify-content-end">
+                        {/* 방법2 */}
+                        <Link to="/attendance/holidays">
+                            <CButton
+                                color='primary'
+                                variant='outline'
+                                style={{ fontWeight: 'bold' }}
+                                >
+                                연차현황
+                            </CButton>
+                        </Link>
+                    </div>
+
+
+                    {/* 레퍼런스 이미지 영역 */}
+                    <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
+                        <img 
+                            src={refImage} 
+                            alt="근태통계" 
+                            style={{ width: '100%',
+                            height: 'auto',
+                            display: 'block' }} 
+                        />
+                    </div>
+
+                    {/* SQL 쿼리 영역 */}
+                    <div className='text-start mt-4'>
+                        <h5 className='mb-3' style={{ fontWeight: 'bold', color: '#4f5d73' }}>
+                            <span style={{ borderLeft: '4px solid #321fdb', paddingLeft: '10px' }}>
+                                관련 SQL 쿼리
+                            </span>
+                        </h5>
+                        <SyntaxHighlighter language='sql' style={coy}>
+                            {sqlQuery}
+                        </SyntaxHighlighter>
+                    </div>
+                </CCardBody>
+            </CCard>
         </div>
     );
 };

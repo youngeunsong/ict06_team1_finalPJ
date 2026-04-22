@@ -4,7 +4,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import demo_image from '../../assets/images/first_demo/근태관리_출퇴근처리.png';
+import demo_image from '../../assets/images/first_demo/attendance_checkin_checkout.png';
 
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 

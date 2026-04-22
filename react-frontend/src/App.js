@@ -11,6 +11,20 @@ import CommuteProcessing from './pages/attendance/CommuteProcessing';
 import LoginPage from './pages/auth/LoginPage';
 import WelcomePage from './pages/auth/WelcomePage';
 import Evaluation2 from './pages/evaluation/Evaluation2';
+import HolidaysStatus from './pages/attendance/HolidaysStatus';
+import Calendar from './pages/calendar/Calendar';
+import Approval from './pages/approval/Approval';
+import ApprovalSelectForm from './pages/approval/newApproval/ApprovalSelectForm';
+import ApprovalSetLine from './pages/approval/newApproval/ApprovalSetLine';
+import ApprovalWriteNew from './pages/approval/newApproval/ApprovalWriteNew';
+import TmpApprovals from './pages/approval/TmpApprovals';
+import PersonalApprovals from './pages/approval/PersonalApprovals';
+import ApprovalsDetail from './pages/approval/ApprovalsDetail';
+import PendingApprovals from './pages/approval/teamLeader/PendingApprovals';
+import UpcomingApprovals from './pages/approval/teamLeader/UpcomingApprovals';
+import PendingApprovalDetail from './pages/approval/teamLeader/PendingApprovalDetail';
+import Employee from './pages/employee/Employee';
+import EmployeeDetail from './pages/employee/EmployeeDetail';
 
 //[그룹 B] 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'));
@@ -55,13 +69,65 @@ function App() {
           {/* -------------------------------------------------------------- */}
           {/* [대분류 : 근태 관리] */}
           {/* 근태 관리 페이지 */}
-          <Route path="/attendance/management" element={<AttendanceManagement userInfo={userInfo} />} />
+          <Route path="/attendance" element={<AttendanceManagement userInfo={userInfo} />} />
 
           {/* 출퇴근 처리 */}
           <Route path="/attendance/commute" element={<CommuteProcessing userInfo={userInfo} />} />
 
           {/* 근태 통계 페이지 */}
           <Route path="/attendance/stats" element={<AttendanceStatistics userInfo={userInfo} />} />
+
+          {/* 연차 현황 페이지 */}
+          <Route path="/attendance/holidays" element={<HolidaysStatus userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : 캘린더/}*/}
+          {/* 캘린더 메인 페이지 */}
+          <Route path="/calendar" element={<Calendar userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : 전자결재/}*/}
+          {/* 전자결재 메인 페이지 */}
+          <Route path="/approval" element={<Approval userInfo={userInfo} />} />
+
+          {/* 새 결재 진행 - 결재 서식 선택 페이지 */}
+          <Route path="/approval/new/select-form" element={<ApprovalSelectForm userInfo={userInfo} />} />
+
+          {/* 새 결재 진행 - 결재 내용 작성 페이지 */}
+          <Route path="/approval/new/write" element={<ApprovalWriteNew userInfo={userInfo} />} />
+
+          {/* 새 결재 진행 - 결재선 설정 페이지 */}
+          <Route path="/approval/new/set-line" element={<ApprovalSetLine userInfo={userInfo} />} />
+
+          {/* 결재 내용 수정 */}
+
+          {/* 임시저장함 페이지 */}
+          <Route path="/approval/tmpApprovals" element={<TmpApprovals userInfo={userInfo} />} />
+
+          {/* 개인 문서함 페이지 */}
+          <Route path="/approval/personalApprovals" element={<PersonalApprovals userInfo={userInfo} />} />
+
+          {/* 개인 문서 상세 페이지 */}
+          <Route path="/approval/personalApprovals/detail" element={<ApprovalsDetail userInfo={userInfo} />} />
+
+          {/* 결재 대기 문서함 페이지*/}
+          <Route path="/approval/pendingApprovals" element={<PendingApprovals userInfo={userInfo} />} />
+
+          {/* 결재 대기 문서 상세 페이지 */}
+          <Route path="/approval/pendingApprovals/detail" element={<PendingApprovalDetail userInfo={userInfo} />} />
+
+          {/* 결재 예정 문서함 페이지*/}
+          <Route path="/approval/upcomingApprovals" element={<UpcomingApprovals userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : 인사관리]*/}
+          {/* 인사관리 메인 페이지*/}
+          <Route path="/employee" element={<Employee userInfo={userInfo} />} />
+
+          {/* 인사관리 상세 페이지*/}
+          <Route path="/employee/detail" element={<EmployeeDetail userInfo={userInfo} />} />
+
+
         </Route>
 
         {/* 4. 잘못된 경로 접근 시 처리(404 예외 처리) */}
