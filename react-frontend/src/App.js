@@ -45,20 +45,23 @@ function App() {
         <Route element={<DefaultLayout />}>
           {/* DefaultLayout 내부의 AppContent 자리에 아래 페이지들이 렌더링됨 */}
           <Route path="/auth/userhome" element={<UserHome userInfo={userInfo} />} />
+
+          {/* -------------------------------------------------------------- */}
+          {/* [대분류 : 인사평가 - 온보딩] */}
           <Route path="/onboarding/myroadmap" element={<MyRoadmap userInfo={userInfo} />} />
           <Route path="/evaluation/quiz" element={<Evaluation userInfo={userInfo} />} />
           <Route path="/evaluation/evaluation" element={<Evaluation2 userInfo={userInfo} />} />
 
-          {/* ------------------------------------------------------------------ */}
+          {/* -------------------------------------------------------------- */}
           {/* [대분류 : 근태 관리] */}
           {/* 근태 관리 페이지 */}
-          <Route path="/attendance/management" element={<AttendanceManagement />} />
+          <Route path="/attendance/management" element={<AttendanceManagement userInfo={userInfo} />} />
 
           {/* 출퇴근 처리 */}
-          <Route path="/attendance/commute" element={<CommuteProcessing />} />
+          <Route path="/attendance/commute" element={<CommuteProcessing userInfo={userInfo} />} />
 
           {/* 근태 통계 페이지 */}
-          <Route path="/attendance/stats" element={<AttendanceStatistics />} />
+          <Route path="/attendance/stats" element={<AttendanceStatistics userInfo={userInfo} />} />
         </Route>
 
         {/* 4. 잘못된 경로 접근 시 처리(404 예외 처리) */}

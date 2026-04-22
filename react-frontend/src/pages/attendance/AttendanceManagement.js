@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 // 페이지 링크 이동
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext  } from 'react-router-dom';
+
+// CoreUI 
+import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
 // 시연용 이미지 파일
 import demo_image from '../../assets/images/first_demo/근태관리(한달 보기).png';
@@ -12,6 +15,9 @@ import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // 근태관리 화면
 const AttendanceManagement = () => {
+
+    //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
+    const [userInfo] = useOutletContext();
 
     // 핵심 SQL 
     const sql = `
@@ -40,6 +46,8 @@ const AttendanceManagement = () => {
                 END
     WHERE user_id = #{userId} AND check_out IS NULL;
     `; 
+
+    // 1차 시연용 css 
 
     // 1. 이미지 경로를 상태로 관리
     const [imgSrc, setImgSrc] = useState(demo_image); 

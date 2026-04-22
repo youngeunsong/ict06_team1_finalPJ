@@ -1,7 +1,14 @@
-import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
+// 모든 리액트 페이지에서 공통적으로 필요한 요소를 넣은 예시 파일입니다. 이 파일을 응용하여 페이지 구현해주세요. 
+// 수정 금지
 import React from 'react';
+
+// CoreUI 
+import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
+
+// 페이지 이동
 import { useNavigate, useOutletContext } from 'react-router-dom';
 
+// 시연용 이미지 파일
 import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
@@ -11,21 +18,14 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-function MyRoadmap() {
+const PageTemplate = () => {
+
     const navigate = useNavigate();
     const handleButtonClick = () => {
         navigate('/evaluation/quiz')
     }
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
-
-  //임시 데이터 (나중에 DB에서 가져올 부분)
-  const steps = [
-    { id: 1, title: '기초 직무 교육', status: 'completed' },
-    { id: 2, title: '팀 프로젝트 1', status: 'current' },
-    { id: 3, title: '실무 온보딩', status: 'upcoming' },
-    { id: 4, title: '최종 평가', status: 'upcoming' },
-  ];
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
     const sqlQuery = `
@@ -38,17 +38,6 @@ function MyRoadmap() {
         JOIN road_prog rp ON r.roadmap_id = rp.roadmap_id
         WHERE rp.emp_id = #{empId}
         GROUP BY r.roadmap_id, r.title;
-
-        -- 아직 완료하지 않은 체크리스트 항목 조회
-        SELECT
-            emp_id, 
-            task_name, 
-            due_date
-        FROM onboarding_check
-        WHERE is_completed = 'N' 
-        AND is_deleted = 'N'
-        AND due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '2 days')
-        ORDER BY due_date ASC;
     `;
 
     return (
@@ -57,24 +46,6 @@ function MyRoadmap() {
                 <h2>🚀 {userInfo?.name}님의 성장 로드맵</h2>
                 <button onClick={() => navigate('/welcome')} style={{ border: 'none', background: 'none', color: '#666', cursor: 'pointer' }}>뒤로가기</button>
             </header>
-
-            {/* 로드맵 리스트 영역 */}
-            <div className="roadmap-list">
-                {steps.map((step) => (
-                <div key={step.id} style={stepCardStyle(step.status)}>
-                    <div>
-                    <span style={{ fontSize: '12px', color: '#888' }}>STEP 0{step.id}</span>
-                    <h3 style={{ margin: '5px 0' }}>{step.title}</h3>
-                    </div>
-                    <span style={{ 
-                    fontWeight: 'bold', 
-                    color: step.status === 'completed' ? '#27ae60' : step.status === 'current' ? '#1877f2' : '#aaa' 
-                    }}>
-                    {step.status === 'completed' ? '완료' : step.status === 'current' ? '진행 중' : '대기'}
-                    </span>
-                </div>
-                ))}
-            </div>
 
             <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
 
@@ -122,6 +93,6 @@ function MyRoadmap() {
             </CCard>
         </div>
     );
- }
+};
 
-export default MyRoadmap;
+export default PageTemplate;
