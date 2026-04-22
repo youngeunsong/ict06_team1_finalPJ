@@ -6,6 +6,7 @@ import WelcomePage from './pages/auth/WelcomePage';
 import MyRoadmap from './pages/onboarding/MyRoadmap';
 import AttendanceManagement from './pages/attendance/AttendanceManagement';
 import AttendanceStatistics from './pages/attendance/AttendanceStatistics';
+import CommuteProcessing from './pages/attendance/CommuteProcessing';
 
 // 화면 경로 연결
 function App() {
@@ -25,11 +26,17 @@ function App() {
       <Route path="/onboarding/myroadmap" element={<MyRoadmap />} />
 
       {/* ------------------------------------------------------------------ */}
+      {/* [대분류 : 근태 관리] */}
       {/* 근태 관리 페이지 */}
       <Route path="/attendance/management" element={<AttendanceManagement />} />
 
+      {/* 출퇴근 처리 */}
+      <Route path="/attendance/commute" element={<CommuteProcessing />} />
+
       {/* 근태 통계 페이지 */}
       <Route path="/attendance/stats" element={<AttendanceStatistics />} />
+
+      {/* ------------------------------------------------------------------ */}
     </Routes>
   );
 }

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import demo_image from '../../assets/images/first_demo/근태관리(한달 보기).png';
 import demo_image_weekly from '../../assets/images/first_demo/근태관리(주별 보기).png';
 
-// 코드 하이라이터
+// 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
