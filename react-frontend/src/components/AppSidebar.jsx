@@ -1,6 +1,9 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 
+// 페이지 이동
+import { Link } from 'react-router-dom';
+
 import {
   CAvatar,
   CCloseButton,
@@ -62,7 +65,12 @@ const AppSidebar = ({ userInfo }) => {
                 <div className="fw-semibold">{userInfo?.name}</div>
               </div>
           </div>
-          <CIcon icon={cilBell} size="lg" className="text-white-50" style={{ cursor: 'pointer' }} />
+
+          {/* 알림 페이지로 이동 */}
+          <Link to="/alert">
+            <CIcon icon={cilBell} size="lg" className="text-white-50" style={{ cursor: 'pointer' }} />
+          </Link>
+          {/* <CIcon icon={cilBell} size="lg" className="text-white-50" style={{ cursor: 'pointer' }} /> */}
         </div>
 
         {/* 검색창 */}
