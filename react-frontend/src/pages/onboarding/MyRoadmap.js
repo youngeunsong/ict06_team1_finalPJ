@@ -10,11 +10,13 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 function MyRoadmap() {
     const navigate = useNavigate();
     const handleButtonClick = () => {
-        navigate('/evaluation/quiz')
+        // navigate('/evaluation/quiz')
+        navigate(PATH.ONBOARDING.QUIZ); 
     }
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();

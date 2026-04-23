@@ -1,5 +1,8 @@
 import React from 'react';
 
+// 경로 상수 
+import { PATH } from "src/constants/path";
+
 // CoreUI 
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
@@ -37,18 +40,10 @@ const AiSecretary = () => {
                 </CCardHeader>
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
-                        {/* 시연용 화면 이동 버튼 */}
-                        {/* <Link to="/ai-portal/secretary/quick-start">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                빠른 시작
-                            </CButton>
-                        </Link> */}
 
-                        <Link to="/ai-portal/secretary/answer-to-chat">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/ai-portal/secretary/answer-to-chat"></Link>     */}
+                        <Link to={PATH.AI.SECRETARY_CHAT}>
                             <CButton
                                 color='primary'
                                 variant='outline'

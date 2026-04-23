@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [급여관리] 사원별 급여 확인 페이지
 const Payroll = () => {
@@ -49,7 +50,9 @@ const Payroll = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/payroll/issue">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/payroll/issue"> */}
+                        <Link to={PATH.PAYROLL.ISSUE}>
                             <CButton
                                 color='primary'
                                 variant='outline'

@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [전자결재] 전자결재 메인 페이지
 const Approval = () => {
@@ -65,7 +66,8 @@ const Approval = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/approval/new/select-form">
+                        {/* <Link to="/approval/new/select-form"> */}
+                        <Link to={PATH.APPROVAL.NEW_SELECT}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -75,7 +77,8 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/approval/tmpApprovals">
+                        {/* <Link to="/approval/tmpApprovals"> */}
+                        <Link to={PATH.APPROVAL.TMP}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -85,7 +88,8 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/approval/personalApprovals">
+                        {/* <Link to="/approval/personalApprovals"> */}
+                        <Link to={PATH.APPROVAL.PERSONAL}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -96,7 +100,8 @@ const Approval = () => {
                         </Link>
 
                         {/* [팀장 전용 메뉴 시작] --- (추후 팀장에게만 보이게 처리) */}
-                        <Link to="/approval/pendingApprovals">
+                        {/* <Link to="/approval/pendingApprovals"> */}
+                        <Link to={PATH.APPROVAL.PENDING}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -106,7 +111,8 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/approval/upcomingApprovals">
+                        {/* <Link to="/approval/upcomingApprovals"> */}
+                        <Link to={PATH.APPROVAL.UPCOMING}>
                             <CButton
                                 color='primary'
                                 variant='outline'

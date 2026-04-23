@@ -16,6 +16,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 const Calendar = () => {
 
@@ -74,7 +75,9 @@ const Calendar = () => {
                         </CButton>
 
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/calendar/simple-add">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/calendar/simple-add"> */}
+                        <Link to={PATH.CALENDAR.SIMPLE_ADD}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -84,7 +87,8 @@ const Calendar = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/calendar/detail-add">
+                        {/* <Link to="/calendar/detail-add"> */}
+                        <Link to={PATH.CALENDAR.DETAIL_ADD}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -94,7 +98,8 @@ const Calendar = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/calendar/detail">
+                        {/* <Link to="/calendar/detail"> */}
+                        <Link to={PATH.CALENDAR.DETAIL}>
                             <CButton
                                 color='primary'
                                 variant='outline'

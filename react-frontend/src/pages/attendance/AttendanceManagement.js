@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [근태관리] 근태관리 홈 화면
 const AttendanceManagement = () => {
@@ -86,7 +87,9 @@ const AttendanceManagement = () => {
                         </CButton>
                     
                         {/* 버튼 클릭하여 페이지 이동 */}
-                        <Link to="/attendance/stats">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/attendance/stats"> */}
+                        <Link to={PATH.ATTENDANCE.STATS}>
                             <CButton
                                 color='primary'
                                 variant='outline'

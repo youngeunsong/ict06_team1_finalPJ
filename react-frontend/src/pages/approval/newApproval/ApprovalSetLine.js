@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [전자결재] 새 결재 진행 - 결재선 설정 페이지 
 const ApprovalSetLine = () => {
@@ -55,7 +56,9 @@ const ApprovalSetLine = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/approval/tmpApprovals">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/approval/tmpApprovals"> */}
+                        <Link to={PATH.APPROVAL.TMP}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -65,7 +68,8 @@ const ApprovalSetLine = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/approval/personalApprovals">
+                        {/* <Link to="/approval/personalApprovals"> */}
+                        <Link to={PATH.APPROVAL.PERSONAL}>
                             <CButton
                                 color='primary'
                                 variant='outline'

@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [AI 비서, AI 챗봇] 사내 AI 포털 페이지
 const AIPortalMain = () => {
@@ -50,7 +51,9 @@ const AIPortalMain = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/ai-portal/secretary">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/ai-portal/secretary"> */}
+                        <Link to={PATH.AI.SECRETARY}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -60,7 +63,8 @@ const AIPortalMain = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/ai-portal/chatbot">
+                        {/* <Link to="/ai-portal/chatbot"> */}
+                        <Link to={PATH.AI.CHATBOT}>
                             <CButton
                                 color='primary'
                                 variant='outline'

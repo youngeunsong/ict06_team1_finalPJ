@@ -15,6 +15,7 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { PATH } from 'src/constants/path';
 
 // [AI챗봇] 화면 하단 아이콘 클릭 후 페이지
 const ChatbotMain = () => {
@@ -38,7 +39,9 @@ const ChatbotMain = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/ai-portal/chatbot/main/select-menu">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/ai-portal/chatbot/main/select-menu"> */}
+                        <Link to={PATH.AI.CHATBOT_MAIN_MENU}>
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -48,7 +51,8 @@ const ChatbotMain = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/ai-portal/chatbot/main/message">
+                        {/* <Link to="/ai-portal/chatbot/main/message"> */}
+                        <Link to={PATH.AI.CHATBOT_MAIN_MESSAGE}>
                             <CButton
                                 color='primary'
                                 variant='outline'

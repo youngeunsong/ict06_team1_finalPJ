@@ -72,6 +72,7 @@ export const PATH = {
     CHATBOT_MAIN: "/ai-portal/chatbot/main",                    // 화면 하단에서 AI 챗봇 버튼 클릭 후 메인 페이지
     CHATBOT_MAIN_MENU: "/ai-portal/chatbot/main/select-menu",                    // 챗봇 메인 - 메뉴 선택 페이지
     CHATBOT_MAIN_MESSAGE: "/ai-portal/chatbot/main/message",                    // 챗봇 메인 - 메시지 작성 페이지
+    
     CHATBOT_MENU: "/ai-portal/chatbot/select-menu",             // AI 챗봇에서 메뉴 선택
     CHATBOT_RESULT: "/ai-portal/chatbot/select-menu/result",    // AI 챗봇에서 메뉴 선택 결과
     CHATBOT_MESSAGE: "/ai-portal/chatbot/message",              // AI 챗봇에서 메시지 작성 페이지

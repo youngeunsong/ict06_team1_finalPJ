@@ -2,6 +2,9 @@
 // 수정 금지
 import React from 'react';
 
+// 경로 상수 
+import { PATH } from "src/constants/path";
+
 // CoreUI 
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
@@ -24,7 +27,8 @@ const PageTemplate = () => {
     // 방법1. 버튼 클릭 시 링크 이동
     const navigate = useNavigate();
     const handleButtonClick = () => {
-        navigate('/evaluation/quiz')
+        navigate(PATH.ONBOARDING.QUIZ); // path에서 경로 상수 불러오기 
+        // navigate('/evaluation/quiz')
     }
     
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
@@ -72,7 +76,9 @@ const PageTemplate = () => {
                         </CButton>
 
                         {/* 방법2 */}
-                        <Link to="/attendance/stats">
+                        {/* path에서 경로 상수 불러오기 */}
+                        {/* <Link to="/attendance/stats"> */}
+                        <Link to={PATH.ATTENDANCE.STATS}> 
                             <CButton
                                 color='primary'
                                 variant='outline'
