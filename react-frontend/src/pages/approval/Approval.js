@@ -75,7 +75,7 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/attendance/stats">
+                        <Link to="/approval/tmpApprovals">
                             <CButton
                                 color='primary'
                                 variant='outline'
@@ -85,7 +85,7 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        <Link to="/attendance/stats">
+                        <Link to="/approval/personalApprovals">
                             <CButton
                                 color='primary'
                                 variant='outline'
