@@ -347,6 +347,128 @@ resources
 
 ```
 
+## 📌 라우팅 경로 관리 구조 정리 (path / routes 분리)
+
+라우팅 경로를 중앙에서 관리할 수 있는 구조
+
+---
+
+### 1. path.js (경로 상수 관리)
+
+* 모든 URL 경로를 `path.js`에서 상수로 관리하도록 변경
+
+```jsx
+// path.js
+export const PATH = {
+  AI_SECRETARY: {
+    ANSWER_TO_CHAT: '/ai-portal/secretary/answer-to-chat',
+  },
+  ATTENDANCE: {
+    MAIN: '/attendance',
+  },
+}
+```
+
+👉 문자열 하드코딩 제거
+👉 경로 변경 시 한 곳만 수정하면 됨
+
+---
+
+### 2. routes/index.js (라우팅 정의 분리)
+
+* 실제 라우팅 설정을 `routes/index.js`로 분리
+
+```jsx
+import { PATH } from './path'
+import AnswerToChat from '../pages/aiSecretary/AnswerToChat'
+
+const routes = [
+  {
+    path: PATH.AI_SECRETARY.ANSWER_TO_CHAT,
+    element: <AnswerToChat />,
+  },
+]
+
+export default routes
+```
+
+👉 라우팅 구조를 한 눈에 파악 가능
+👉 페이지 추가 시 이 파일만 수정하면 됨
+
+---
+
+### 3. App 라우터에서 routes 사용
+
+```jsx
+import routes from './routes'
+
+<Routes>
+  {routes.map((route, idx) => (
+    <Route key={idx} path={route.path} element={route.element} />
+  ))}
+</Routes>
+```
+
+👉 라우팅 로직 단순화
+
+---
+
+### 4. 실제 사용 방식 (Link)
+
+```jsx
+import { PATH } from '@/routes/path'
+
+<Link to={PATH.AI_SECRETARY.ANSWER_TO_CHAT}>
+  <CButton>이동</CButton>
+</Link>
+```
+
+👉 경로를 직접 쓰지 않고 PATH 사용
+
+---
+
+### 📁 구조 요약
+
+```plaintext
+routes/
+ ├── path.js        # 경로 상수 관리
+ ├── index.js       # 라우팅 정의
+```
+
+---
+
+### ✅ 기대 효과
+
+* 경로 하드코딩 제거
+* 경로 변경 시 영향 범위 최소화
+* 라우팅 구조 한눈에 파악 가능
+* 신규 페이지 추가 시 작업 위치 명확
+
+---
+
+### 🙏 사용 가이드 (중요)
+
+1. **경로 추가 시**
+   → `path.js`에 먼저 정의
+
+2. **페이지 연결 시**
+   → `routes/index.js`에 등록
+
+3. **컴포넌트에서 이동 시**
+   → `PATH` 상수 사용
+
+---
+
+### 📎 예시 흐름
+
+```plaintext
+path.js 추가 → routes/index.js 등록 → 페이지에서 PATH 사용
+```
+
+---
+
+앞으로 라우팅 관련 작업은 위 구조 기준으로 진행하면 됩니다 👍
+
 ## 새로운 화면 생성 & 새 경로 설정 방법
 
 1. 화면용 jsx 생성: 담당 도메인 폴더에 .js 형식 파일 새로 만들기 
