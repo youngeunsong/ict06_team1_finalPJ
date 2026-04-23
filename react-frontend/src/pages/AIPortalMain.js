@@ -6,6 +6,9 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 // 페이지 이동
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
+// 시연용 이미지 파일
+import refImage from 'src/assets/images/first_demo/ai-portal.png';
+
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 
@@ -66,6 +69,17 @@ const AIPortalMain = () => {
                                 AI 챗봇
                             </CButton>
                         </Link>
+                    </div>
+
+                    {/* 레퍼런스 이미지 영역 */}
+                    <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
+                        <img 
+                            src={refImage} 
+                            alt="사내 AI 포탈" 
+                            style={{ width: '100%',
+                            height: 'auto',
+                            display: 'block' }} 
+                        />
                     </div>
 
                     {/* SQL 쿼리 영역 */}

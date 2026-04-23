@@ -9,7 +9,7 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png'
+import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png';
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';

@@ -8,7 +8,9 @@ import ChatbotSelectMenu from "../pages/chatbot/ChatbotSelectMenu";
 import ChatbotSelectMenuAction from "../pages/chatbot/ChatbotSelectMenuAction";
 import ChatbotWriteMessage from "../pages/chatbot/ChatbotWriteMessage";
 
+// DefaultLayout 내부의 AppContent 자리에 렌더링될 페이지만 명시
 export const aiRoutes = (userInfo) => [
+  // 형식: { path: PATH.AI.PORTAL, element: <AIPortalMain userInfo={userInfo} /> },
   { path: PATH.AI.PORTAL, element: <AIPortalMain userInfo={userInfo} /> },
 
   { path: PATH.AI.SECRETARY, element: <AiSecretary userInfo={userInfo} /> },

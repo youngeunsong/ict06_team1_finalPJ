@@ -1,3 +1,54 @@
+// import { Routes, Route, Navigate } from "react-router-dom";
+// import React, { Suspense, useState } from "react";
+
+// import { PATH } from "./constants/path";
+
+// // 1. 기존 페이지 컴포넌트
+// // [그룹 A] 독립 페이지(초기 진입 시 빠른 로딩을 위해 일반 import)
+// import LoginPage from "./pages/auth/LoginPage";
+// import WelcomePage from "./pages/auth/WelcomePage";
+// import { getAppRoutes } from "./routes/index";
+
+// // 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
+// const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
+
+// function App() {
+//   const [userInfo, setUserInfo] = useState({
+//     emp_no: "20209999",
+//     name: "홍길동",
+//   });
+
+//   const routes = getAppRoutes(userInfo);
+
+//   return (
+//     <Suspense fallback={<div>Loading...</div>}>
+//       <Routes>
+//         <Route path={PATH.ROOT} element={<Navigate to={PATH.AUTH.LOGIN} />} />
+
+//         {/* 인증 */}
+//         <Route path={PATH.AUTH.LOGIN} element={<LoginPage setUserInfo={setUserInfo} />} />
+//         <Route path={PATH.AUTH.WELCOME} element={<WelcomePage userInfo={userInfo} />} />
+
+//         {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
+//         <Route element={<DefaultLayout />}>
+//           {routes.map((route, idx) => (
+//             <Route key={idx} path={route.path} element={route.element} />
+//           ))}
+//         </Route>
+
+//         <Route path="*" element={<Navigate to={PATH.AUTH.LOGIN} />} />
+//       </Routes>
+//     </Suspense>
+//   );
+// }
+
+// export default App;
+
+
+
+
+
+// 원본 --------------------------------------------------------------------
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import React, { Suspense, useState } from 'react';
@@ -36,6 +87,12 @@ import ChatbotSelectMenu from './pages/chatbot/ChatbotSelectMenu';
 import ChatbotWriteMessage from './pages/chatbot/ChatbotWriteMessage';
 import ChatbotSelectMenuAction from './pages/chatbot/ChatbotSelectMenuAction';
 import RealtimeAlert from './components/RealtimeAlert';
+import ChatbotMain from './pages/chatbot/ChatbotMain';
+import ChatbotMainSelectMenu from './pages/chatbot/ChatbotMainSelectMenu';
+import ChatbotMainMessage from './pages/chatbot/ChatbotMainMessage';
+import CalendarSimpleAdd from './pages/calendar/CalendarSimpleAdd';
+import CalendarDetailAdd from './pages/calendar/CalendarDetailAdd';
+import CalendarDetail from './pages/calendar/CalendarDetail';
 
 //[그룹 B] 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'));
@@ -95,6 +152,15 @@ function App() {
           {/* [대분류 : 캘린더/}*/}
           {/* 캘린더 메인 페이지 */}
           <Route path="/calendar" element={<Calendar userInfo={userInfo} />} />
+
+          {/* 일정 간단 등록 페이지 */}
+          <Route path="/calendar/simple-add" element={<CalendarSimpleAdd userInfo={userInfo} />} />
+
+          {/* 상세 등록 / 반복 / 참석자 일정 페이지 */}
+          <Route path="/calendar/detail-add" element={<CalendarDetailAdd userInfo={userInfo} />} />
+
+          {/* 일정 상세/삭제 */}
+          <Route path="/calendar/detail" element={<CalendarDetail userInfo={userInfo} />} />
 
           {/* -------------------------------------------------------------- */}
           {/* [대분류 : 전자결재/}*/}
@@ -165,6 +231,15 @@ function App() {
           {/* [대분류 : AI챗봇]*/}
           {/* AI 챗봇 열기 */}
           <Route path="/ai-portal/chatbot" element={<Chatbot userInfo={userInfo} />} />
+
+          {/* 화면 하단에서 AI 챗봇 버튼 클릭 후 메인 페이지 */}
+          <Route path="/ai-portal/chatbot/main" element={<ChatbotMain userInfo={userInfo} />} />
+
+          {/* 챗봇 메인 - 메시지 선택 페이지 */}
+          <Route path="/ai-portal/chatbot/main/select-menu" element={<ChatbotMainSelectMenu userInfo={userInfo} />} />
+
+          {/* 챗봇 메인 - 메시지 작성 페이지 */}
+          <Route path="/ai-portal/chatbot/main/message" element={<ChatbotMainMessage userInfo={userInfo} />} />
 
           {/* AI 챗봇에서 메뉴 선택 */}
           <Route path="/ai-portal/chatbot/select-menu" element={<ChatbotSelectMenu userInfo={userInfo} />} />

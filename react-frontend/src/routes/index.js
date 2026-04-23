@@ -4,15 +4,12 @@ import { approvalRoutes } from "./approvalRoutes";
 import { aiRoutes } from "./aiRoutes";
 import { authRoutes } from "./authRoutes";
 import { employeeRoutes } from "./employeeRoutes";
-import {evaluationRoutes} from "./evaluationRoutes";
+import {evaluationRoutes} from "./onboardingRoutes";
 import {payrollRoutes} from "./payrollRoutes";
 
-export const getAppRoutes = (userInfo) => [
+export const getAppRoutes = (userInfo, setUserInfo) => [
+  ...authRoutes(userInfo, setUserInfo),
   ...attendanceRoutes(userInfo),
   ...approvalRoutes(userInfo),
   ...aiRoutes(userInfo),
-  ...authRoutes(userInfo),
-  ...employeeRoutes(userInfo),
-  ...evaluationRoutes(userInfo),
-  ...payrollRoutes(userInfo),
 ];

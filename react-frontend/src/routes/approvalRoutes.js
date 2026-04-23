@@ -10,6 +10,7 @@ import PendingApprovals from "../pages/approval/teamLeader/PendingApprovals";
 import PendingApprovalDetail from "../pages/approval/teamLeader/PendingApprovalDetail";
 import UpcomingApprovals from "../pages/approval/teamLeader/UpcomingApprovals";
 
+// DefaultLayout 내부의 AppContent 자리에 렌더링될 페이지만 명시
 export const approvalRoutes = (userInfo) => [
   { path: PATH.APPROVAL.ROOT, element: <Approval userInfo={userInfo} /> },
   { path: PATH.APPROVAL.NEW_SELECT, element: <ApprovalSelectForm userInfo={userInfo} /> },

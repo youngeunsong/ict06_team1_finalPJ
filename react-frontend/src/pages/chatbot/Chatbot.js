@@ -7,7 +7,7 @@ import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/[AIChatbot]OpenChatbot.png'
+import refImage from 'src/assets/images/first_demo/ai-portal_chatbot.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
 import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
@@ -52,25 +52,15 @@ const Chatbot = () => {
                 <CCardBody className="p-0 d-flex flex-column">
                     <div className="p-2 d-flex justify-content-end">
                         {/* 시연용 화면 이동 버튼 */}
-                        <Link to="/ai-portal/chatbot/select-menu">
+                        <Link to="/ai-portal/chatbot/main">
                             <CButton
                                 color='primary'
                                 variant='outline'
                                 style={{ fontWeight: 'bold' }}
                                 >
-                                메뉴 선택
+                                화면 하단 아이콘
                             </CButton>
-                        </Link>
-
-                        <Link to="/ai-portal/chatbot/message">
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                문의 메시지 작성
-                            </CButton>
-                        </Link>
+                        </Link>    
                     </div>
 
                     {/* 레퍼런스 이미지 영역 */}
