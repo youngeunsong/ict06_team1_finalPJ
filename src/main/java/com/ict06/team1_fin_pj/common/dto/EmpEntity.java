@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -46,6 +47,9 @@ public class EmpEntity {
     private Integer roleId;
 
     private String status;
+
+    @Column(name = "hire_date")
+    private LocalDate hireDate;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

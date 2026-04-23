@@ -1,4 +1,5 @@
 import React from 'react'
+import Login from './views/pages/login/Login'
 
 const UserHome = React.lazy(() => import('./pages/auth/UserHome'))
 const AIPortal = React.lazy(() => import('./pages/chatbot/Chatbot'))
@@ -13,7 +14,6 @@ const Payroll = React.lazy(() => import('./pages/payroll/Payroll'))
 
 export const routes = [
   //메인 및 기본 경로
-  { path: '/', exact: true, name: 'UserHome'},
   { path: '/auth/userhome', name: 'UserHome', element: UserHome },
 
   //사이드바 메뉴 연결 경로

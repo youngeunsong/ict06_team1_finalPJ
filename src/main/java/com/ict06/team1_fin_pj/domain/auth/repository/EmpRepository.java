@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface EmpRepository extends JpaRepository<EmpEntity, String> {
+public interface EmpRepository extends JpaRepository<EmpEntity, String>, EmpRepositoryCustom {
     Optional<EmpEntity> findByEmpNo(String empNo);
+
 }

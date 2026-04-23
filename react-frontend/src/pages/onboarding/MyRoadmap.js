@@ -1,16 +1,26 @@
+/**
+ * @FileName : MyRoadmap.js
+ * @Description : 인사평가 > AI 온보딩 로드맵
+ * @Author : 김다솜
+ * @Date : 2026. 04. 21
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.21    김다솜        최초 생성/화면 구성
+ */
+
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import React from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png'
 
-function MyRoadmap() {
+function MyRoadmap({ userInfo }) {
     const navigate = useNavigate();
     const handleButtonClick = () => {
         navigate('/evaluation/quiz')
     }
-    //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
-    const [userInfo] = useOutletContext();
 
   //임시 데이터 (나중에 DB에서 가져올 부분)
   const steps = [
