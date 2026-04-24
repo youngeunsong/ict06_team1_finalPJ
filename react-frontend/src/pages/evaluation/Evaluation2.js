@@ -3,11 +3,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import refImage from 'src/assets/images/first_demo/[Evaluation]Evaluation3.png'
+import { PATH } from 'src/constants/path';
 
 const Evaluation2 = () => {
     const navigate = useNavigate();
     const handleButtonClick = () => {
-        navigate('/evaluation/quiz')
+        // navigate('/evaluation/quiz')\
+        navigate(PATH.ONBOARDING.QUIZ); 
     }
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
