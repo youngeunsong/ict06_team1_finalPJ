@@ -53,6 +53,9 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
     * 계정생성 기능 없는 상태로 해싱 적용한 로그인 기능 먼저 구현함. 따라서 DB에는 해싱값이 들어있고, 브라우저에서 사용자가 입력하는 값은 평문이어야 함
     * 이를 위해 프로젝트 실행 시 가장 먼저 `TempPassword.java` 파일 실행하여 해싱값을 생성 -> IntelliJ 콘솔에서 DB password 값 확인하여 test 계정 데이터를 update 처리하면 해싱된 값으로 저장됨.
 
+1. **백엔드용 port 번호 변경 필요시**
+    * 백엔드: `application.properties` 에서 포트 번호 변경
+    * 프론트엔드: `LoginPage.js`, `Crawling.js`에서 포트 번호 변경
 1. `src/main/java/com/ict06/team1_fin_pj/Team1FinPjApplication.java`를 실행. 정상 실행되는 지 확인.  
 
 ### 3. [프론트엔드] VisualStudio Code 환경설정 & 실행
