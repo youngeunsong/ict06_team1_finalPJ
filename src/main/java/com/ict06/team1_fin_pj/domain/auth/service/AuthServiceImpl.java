@@ -1,3 +1,16 @@
+/**
+ * @FileName : AuthServiceImpl.java
+ * @Description : 사원 인증 및 JWT 토큰 발행 서비스
+ * @Author : 김다솜
+ * @Date : 2026. 04. 17
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.17    김다솜        최초 생성/로그인 로직 추가
+ * @ 2026.04.23    김다솜        사번 기반 권한 매핑 로직 보완
+ */
+
 package com.ict06.team1_fin_pj.domain.auth.service;
 
 import com.ict06.team1_fin_pj.common.dto.EmpEntity;

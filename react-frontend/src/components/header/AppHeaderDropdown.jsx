@@ -24,9 +24,40 @@ import CIcon from '@coreui/icons-react'
 
 import avatar8 from './../../assets/images/avatars/8.jpg'
 
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useUser } from 'src/api/UserContext'
+import Swal from 'sweetalert2'
 
 const AppHeaderDropdown = () => {
+  const navigate = useNavigate();
+  const { logout } = useUser();
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Logout',
+      text: "로그아웃 하시겠습니까?",
+      icon: 'warning',
+      width: '25rem',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: '로그아웃',
+      cancelButtonText: '취소'
+    }).then((result) => {
+      if(result.isConfirmed) {
+        logout()
+        Swal.fire({
+          title: '완료!',
+          text: '로그아웃 되었습니다.',
+          icon: 'success',
+          width: '22rem',
+          timer: 1500,
+          showConfirmButton: false
+        })
+        setTimeout(() => navigate('/login'), 1500)
+      }
+    })
+  }
   return (
     <CDropdown variant="nav-item">
       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
@@ -86,9 +117,13 @@ const AppHeaderDropdown = () => {
           </CBadge>
         </CDropdownItem>
         <CDropdownDivider />
-        <CDropdownItem href="#">
+        <CDropdownItem
+          component="button"
+          onClick={handleLogout}
+          style={{ cursor: 'pointer', userSelect: 'none', width: '100%', textAlign: 'left' }}
+        >
           <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
+          Logout
         </CDropdownItem>
       </CDropdownMenu>
     </CDropdown>

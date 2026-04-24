@@ -1,5 +1,6 @@
 package com.ict06.team1_fin_pj.common.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EmpEntity {
+public class EmpEntity extends BaseTimeEntity {
 
     @Id
     @Column(name = "emp_id", length = 20)
@@ -36,6 +37,9 @@ public class EmpEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
+    @Column(unique = true, length = 20)
+    private String phone;
+
     @Column(name = "dept_id")
     private Integer deptId;
 
@@ -51,13 +55,19 @@ public class EmpEntity {
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "profile_img")
+    private String profileImg;
 
     // Y/N
     @Column(name = "is_deleted", columnDefinition = "char(1)")
     private String isDeleted;
+
+
+    @Column(name = "created_at")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
+    private LocalDateTime updatedAt;
 }
