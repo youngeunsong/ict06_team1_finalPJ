@@ -10,6 +10,7 @@ import Evaluation2 from './pages/evaluation/Evaluation2';
 //[그룹 B] 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import('./layout/DefaultLayout'));
 const UserHome = React.lazy(() => import('./pages/auth/UserHome'));
+const AIPortal = React.lazy(() => import('./pages/aiSecretary/AiSecretary'));
 const MyRoadmap = React.lazy(() => import('./pages/onboarding/MyRoadmap'));
 const Evaluation = React.lazy(() => import('./pages/evaluation/Evaluation'));
 
@@ -40,6 +41,7 @@ function App() {
         <Route element={<DefaultLayout />}>
           {/* DefaultLayout 내부의 AppContent 자리에 아래 페이지들이 렌더링됨 */}
           <Route path="/auth/userhome" element={<UserHome userInfo={userInfo} />} />
+          <Route path="/aiSecretary/ai-portal" element={<AIPortal userInfo={userInfo} />} />
           <Route path="/onboarding/myroadmap" element={<MyRoadmap userInfo={userInfo} />} />
           <Route path="/evaluation/quiz" element={<Evaluation userInfo={userInfo} />} />
           <Route path="/evaluation/evaluation" element={<Evaluation2 userInfo={userInfo} />} />

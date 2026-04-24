@@ -8,7 +8,7 @@ const _nav = [
   {
     component: CNavItem,
     name: '사내 AI 포털',
-    to: '/ai-portal',
+    to: '/aiSecretary/ai-portal',
     icon: <CIcon icon={cilChatBubble} customClassName="nav-icon" />,
     badge: {
       color: 'primary',

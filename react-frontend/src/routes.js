@@ -1,7 +1,7 @@
 import React from 'react'
 
 const UserHome = React.lazy(() => import('./pages/auth/UserHome'))
-const AIPortal = React.lazy(() => import('./pages/chatbot/Chatbot'))
+const AIPortal = React.lazy(() => import('./pages/aiSecretary/AiSecretary'))
 const Calendar = React.lazy(() => import('./pages/calendar/Calendar'))
 const Approval = React.lazy(() => import('./pages/approval/Approval'))
 const MyRoadmap = React.lazy(() => import('./pages/onboarding/MyRoadmap'))
@@ -18,7 +18,7 @@ export const routes = [
 
   //사이드바 메뉴 연결 경로
   //AI 포털
-  { path: '/ai-portal', name: '사내 AI 포털', element: AIPortal },
+  { path: '/aiSecretary/ai-portal', name: '사내 AI 포털', element: AIPortal },
 
   //캘린더
   { path: '/calendar', name: '일정 관리', element: Calendar },
