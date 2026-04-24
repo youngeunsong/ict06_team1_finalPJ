@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PATH } from 'src/constants/path';
 
 function WelcomePage({ userInfo, setUserInfo }) {
     const navigate = useNavigate();
@@ -13,7 +14,8 @@ function WelcomePage({ userInfo, setUserInfo }) {
       setUserInfo(null);
     
       //로그아웃 후 로그인 페이지로 이동
-      navigate('/auth/login');
+      // navigate('/auth/login');
+      navigate(PATH.AUTH.LOGIN);
     };
 
     //userInfo 없을 경우 에러 방지용
@@ -36,8 +38,10 @@ function WelcomePage({ userInfo, setUserInfo }) {
                 </div>
 
                 {/* 대시보드 입장 버튼 */}
-                <button
-                  onClick={() => navigate('/auth/userhome')}
+                {/* path에서 경로 상수 불러오기 */}
+                {/* onClick={() => navigate('/auth/userhome')} */}
+                <button                 
+                  onClick={() => navigate(PATH.AUTH.USERHOME)}
                   style={{ ...buttonStyle, backgroundColor: '#27ae60', marginBottom: '10px' }}>
                     대시보드 입장
                 </button>
