@@ -6,10 +6,14 @@ import { Link } from 'react-router-dom';
 
 import {
   CAvatar,
+  CBadge,
   CCloseButton,
   CFormInput,
   CInputGroup,
   CInputGroupText,
+  CNavGroup,
+  CNavItem,
+  CNavTitle,
   CSidebar,
   CSidebarBrand,
   CSidebarFooter,
@@ -43,6 +47,12 @@ const AppSidebar = ({ userInfo }) => {
         dispatch({ type: 'set', sidebarShow: visible })
       }}
     >
+    {/* 마우스 호버 시에만 펼쳐지는 사이드바 css : 형상 깨지므로 미사용. */}
+    {/* <CSidebar 
+      className="border-end" 
+      colorScheme="dark"
+      unfoldable
+      > */}
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand to="/">
           <div className="fw-bold" style={{ fontSize: '1.2rem' }}>ICTO6 TEAM1</div>

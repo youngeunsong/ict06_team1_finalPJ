@@ -18,4 +18,11 @@ public class TestController {
 
         return "index"; // 타임리프 템플릿 => resources/templates/index.html
     }
+
+    @RequestMapping("/template")
+    public String template(HttpServletRequest request, HttpServletResponse response, Model model)
+            throws ServletException, IOException {
+
+        return "template"; // 타임리프 템플릿 => resources/templates/index.html
+    }
 }
