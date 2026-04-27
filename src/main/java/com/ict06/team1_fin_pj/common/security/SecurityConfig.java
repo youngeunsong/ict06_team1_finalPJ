@@ -80,7 +80,8 @@ public class SecurityConfig {
 
 
                 //UsernamePasswordAuthenticationFilter 앞에 JWT 인증 필터 추가
-                .addFilterBefore(new JwtAuthenticationFilter(jwtToken), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtToken),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
