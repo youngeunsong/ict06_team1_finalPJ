@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useUser } from 'src/api/UserContext';
+import { PATH } from 'src/constants/path';
 
 function WelcomePage() {
     const navigate = useNavigate();
@@ -30,24 +30,31 @@ function WelcomePage() {
         <div style={containerStyle}>
           <div style={{ ...cardStyle, borderColor: '#27ae60', borderWidth: '2px', border: '5px solid #27ae60' }}>
             <h3 style={{ color: '#27ae60' }}>{userInfo.name}님, 환영합니다!</h3>
+              {/* 사용자 정보 확인 영역 */}
+              <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                <p style={{ margin: '5px 0', color: '#606770', fontSize: '0.95rem' }}>
+                    <strong>사번 :</strong> {userInfo.empNo || userInfo.emp_no}
+                </p>
+                <p style={{ margin: '5px 0', color: '#333', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                    <strong>이름 :</strong> {userInfo.name}
+                </p>
+              </div>
 
-            <div style={{ margin: '24px 0', textAlign: 'left', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
-              <p style={{ margin: '5px 0' }}><strong>이름: </strong> {userInfo.name}</p>
-              <p style={{ margin: '5px 0' }}><strong>사번: </strong> {userInfo.empNo}</p>
-              <p style={{ margin: '5px 0', fontSize: '12px', color: '#666' }}>성공적으로 로그인되었습니다.</p>
-            </div>
-
-            <button
-              onClick={() => navigate('/auth/userhome')}
-              style={{ ...buttonStyle, backgroundColor: '#27ae60', marginBottom: '10px' }}>
-              대시보드 입장
-            </button>
-
-            <button
-              onClick={handleLogout}
-              style={{ ...buttonStyle, backgroundColor: '#606770' }}>
-              로그아웃
-            </button>
+              {/* 대시보드 입장 버튼 */}
+              {/* path에서 경로 상수 불러오기 */}
+              {/* onClick={() => navigate('/auth/userhome')} */}
+              <button                 
+                onClick={() => navigate(PATH.AUTH.USERHOME)}
+                style={{ ...buttonStyle, backgroundColor: '#27ae60', marginBottom: '10px' }}>
+                  대시보드 입장
+              </button>
+            
+              {/* 로그아웃 버튼 */}
+              <button
+                onClick={handleLogout}
+                style={{ ...buttonStyle, backgroundColor: '#606770' }}>
+                  로그아웃
+              </button>
           </div>
         </div>
       );

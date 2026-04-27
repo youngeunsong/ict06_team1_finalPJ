@@ -27,6 +27,7 @@ import avatar8 from './../../assets/images/avatars/8.jpg'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useUser } from 'src/api/UserContext'
 import Swal from 'sweetalert2'
+import { PATH } from 'src/constants/path'
 
 const AppHeaderDropdown = () => {
   const navigate = useNavigate();
@@ -94,7 +95,7 @@ const AppHeaderDropdown = () => {
           </CBadge>
         </CDropdownItem>
         <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-        <CDropdownItem as={NavLink} to="/mypage">
+        <CDropdownItem as={NavLink} to={PATH.AUTH.MYPAGE}>
           <CIcon icon={cilUser} className="me-2" />
           마이페이지
         </CDropdownItem>

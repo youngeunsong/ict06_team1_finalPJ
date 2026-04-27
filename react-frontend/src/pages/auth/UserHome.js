@@ -17,8 +17,10 @@ import CIcon from '@coreui/icons-react';
 import { cilSun, cilClock, cilEducation, cilCalendar, cilCheckCircle } from '@coreui/icons';
 
 import { fetchHomeData } from './Crawling';
+import { useUser } from 'src/api/UserContext';
 
-const UserHome = ({ userInfo }) => {
+const UserHome = () => {
+  const {userInfo} = useUser();
   const [homeData, setHomeData] = useState({
     temp: '--',
     desc: '로딩 중...',

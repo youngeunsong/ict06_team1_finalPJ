@@ -1,15 +1,12 @@
 package com.ict06.team1_fin_pj.common.dto;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "DEPARTMENT")
@@ -20,18 +17,37 @@ import java.time.LocalDateTime;
 public class DepartmentEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "dept_id")
     private Integer deptId;
 
     @Column(name = "dept_name", nullable = false, length = 50)
     private String deptName;
 
-    @Column(name = "parent_dept_id")
-    private Integer parentDeptId;
+    //상위부서(self FK 설정, parent_dept_id와 매핑)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_dept_id", nullable = true)
+    @JsonIgnore
+    private DepartmentEntity parentDept;
 
-    @Column(name = "created_at")
+    //하위부서
+    //하나의 상위부서 아래에 여러 하위 부서 존재 가능하므로 List로 설정
+    @Builder.Default
+    @OneToMany(mappedBy = "parentDept", orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<DepartmentEntity> children = new ArrayList<>();
+
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void addChildDepartment(DepartmentEntity child) {
+        this.children.add(child);
+        child.setParent(this);
+    }
+
+    public void setParent(DepartmentEntity parent) {
+        this.parentDept = parent;
+    }
 }

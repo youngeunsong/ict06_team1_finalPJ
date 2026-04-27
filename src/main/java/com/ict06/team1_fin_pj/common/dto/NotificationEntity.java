@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -17,41 +16,40 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-public class NotificationEntity {
+public class NotificationEntity extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "noti_id")
     private Integer notiId;
 
-    @Column(name = "emp_no", nullable = false, length = 20)
-    private String empNo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "emp_no", nullable = false)
+    private EmpEntity employee;
 
-    @Column(name = "noti_type", nullable = false, length = 20)
-    private String notiType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "noti_type", length = 20)
+    private NotificationType notiType;
 
-    @Column(name = "title", nullable = false, length = 100)
+    @Column(length = 100)
     private String title;
 
-    @Column(name = "message")
+    @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "url", length = 500)
+    @Column(length = 500)
     private String url;
 
-    @Column(name = "is_read", length = 1)
-    private String isRead;
-
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @CreatedDate
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "is_read", nullable = false)
+    @Builder.Default
+    private Boolean isRead = false;
 
     // NotificationEntity.java 안에 추가 (Dirty Checking 활용)
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     public void markRead() {
-        this.isRead = "Y";
+        this.isRead = true;
+        this.readAt = LocalDateTime.now();
     }
 }

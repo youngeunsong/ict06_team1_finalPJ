@@ -13,7 +13,10 @@
 
 package com.ict06.team1_fin_pj.domain.notification.service;
 
+import com.ict06.team1_fin_pj.common.dto.EmpEntity;
 import com.ict06.team1_fin_pj.common.dto.NotificationEntity;
+import com.ict06.team1_fin_pj.common.dto.NotificationType;
+import com.ict06.team1_fin_pj.domain.auth.repository.EmpRepository;
 import com.ict06.team1_fin_pj.domain.notification.repository.NotificationRepository;
 import com.ict06.team1_fin_pj.domain.notification.sse.SseEmitterManager;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class NotificationServiceImpl {
 
     private final NotificationRepository notificationRepository;
     private final SseEmitterManager sseEmitterManager;
+    private final EmpRepository empRepository;
 
     //SSE 구독(프론트에서 처음 연결 시 추출)
     public SseEmitter subscribe(String empNo) {
@@ -53,14 +57,17 @@ public class NotificationServiceImpl {
     //다른 도메인에서 알림 기능 필요할 때 이 메서드 호출하면 됩니다!
     @Transactional
     public void sendNotification(String empNo, String notiType, String title, String content, String url) {
+        EmpEntity emp = empRepository.findById(empNo)
+                .orElseThrow(() -> new RuntimeException("직원을 찾을 수 없습니다."));
+
         //1. DB 저장
         NotificationEntity noti = NotificationEntity.builder()
-                .empNo(empNo)
-                .notiType(notiType)
+                .employee(emp)
+                .notiType(NotificationType.valueOf(notiType))
                 .title(title)
                 .content(content)
                 .url(url)
-                .isRead("N")
+                .isRead(false)
                 .build();
         notificationRepository.save(noti);
 
@@ -70,12 +77,12 @@ public class NotificationServiceImpl {
 
     //알림 목록 조회
     public List<NotificationEntity> getNotifications(String empNo) {
-        return notificationRepository.findByEmpNoOrderByCreatedAtDesc(empNo);
+        return notificationRepository.findByEmployee_EmpNoOrderByCreatedAtDesc(empNo);
     }
 
     //읽지 않은 알림 개수
     public long getUnreadCount(String empNo) {
-        return notificationRepository.countByEmpNoAndIsRead(empNo, "N");
+        return notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
     }
 
     //알림 읽음 처리

@@ -7,7 +7,6 @@ const DefaultLayout = ({ userInfo }) => {
     <div className="wrapper d-flex flex-column min-vh-100">
       {/* 사이드바에 userInfo 전달 */}
       <AppSidebar userInfo={userInfo} />
-
       <div className="wrapper d-flex flex-column min-vh-100 bg-light">
         <AppHeader userInfo={userInfo} />
         <div className="body flex-grow-1 px-3">

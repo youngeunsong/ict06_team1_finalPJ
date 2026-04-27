@@ -1,17 +1,14 @@
 package com.ict06.team1_fin_pj.common.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "EMPLOYEE")
@@ -22,12 +19,13 @@ import java.time.LocalDateTime;
 public class EmpEntity extends BaseTimeEntity {
 
     @Id
-    @Column(name = "emp_id", length = 20)
-    private String empId;
-
     @Column(name = "emp_no", unique = true, nullable = false, length = 20)
     private String empNo;
 
+    @Column(name = "emp_id", length = 20)
+    private String empId;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
@@ -37,37 +35,44 @@ public class EmpEntity extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(unique = true, length = 20)
+    @Column(nullable = false, unique = true, length = 20)
     private String phone;
 
-    @Column(name = "dept_id")
-    private Integer deptId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dept_id", nullable = false)
+    @JsonIgnore
+    private DepartmentEntity department;
 
-    @Column(name = "position_id")
-    private Integer positionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "position_id", nullable = false)
+    private PositionEntity position;
 
     //1: ADMIN(시스템관리자), 2: TEAM_LEADER(팀장), 3: USER(팀원)
-    @Column(name = "role_id")
-    private Integer roleId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private RoleEntity role;
 
-    private String status;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grade_id")
+    private GradeCodeEntity grade;
 
-    @Column(name = "hire_date")
+    @Builder.Default
+    private String status = "재직";
+
+    @Column(name = "hire_date", nullable = false)
     private LocalDate hireDate;
+
+    @Column(name = "resignation_date")
+    private LocalDate resignationDate;
 
     @Column(name = "profile_img")
     private String profileImg;
 
+    @Column(name = "sign_img")
+    private String signImg;
+
     // Y/N
+    @Builder.Default
     @Column(name = "is_deleted", columnDefinition = "char(1)")
-    private String isDeleted;
-
-
-    @Column(name = "created_at")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
-    private LocalDateTime updatedAt;
+    private String isDeleted = "N";
 }

@@ -1,5 +1,4 @@
 import React from 'react'
-import Login from './views/pages/login/Login'
 
 const UserHome = React.lazy(() => import('./pages/auth/UserHome'))
 const AIPortal = React.lazy(() => import('./pages/chatbot/Chatbot'))
@@ -14,30 +13,30 @@ const Payroll = React.lazy(() => import('./pages/payroll/Payroll'))
 
 export const routes = [
   //메인 및 기본 경로
-  { path: '/auth/userhome', name: 'UserHome', element: UserHome },
+  { path: '/auth/userhome', name: 'UserHome', element: <UserHome /> },
 
   //사이드바 메뉴 연결 경로
   //AI 포털
-  { path: '/ai-portal', name: '사내 AI 포털', element: AIPortal },
+  { path: '/ai-portal', name: '사내 AI 포털', element: <AIPortal /> },
 
   //캘린더
-  { path: '/calendar', name: '일정 관리', element: Calendar },
+  { path: '/calendar', name: '일정 관리', element: <Calendar /> },
 
   //전자결재
-  { path: '/approval', name: '전자결재', element: Approval },
+  { path: '/approval', name: '전자결재', element: <Approval /> },
   
   //인사 평가
-  { path: '/onboarding/myroadmap', name: 'AI 온보딩 로드맵', element: MyRoadmap },
-  { path: '/evaluation/quiz', name: 'AI 퀴즈 및 평가', element: Evaluation },
+  { path: '/onboarding/myroadmap', name: 'AI 온보딩 로드맵', element: <MyRoadmap /> },
+  { path: '/evaluation/quiz', name: 'AI 퀴즈 및 평가', element: <Evaluation /> },
   
   //인사 관리
-  { path: '/employee', name: '내 정보 및 조직도', element: Employee },
+  { path: '/employee', name: '내 정보 및 조직도', element: <Employee /> },
   
   //근태 관리
-  { path: '/attendance', name: '근태관리', element: Attendance },
+  { path: '/attendance', name: '근태관리', element: <Attendance /> },
   
   //급여 관리
-  { path: '/payroll', name: '급여관리', element: Payroll },
+  { path: '/payroll', name: '급여관리', element: <Payroll /> },
   
 
 ]

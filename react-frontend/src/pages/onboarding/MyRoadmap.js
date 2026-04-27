@@ -13,13 +13,19 @@
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { routes } from '../../routes';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import refImage from 'src/assets/images/first_demo/[Onboarding]Roadmap.png'
+import { PATH } from 'src/constants/path';
+import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 
 function MyRoadmap({ userInfo }) {
     const navigate = useNavigate();
     const handleButtonClick = () => {
-        navigate('/evaluation/quiz')
+        // navigate('/evaluation/quiz')
+        navigate(PATH.ONBOARDING.QUIZ); 
     }
 
   //임시 데이터 (나중에 DB에서 가져올 부분)
@@ -53,19 +59,6 @@ function MyRoadmap({ userInfo }) {
         AND due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '2 days')
         ORDER BY due_date ASC;
     `;
-
-    const containerStyle = { padding: '40px', maxWidth: '1600px', margin: '0 auto', fontFamily: 'sans-serif' };
-    const stepCardStyle = (status) => ({
-    padding: '20px',
-    marginBottom: '15px',
-    borderRadius: '10px',
-    borderLeft: `8px solid ${status === 'completed' ? '#27ae60' : status === 'current' ? '#1877f2' : '#ddd'}`,
-    backgroundColor: '#fff',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-    });
 
     return (
         <div style={containerStyle}>
@@ -130,19 +123,9 @@ function MyRoadmap({ userInfo }) {
                                 관련 SQL 쿼리
                             </span>
                         </h5>
-                        <pre style={{
-                            backgroundColor: '#f8f9fa',
-                            padding: '20px',
-                            borderRadius: '5px',
-                            border: '1px solid #ebedef',
-                            color: '#2f353a',
-                            fontSize: '0.9rem',
-                            fontFamily: 'monospace',
-                            overflowX: 'auto',
-                            lineHeight: '1.5'
-                        }}>
-                            <code>{sqlQuery}</code>
-                        </pre>
+                        <SyntaxHighlighter language='sql' style={coy}>
+                            {sqlQuery}
+                        </SyntaxHighlighter>
                     </div>
                 </CCardBody>
             </CCard>

@@ -60,7 +60,7 @@ public class AuthServiceImpl {
         }
 
         //3. 권한 명칭 변환(roleId 기준)
-        String roleName = switch(emp.getRoleId()) {
+        String roleName = switch(emp.getRole().getRoleId()) {
             case 1 -> "ROLE_ADMIN";
             case 2 -> "ROLE_TEAM_LEADER";
             default -> "ROLE_USER";

@@ -34,7 +34,7 @@ public class PrincipalDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String roleName = switch(empEntity.getRoleId()) {
+        String roleName = switch(empEntity.getRole().getRoleId()) {
             case 1 -> "ROLE_ADMIN";
             case 2 -> "ROLE_TEAM_LEADER";
             default -> "ROLE_USER";

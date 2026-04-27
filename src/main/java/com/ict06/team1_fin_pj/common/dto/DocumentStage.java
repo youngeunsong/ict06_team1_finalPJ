@@ -1,0 +1,14 @@
+package com.ict06.team1_fin_pj.common.dto;
+
+import lombok.Getter;
+
+@Getter
+public enum DocumentStage {
+    UPLOADED,
+    CHUNKING,
+    CHUNK_FAILED,
+    EMBEDDING,
+    EMBED_FAILED,
+    APPROVAL_PENDING,
+    REFLECTED
+}
