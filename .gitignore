@@ -32,6 +32,13 @@ build/
 ### VS Code ###
 .vscode/
 
+### Python ###
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.env
+
 ### DB Preferences ###
 application.properties
 application-local.properties
