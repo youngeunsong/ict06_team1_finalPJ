@@ -1,3 +1,15 @@
+/**
+ * @FileName : SecurityConfig.java
+ * @Description :
+ * @Author : 김다솜
+ * @Date : 2026. 04. 18
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ */
+
 package com.ict06.team1_fin_pj.common.security;
 
 import lombok.RequiredArgsConstructor;
@@ -35,9 +47,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                //JWT이므로 세션 생성 X(Stateless)
-                .sessionManagement(session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
-                //요청 권한 설정
+
+//                //JWT이므로 세션 생성 X(Stateless)
+//                .sessionManagement(session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
+
+                // 👉JWT 적용하지만, 타임리프 전용으로 세션 사용 가능하도록 변경
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                )
+
+                // 👉요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         //1. 회원가입, 로그인은 허용
                         .requestMatchers("/api/auth/**").permitAll()
@@ -45,11 +64,36 @@ public class SecurityConfig {
                         .requestMatchers("/api/weather/**").permitAll()
                         .requestMatchers("/api/news/**").permitAll()
 
-                        //그 외 모든 요청은 인증 필요
-                        .anyRequest().authenticated()
+                        // 👉3. 관리자 페이지 (세션 로그인)
+                        .requestMatchers("/admin/login", "/admin/login-process").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+
+//                        //그 외 모든 요청은 인증 필요
+//                        .anyRequest().authenticated()
+
+                        // 👉기타
+                        .anyRequest().permitAll()
                 )
+
+                // 👉 관리자 로그인 (세션 기반)
+                .formLogin(form -> form
+                        .loginPage("/admin/login")                 // 로그인 페이지 URL
+                        .loginProcessingUrl("/admin/login-process")// 로그인 처리 URL
+                        .defaultSuccessUrl("/admin/main", true)    // 로그인 성공 후 이동
+                        .failureUrl("/admin/login?error=true")
+                        .permitAll()
+                )
+
+                // 👉 로그아웃
+                .logout(logout -> logout
+                        .logoutUrl("/admin/logout")
+                        .logoutSuccessUrl("/admin/login")
+                )
+
+
                 //UsernamePasswordAuthenticationFilter 앞에 JWT 인증 필터 추가
-                .addFilterBefore(new JwtAuthenticationFilter(jwtToken), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtToken),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -63,10 +107,11 @@ public class SecurityConfig {
         corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
 
         //허용할 HTTP 메서드
-        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         //허용할 헤더(Authorization 누락 시 JWT 전송 불가)
-        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
+        //corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
+        corsConfig.setAllowedHeaders(List.of("*"));
 
         //자격증명 허용(쿠키, 인증헤더 허용하려면 필수)
         corsConfig.setAllowCredentials(true);

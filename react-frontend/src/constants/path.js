@@ -7,6 +7,7 @@ export const PATH = {
     LOGIN: "/auth/login",
     WELCOME: "/auth/welcome",
     USERHOME: "/auth/userhome",
+    MYPAGE: "/auth/mypage"
   },
 
   // 대분류 : 근태 관리
@@ -45,6 +46,12 @@ export const PATH = {
     QUIZ: "/evaluation/quiz",                   // 퀴즈
     EVALUATION: "/evaluation/evaluation",       // 평가
   }, 
+  
+  // 인사평가 - 외부 AI 서버 통신용
+  AI_API: {
+    BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000',
+    ROADMAP: (empNo) => `/api/ai/roadmap/${empNo}`,
+  },
 
   // 대분류 : 인사관리
   EMPLOYEE: {
