@@ -8,13 +8,16 @@ import WelcomePage from './pages/auth/WelcomePage';
 import { UserProvider, useUser, } from './api/UserContext';
 import NotificationListener from './pages/auth/NotificationListener';
 import { PATH } from './constants/path';
-import { routes } from './routes';
-import { getAppRoutes } from './routes';
+import { getAppRoutes } from './routes/index';
 
 // 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
 
 function AppContent() {
+
+  const { userInfo, setUserInfo } = useUser();
+  const appRoutes = getAppRoutes(userInfo, setUserInfo);
+
   return (
     <NotificationListener>
       {/* Lazy Laoding 적용: 페이지 컴포넌트가 로드될 때까지 로딩 메시지 표시 */}
@@ -29,7 +32,7 @@ function AppContent() {
           {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
           {/* 앞으로 생성할 페이지는 routes/의 각 대분류 별 파일에 Route만 추가하면 사이드바가 자동으로 적용됨 */}
           <Route element={<DefaultLayout />}>
-            {routes.map((route, idx) => (
+            {appRoutes.map((route, idx) => (
               <Route key={idx} path={route.path} element={route.element} />
             ))}
           </Route>

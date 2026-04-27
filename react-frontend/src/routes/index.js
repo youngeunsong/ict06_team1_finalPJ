@@ -27,4 +27,4 @@ export const getAppRoutes = (userInfo, setUserInfo) => [
   ...alertRoutes(userInfo)                // 알림
 ];
 
-import getAppRoutes from './routes';
+// import getAppRoutes from './routes';
