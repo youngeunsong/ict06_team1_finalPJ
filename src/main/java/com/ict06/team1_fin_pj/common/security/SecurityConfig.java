@@ -47,9 +47,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                //JWT이므로 세션 생성 X(Stateless)
-                .sessionManagement(session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
-                //요청 권한 설정
+
+//                //JWT이므로 세션 생성 X(Stateless)
+//                .sessionManagement(session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
+
+                // 👉JWT 적용하지만, 타임리프 전용으로 세션 사용 가능하도록 변경
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                )
+
+                // 👉요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         //1. 회원가입, 로그인은 허용
                         .requestMatchers("/api/auth/**").permitAll()
@@ -57,11 +64,36 @@ public class SecurityConfig {
                         .requestMatchers("/api/weather/**").permitAll()
                         .requestMatchers("/api/news/**").permitAll()
 
-                        //그 외 모든 요청은 인증 필요
-                        .anyRequest().authenticated()
+                        // 👉3. 관리자 페이지 (세션 로그인)
+                        .requestMatchers("/admin/login", "/admin/login-process").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+
+//                        //그 외 모든 요청은 인증 필요
+//                        .anyRequest().authenticated()
+
+                        // 👉기타
+                        .anyRequest().permitAll()
                 )
+
+                // 👉 관리자 로그인 (세션 기반)
+                .formLogin(form -> form
+                        .loginPage("/admin/login")                 // 로그인 페이지 URL
+                        .loginProcessingUrl("/admin/login-process")// 로그인 처리 URL
+                        .defaultSuccessUrl("/admin/main", true)    // 로그인 성공 후 이동
+                        .failureUrl("/admin/login?error=true")
+                        .permitAll()
+                )
+
+                // 👉 로그아웃
+                .logout(logout -> logout
+                        .logoutUrl("/admin/logout")
+                        .logoutSuccessUrl("/admin/login")
+                )
+
+
                 //UsernamePasswordAuthenticationFilter 앞에 JWT 인증 필터 추가
-                .addFilterBefore(new JwtAuthenticationFilter(jwtToken), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtToken),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

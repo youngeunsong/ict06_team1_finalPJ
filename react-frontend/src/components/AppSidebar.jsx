@@ -6,9 +6,14 @@ import { Link } from 'react-router-dom';
 
 import {
   CAvatar,
+  CBadge,
+  CCloseButton,
   CFormInput,
   CInputGroup,
   CInputGroupText,
+  CNavGroup,
+  CNavItem,
+  CNavTitle,
   CSidebar,
   CSidebarBrand,
   CSidebarFooter,

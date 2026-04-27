@@ -9,6 +9,7 @@ import store from './store/store';
 //CoreUI Template Stylesheet
 import './scss/style.scss'
 import { Provider } from 'react-redux';
+// import '@coreui/coreui/dist/css/coreui.min.css';
 
 /**
  * 프로젝트 진입점
