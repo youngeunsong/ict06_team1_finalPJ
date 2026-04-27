@@ -1,6 +1,18 @@
+/**
+ * @FileName : SecurityConfig.java
+ * @Description :
+ * @Author : 김다솜
+ * @Date : 2026. 04. 18
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ */
+
 package com.ict06.team1_fin_pj.common.security;
 
-import com.ict06.team1_fin_pj.common.dto.EmpEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,7 +34,7 @@ public class PrincipalDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String roleName = switch(empEntity.getRoleId()) {
+        String roleName = switch(empEntity.getRole().getRoleId()) {
             case 1 -> "ROLE_ADMIN";
             case 2 -> "ROLE_TEAM_LEADER";
             default -> "ROLE_USER";

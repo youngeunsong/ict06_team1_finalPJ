@@ -1,9 +1,24 @@
+  /**
+ * @FileName : LoginPage.js
+ * @Description : 로그인 화면
+ * @Author : 김다솜
+ * @Date : 2026. 04. 20
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.20    김다솜        최초 생성/화면 구성
+ */
+
   import { useEffect, useState } from 'react';
   import axios from 'axios';
   import { useNavigate } from 'react-router-dom';
+  import { useUser } from '../../api/UserContext';
 
-  function LoginPage({ setUserInfo }) {
+  function LoginPage() {
     const navigate = useNavigate();
+    const { login, updateUserInfo } = useUser();
+
     const [loginData, setLoginData] = useState({
       empNo: '',
       password: ''
@@ -43,14 +58,21 @@
         });
 
         const { token, userName, role } = response.data;
-        //JWT 토큰을 로컬스토리지에 저장(이후 요청 시 인증 Header에 포함하여 사용)
-        localStorage.setItem('token', token);
-        //App.js 업데이트(로그인 성공 시 사용자 정보 저장)
-        setUserInfo({ userName, role });
+
+        //1. 계정 기본정보 저장
+        login({ name: userName, role }, token);
         console.log('로그인 성공: ', userName, role);
 
-        //로그인 성공 시 메인 대시보드로 이동
-        navigate('/auth/welcome', { state: { userName, role } }); 
+        //2. 토큰으로 상세정보 조회
+        const empResponse = await axios.get('http://localhost:8081/api/user/welcome', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        //3. Context에 상세정보 업데이트
+        updateUserInfo(empResponse.data);
+
+        //4. 로그인 성공 시 메인 대시보드로 이동
+        navigate('/auth/welcome'); 
       } catch (err) {
         //네트워크 에러 혹은 CORS 에러 시 오류메시지 출력
           if(!err.response) {
@@ -115,50 +137,51 @@
     };
 
     return (
-        <div style={containerStyle}>
-            <div style={cardStyle}>
-                {/* 로고 영역 */}
-                <h1 style={{ color: '#1877f2', marginBottom: '8px', fontSize: '28px' }}>TEAM 1 FINAL Project</h1>
-                <p style={{ color: '#606770', marginBottom: '32px', fontSize: '16px' }}>통합 관리 시스템 로그인</p>
-            
-                <form onSubmit={handleLogin}>
-                    <input
-                    type="text"
-                    name="empNo"
-                    placeholder="사번"
-                    value={loginData.empNo}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    required
-                    autoComplete="off"
-                    />
-                    <input
-                    type="password"
-                    name="password"
-                    placeholder="비밀번호"
-                    value={loginData.password}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    required
-                    autoComplete="new-password"
-                    />
-                    {error && <p style={{ color: 'red', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
-                    <button type="submit" style={buttonStyle} disabled={isLoading}>
-                    {isLoading ? '로그인 중...' : '로그인'}
-                    </button>
-                </form>
+      <div style={containerStyle}>
+        <div style={cardStyle}>
+          {/* 로고 영역 */}
+          <h1 style={{ color: '#1877f2', marginBottom: '8px', fontSize: '28px' }}>스마트 그룹웨어</h1>
+          <p style={{ color: '#606770', marginBottom: '32px', fontSize: '16px' }}>통합 관리 시스템 로그인</p>
+      
+          <form onSubmit={handleLogin}>
+            <input
+              type="text"
+              name="empNo"
+              placeholder="사번"
+              value={loginData.empNo}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+              autoComplete="off"
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="비밀번호"
+              value={loginData.password}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+              autoComplete="new-password"
+            />
+            {error && <p style={{ color: 'red', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
+            <button type="submit" style={buttonStyle} disabled={isLoading}>
+              {isLoading ? '로그인 중...' : '로그인'}
+            </button>
+          </form>
 
-                {/* 사번/비밀번호 찾기 */}
-                <div style={{ marginTop: '24px', fontSize: '14px', color: '#8a8d91' }}>
-                    <span onClick={handleFindCredentials}
-                    style={{ cursor: 'pointer', fontSize: '14px', color: '#8a8d91' }}
-                    onMouseOver={(e) => e.target.style.color = '#1877f2'}
-                    onMouseOut={(e) => e.target.style.color = '#8a8d91'}
-                    >
-                    사번/비밀번호 찾기</span>
-                </div>
-            </div>
+          {/* 사번/비밀번호 찾기 */}
+          <div style={{ marginTop: '24px', fontSize: '14px', color: '#8a8d91' }}>
+            <span onClick={handleFindCredentials}
+                  style={{ cursor: 'pointer', fontSize: '14px', color: '#8a8d91' }}
+                  onMouseOver={(e) => e.target.style.color = '#1877f2'}
+                  onMouseOut={(e) => e.target.style.color = '#8a8d91'}
+            >
+              사번/비밀번호 찾기
+            </span>
+          </div>
         </div>
+      </div>
     );
 }
 
