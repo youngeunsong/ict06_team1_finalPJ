@@ -1,5 +1,9 @@
-/* aiSecretary 전용 문장 다듬기 화면 */
+/* AiSecretary.js 전용 문장 다듬기 화면 */
 // src/pages/aiSecretary/screens/CorrectionScreen.js
+
+// CorrectionScreen: 메일 문구 교정 작업 화면
+// 1) 사용자가 교정할 메일 문구를 입력하고, 톤/수정 강도/길이 등의 옵션을 조절
+// 2) 원문과 교정 결과를 비교
 
 import React from "react";
 import AppButton from "../components/AppButton";
@@ -43,6 +47,7 @@ export default function CorrectionScreen({
             다듬습니다.
           </p>
         </div>
+
         <AppButton variant="secondary" onClick={onBackHome}>
           다른 기능 선택
         </AppButton>
@@ -144,6 +149,7 @@ export default function CorrectionScreen({
                 </button>
               </div>
             </div>
+
             <div style={{ marginTop: 10, fontSize: 12, color: C.muted }}>
               Enter로 전송, Shift+Enter로 줄바꿈
             </div>
@@ -152,6 +158,7 @@ export default function CorrectionScreen({
 
         <div style={{ ...styles.card, padding: 20 }}>
           <h3 style={styles.sectionTitle}>교정 옵션</h3>
+
           <div style={{ display: "grid", gap: 22, marginTop: 18 }}>
             <OptionGroup
               label="톤"
@@ -159,6 +166,7 @@ export default function CorrectionScreen({
               selected={correction.tone}
               onChange={(v) => setCorrection((prev) => ({ ...prev, tone: v }))}
             />
+
             <OptionGroup
               label="수정 강도"
               options={["가볍게", "보통", "강하게"]}
@@ -167,6 +175,7 @@ export default function CorrectionScreen({
                 setCorrection((prev) => ({ ...prev, strength: v }))
               }
             />
+
             <OptionGroup
               label="길이 조절"
               options={["축약", "유지", "확장"]}
@@ -182,6 +191,7 @@ export default function CorrectionScreen({
               >
                 맞춤법 보정
               </div>
+
               <button
                 type="button"
                 onClick={() =>
@@ -218,6 +228,7 @@ export default function CorrectionScreen({
             <AppButton style={{ width: "100%" }}>
               이 옵션으로 다시 교정
             </AppButton>
+
             <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6 }}>
               교정 옵션은 채팅 화면 안에서 바로 조절합니다.
             </div>
@@ -237,6 +248,7 @@ export default function CorrectionScreen({
             <h3 style={{ ...styles.sectionTitle, fontSize: 16 }}>
               원문 / 교정 결과 비교
             </h3>
+
             <div style={{ display: "flex", gap: 10 }}>
               <AppButton variant="secondary" style={{ height: 40 }}>
                 <Icon>{I.copy}</Icon>
@@ -264,6 +276,7 @@ export default function CorrectionScreen({
               >
                 나란히 보기
               </div>
+
               <div style={{ color: C.sub, fontWeight: 700 }}>변경점 보기</div>
             </div>
           </div>
@@ -286,6 +299,7 @@ export default function CorrectionScreen({
                 "이수진 드림",
               ]}
             />
+
             <div
               style={{
                 display: "flex",
@@ -311,6 +325,7 @@ export default function CorrectionScreen({
                 비교
               </div>
             </div>
+
             <CompareCard
               title="교정 결과"
               accent
@@ -338,15 +353,4 @@ export default function CorrectionScreen({
       </div>
     </div>
   );
-}\n\nexport default function AiSecretary() {\n  ...\n}\n```
-
----
-
-# 4. `AiSecretary.js`에서 import 추가
-
-상단에 이 3개를 추가해.
-
-```javascript
-import ChatbotScreen from "./screens/ChatbotScreen";
-import KnowledgeRequestScreen from "./screens/KnowledgeRequestScreen";
-import CorrectionScreen from "./screens/CorrectionScreen";
+}

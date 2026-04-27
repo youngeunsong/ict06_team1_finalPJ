@@ -1,4 +1,4 @@
-/* aiSecretary 전용 지식 추가 화면 */
+/* AiSecretary.js 전용 지식 추가 화면 */
 // src/pages/aiSecretary/screens/KnowledgeRequestScreen.js
 
 import React, { useState } from "react";

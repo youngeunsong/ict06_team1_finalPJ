@@ -1,5 +1,8 @@
-/* aiSecretary 전용 챗봇 화면 */
+/* AiSecretary.js 전용 챗봇 화면 */
 // src/pages/aiSecretary/screens/ChatbotScreen.js
+
+// ChatbotScreen: 사내 지식 질의응답 화면
+// 사용자가 사내 규정, 업무 절차, 운영 정보 등을 질문하면 AI가 채팅 형태로 답변
 
 import React, { useState } from "react";
 import Bubble from "../components/Bubble";
