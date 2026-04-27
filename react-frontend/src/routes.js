@@ -18,7 +18,7 @@ export const routes = [
 
   //사이드바 메뉴 연결 경로
   //AI 포털
-  { path: '/aiSecretary/ai-portal', name: '사내 AI 포털', element: AIPortal },
+  { path: '/ai-portal', name: '사내 AI 포털', element: AIPortal },
 
   //캘린더
   { path: '/calendar', name: '일정 관리', element: Calendar },

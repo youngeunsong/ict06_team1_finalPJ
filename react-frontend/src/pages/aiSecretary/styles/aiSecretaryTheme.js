@@ -1,5 +1,7 @@
-import React from "react";
 /* aiSecretary 전용 CSS */
+// src/pages/aiSecretary/styles/aiSecretaryTheme.js
+
+import React from "react";
 
 export const C = {
   bg: "#F4F7FB",
@@ -21,10 +23,10 @@ export const styles = {
     display: "flex",
     minHeight: "100vh",
     background: C.bg,
-    fontFamily:
-      "Pretendard, Apple SD Gothic Neo, Noto Sans KR, sans-serif",
+    fontFamily: "Pretendard, Apple SD Gothic Neo, Noto Sans KR, sans-serif",
     color: C.text,
   },
+
   sidebar: {
     width: 272,
     background: C.sidebar,
@@ -33,26 +35,31 @@ export const styles = {
     flexDirection: "column",
     flexShrink: 0,
   },
+
   main: {
     flex: 1,
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
   },
+
   page: {
     padding: 28,
   },
+
   card: {
     background: C.card,
     border: `1px solid ${C.border}`,
     borderRadius: 18,
     boxShadow: "0 2px 10px rgba(15, 23, 42, 0.03)",
   },
+
   sectionTitle: {
     fontSize: 15,
     fontWeight: 800,
     margin: 0,
   },
+
   sectionSub: {
     fontSize: 13,
     color: C.sub,
@@ -60,21 +67,3 @@ export const styles = {
     lineHeight: 1.5,
   },
 };
-
-export function Icon({ children, size = 18, color = "currentColor" }) {
-  return (
-    <span
-      style={{
-        width: size,
-        height: size,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color,
-        flexShrink: 0,
-      }}
-    >
-    {children}
-    </span>
-  );
-}

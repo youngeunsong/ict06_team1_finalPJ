@@ -1,3 +1,6 @@
+// 4) path.js에서 만든 상수를 불러와서 실제 React 컴포넌트와 매핑 (로직)
+// path.js -> routes/대분류 별 파일 -> routes/index.js -> App.js(여기!)
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import React, { Suspense, useState } from "react";
 
@@ -11,25 +14,27 @@ import { getAppRoutes } from "./routes/index";
 
 // 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
-const AIPortal = React.lazy(() => import('./pages/aiSecretary/AiSecretary'));
 function App() {
   const [userInfo, setUserInfo] = useState({
     emp_no: "20209999",
     name: "홍길동",
   });
 
+  // routes/index.js 시그니처와 맞춤
   const routes = getAppRoutes(userInfo);
+  console.log(routes)
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <Routes>
+        {/* [1] 초기 진입  */}
         <Route path={PATH.ROOT} element={<Navigate to={PATH.AUTH.LOGIN} />} />
 
-        {/* 인증 */}
+        {/* [2] 독립 페이지(인증) : 레이아웃(헤더/사이드바)이 필요 없는 페이지 */}
         <Route path={PATH.AUTH.LOGIN} element={<LoginPage setUserInfo={setUserInfo} />} />
         <Route path={PATH.AUTH.WELCOME} element={<WelcomePage userInfo={userInfo} />} />
 
-        {/* 3. [그룹 B] 사이드바/헤더 있는 메인 서비스 레이아웃 */}
+        {/* [3] [그룹 B] 사이드바/헤더 있는 메인 서비스 레이아웃 */}
         {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
         {/* 앞으로 생성할 페이지는 routes/의 각 대분류 별 파일에 Route만 추가하면 사이드바가 자동으로 적용됨 */}
         <Route element={<DefaultLayout />}>
@@ -38,6 +43,7 @@ function App() {
           ))}
         </Route>
 
+        {/* [4] 예외처리 : 정의되지 않은 모든 경로는 다시 로그인으로 리다이렉트 */}
         <Route path="*" element={<Navigate to={PATH.AUTH.LOGIN} />} />
       </Routes>
     </Suspense>

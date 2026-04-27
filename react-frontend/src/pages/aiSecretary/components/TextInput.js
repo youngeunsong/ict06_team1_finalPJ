@@ -1,8 +1,15 @@
+/* aiSecretary 전용 입력창 공통화 */
+// src/pages/aiSecretary/components/TextInput.js
+
 import React from "react";
 import { C } from "../styles/aiSecretaryTheme";
-/* aiSecretary 전용 입력창 공통화 */
 
-export default function TextInput({ placeholder, value, onChange, textarea = false }) {
+export default function TextInput({
+  placeholder,
+  value,
+  onChange,
+  textarea = false,
+}) {
   const common = {
     width: "100%",
     border: `1px solid ${C.border}`,
@@ -15,17 +22,30 @@ export default function TextInput({ placeholder, value, onChange, textarea = fal
     boxSizing: "border-box",
   };
 
-  // if (textarea) => textarea = true
+  // textarea와 input의 기본 스타일은 거의 같고,
+  // 높이/resize/lineHeight 정도만 다르므로 하나의 컴포넌트 안에서 분기 처리
   if (textarea) {
     return (
       <textarea
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={{ ...common, minHeight: 136, resize: "vertical", lineHeight: 1.6 }}
+        style={{
+          ...common,
+          minHeight: 136,
+          resize: "vertical",
+          lineHeight: 1.6,
+        }}
       />
     );
   }
 
-  return <input value={value} onChange={onChange} placeholder={placeholder} style={common} />;
+  return (
+    <input
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={common}
+    />
+  );
 }

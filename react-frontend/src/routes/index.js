@@ -1,4 +1,7 @@
 // routes/index.js
+// 3) Path와 Component 매핑 전체
+// path.js -> routes/대분류 별 파일 -> routes/index.js(여기!) -> App.js 
+
 import { attendanceRoutes } from "./attendanceRoutes";
 import { approvalRoutes } from "./approvalRoutes";
 import { authRoutes } from "./authRoutes";
@@ -6,8 +9,8 @@ import { employeeRoutes } from "./employeeRoutes";
 import {onboardingRoutes} from "./onboardingRoutes";
 import {payrollRoutes} from "./payrollRoutes";
 import { calendarRoutes } from "./calendarRoutes";
-import { aiSecretaryRoutes } from "./aiSecretaryRoutes";
-import { chatbotRoutes } from "./chatbotRoutes";
+//import { aiSecretaryRoutes } from "./aiSecretaryRoutes";
+//import { chatbotRoutes } from "./chatbotRoutes";
 import { alertRoutes } from "./alertRoutes";
 import { aiPortalRoutes } from "./aiPortalRoutes";
 import { evaluationRoutes } from "./evaluationRoutes";
@@ -22,7 +25,7 @@ export const getAppRoutes = (userInfo, setUserInfo) => [
   ...employeeRoutes(userInfo),            // 인사
   ...payrollRoutes(userInfo),             // 급여
   ...aiPortalRoutes(userInfo),            // 사내 AI 포탈
-  ...aiSecretaryRoutes(userInfo),         // AI 비서
-  ...chatbotRoutes(userInfo),           // AI 챗봇
+  //...aiSecretaryRoutes(userInfo),         // AI 비서
+  //...chatbotRoutes(userInfo),           // AI 챗봇
   ...alertRoutes(userInfo)                // 알림
 ];
