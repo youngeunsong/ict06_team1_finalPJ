@@ -13,20 +13,15 @@
 
 package com.ict06.team1_fin_pj.domain.auth.controller;
 
-import com.ict06.team1_fin_pj.common.dto.EmpEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
-import com.ict06.team1_fin_pj.domain.auth.service.AuthServiceImpl;
 import com.ict06.team1_fin_pj.domain.auth.service.EmpServiceImpl;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")

@@ -12,7 +12,7 @@
 
 package com.ict06.team1_fin_pj.common.security;
 
-import com.ict06.team1_fin_pj.common.dto.EmpEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import com.ict06.team1_fin_pj.domain.auth.repository.EmpRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

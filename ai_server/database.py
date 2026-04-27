@@ -55,11 +55,62 @@ def fetch_employee_info(emp_no):
             return None
     return None
 
-# 4. 테스트 실행부
+# 4. 이미 저장된 로드맵이 있는지 확인
+def fetch_existing_roadmap(emp_no):
+    conn = get_connection()
+    if conn:
+        try:
+            query = f"""
+                SELECT content
+                FROM roadmap r
+                JOIN employee e ON r.writer_no = e.emp_no
+                WHERE e.emp_no = '{emp_no}'
+                ORDER BY r.created_at DESC
+                LIMIT 1
+            """
+            result = conn.run(query)
+
+            if not result:
+                return None
+
+            return result[0][0]  # content (JSON or text)
+
+        except Exception as e:
+            print(f"❌ 기존 로드맵 조회 실패: {e}")
+            return None
+    return None
+
+# 5. AI 로드맵 저장 함수
+def save_ai_roadmap(dept_id, position_id, title, roadmap_content):
+    conn = get_connection()
+    if not conn:
+        return False
+
+    try:
+        sql = """
+            INSERT INTO ROADMAP (title, dept_id, position_id, content, created_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING roadmap_id
+        """
+
+        res = conn.run(sql, title, dept_id, position_id, roadmap_content)
+        roadmap_id = res[0][0]
+
+        print(f"DB 저장 완료: 로드맵 ID {roadmap_id}")
+        return True
+
+    except Exception as e:
+        print(f"DB 저장 중 오류 발생: {e}")
+        return False
+
+# 테스트 실행부
 if __name__ == "__main__":
     test_emp_no = "20209999" # 여기에 실제 사번 하나 넣어서 테스트해보세요!
     info = fetch_employee_info(test_emp_no)
     if info:
         print("✅ 조회 성공:", info)
+        # 로드맵 저장 테스트 (AI가 준 샘플 데이터라고 가정)
+        # test_steps = ["기초 교육", "실무 투입", "최종 평가"]
+        # save_ai_roadmap(info['dept_id'], info['position_id'], "테스트 로드맵", test_steps)
     else:
         print("❌ 조회 실패")

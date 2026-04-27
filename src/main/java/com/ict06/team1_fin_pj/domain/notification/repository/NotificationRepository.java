@@ -12,7 +12,7 @@
 
 package com.ict06.team1_fin_pj.domain.notification.repository;
 
-import com.ict06.team1_fin_pj.common.dto.NotificationEntity;
+import com.ict06.team1_fin_pj.domain.notification.entity.NotificationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

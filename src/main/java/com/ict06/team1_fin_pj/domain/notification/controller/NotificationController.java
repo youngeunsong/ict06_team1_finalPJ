@@ -12,7 +12,7 @@
 
 package com.ict06.team1_fin_pj.domain.notification.controller;
 
-import com.ict06.team1_fin_pj.common.dto.NotificationEntity;
+import com.ict06.team1_fin_pj.domain.notification.entity.NotificationEntity;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.notification.service.NotificationServiceImpl;
 import lombok.RequiredArgsConstructor;
