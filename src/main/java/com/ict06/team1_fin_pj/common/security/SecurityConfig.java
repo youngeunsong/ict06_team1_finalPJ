@@ -1,3 +1,15 @@
+/**
+ * @FileName : SecurityConfig.java
+ * @Description :
+ * @Author : 김다솜
+ * @Date : 2026. 04. 18
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ */
+
 package com.ict06.team1_fin_pj.common.security;
 
 import lombok.RequiredArgsConstructor;
@@ -95,10 +107,11 @@ public class SecurityConfig {
         corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
 
         //허용할 HTTP 메서드
-        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         //허용할 헤더(Authorization 누락 시 JWT 전송 불가)
-        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
+        //corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
+        corsConfig.setAllowedHeaders(List.of("*"));
 
         //자격증명 허용(쿠키, 인증헤더 허용하려면 필수)
         corsConfig.setAllowCredentials(true);
