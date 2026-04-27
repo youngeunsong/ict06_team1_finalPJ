@@ -11,9 +11,8 @@
  */
 
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { routes } from '../../routes';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -23,42 +22,36 @@ import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
 
 function MyRoadmap({ userInfo }) {
     const navigate = useNavigate();
+    const [aiSteps, setAiSteps] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    //컴포넌트 로드 시 AI 서버에서 데이터 가져오기
+    useEffect(() => {
+        const getAiRoadmap = async() => {
+            try {
+                const empNo = userInfo?.emp_no;
+                const response = await axios.get(`http://localhost:8000/api/ai/roadmap/${empNo}`);
+                
+                //받아온 추천 리스트 변환
+                const formattedSteps = response.data.recommended_roadmap.map((title, index) => ({
+                    id: index + 1,
+                    title: title,
+                    status: index === 0 ? 'current' : 'upcoming'
+                }));
+                setAiSteps(formattedSteps);
+            } catch(err) {
+                console.error("AI 로드맵 로딩 실패: ", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        getAiRoadmap();
+    }, [userInfo]);
+
     const handleButtonClick = () => {
         // navigate('/evaluation/quiz')
         navigate(PATH.ONBOARDING.QUIZ); 
     }
-
-  //임시 데이터 (나중에 DB에서 가져올 부분)
-  const steps = [
-    { id: 1, title: '기초 직무 교육', status: 'completed' },
-    { id: 2, title: '팀 프로젝트 1', status: 'current' },
-    { id: 3, title: '실무 온보딩', status: 'upcoming' },
-    { id: 4, title: '최종 평가', status: 'upcoming' },
-  ];
-
-    //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
-    const sqlQuery = `
-        -- 사용자별 로드맵 진행률 실시간 계산
-        SELECT 
-            r.roadmap_id,
-            r.title,
-            AVG(rp.rate) as overall_progress
-        FROM roadmap r
-        JOIN road_prog rp ON r.roadmap_id = rp.roadmap_id
-        WHERE rp.emp_id = #{empId}
-        GROUP BY r.roadmap_id, r.title;
-
-        -- 아직 완료하지 않은 체크리스트 항목 조회
-        SELECT
-            emp_id, 
-            task_name, 
-            due_date
-        FROM onboarding_check
-        WHERE is_completed = 'N' 
-        AND is_deleted = 'N'
-        AND due_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '2 days')
-        ORDER BY due_date ASC;
-    `;
 
     return (
         <div style={containerStyle}>
@@ -69,20 +62,24 @@ function MyRoadmap({ userInfo }) {
 
             {/* 로드맵 리스트 영역 */}
             <div className="roadmap-list">
-                {steps.map((step) => (
-                <div key={step.id} style={stepCardStyle(step.status)}>
-                    <div>
-                    <span style={{ fontSize: '12px', color: '#888' }}>STEP 0{step.id}</span>
-                    <h3 style={{ margin: '5px 0' }}>{step.title}</h3>
-                    </div>
-                    <span style={{ 
-                    fontWeight: 'bold', 
-                    color: step.status === 'completed' ? '#27ae60' : step.status === 'current' ? '#1877f2' : '#aaa' 
-                    }}>
-                    {step.status === 'completed' ? '완료' : step.status === 'current' ? '진행 중' : '대기'}
-                    </span>
-                </div>
-                ))}
+                {loading ? (
+                    <div className="text-center"><CSpinner color="primary" /> AI가 최적의 로드맵을 분석 중입니다...</div>
+                ) : (
+                    aiSteps.map((step) => (
+                        <div key={step.id} style={stepCardStyle(step.status)}>
+                            <div>
+                                <span style={{ fontSize: '12px', color: '#888' }}>STEP 0{step.id}</span>
+                                <h3 style={{ margin: '5px 0' }}>{step.title}</h3>
+                            </div>
+                            <span style={{ 
+                                fontWeight: 'bold', 
+                                color: step.status === 'completed' ? '#27ae60' : step.status === 'current' ? '#1877f2' : '#aaa' 
+                            }}>
+                                {step.status === 'completed' ? '완료' : step.status === 'current' ? '진행 중' : '추천'}
+                            </span>
+                        </div>
+                    ))
+                )}
             </div>
 
             <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
@@ -114,18 +111,6 @@ function MyRoadmap({ userInfo }) {
                             height: 'auto',
                             display: 'block' }} 
                         />
-                    </div>
-
-                    {/* SQL 쿼리 영역 */}
-                    <div className='text-start mt-4'>
-                        <h5 className='mb-3' style={{ fontWeight: 'bold', color: '#4f5d73' }}>
-                            <span style={{ borderLeft: '4px solid #321fdb', paddingLeft: '10px' }}>
-                                관련 SQL 쿼리
-                            </span>
-                        </h5>
-                        <SyntaxHighlighter language='sql' style={coy}>
-                            {sqlQuery}
-                        </SyntaxHighlighter>
                     </div>
                 </CCardBody>
             </CCard>
