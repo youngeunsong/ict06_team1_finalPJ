@@ -13985,8 +13985,9 @@ body:not(.app-loaded) .app-footer {
   width: 280px;
   padding: 0;
 }
+
 .navbar-nav > .user-menu > .dropdown-menu > li.user-header {
-  min-height: 175px;
+  /*min-height: 175px;*/ /* 고정 높이 삭제 */
   padding: 10px;
   text-align: center;
 }
