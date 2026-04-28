@@ -10,8 +10,8 @@
 <!doctype html>
 <html xmlns:th="http://www.thymleaf.org">
 <!--begin::Head-->
-<head th:include="/admin/common/head.html :: common_header">
-    <title id="page_title">관리자 템플릿</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+<head th:insert="/admin/common/head.html :: common_header">
+    <title id="page_title">새 결재 서식 생성</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
 </head>
 <!--end::Head-->
 <!--begin::Body-->
@@ -40,29 +40,56 @@
                 <!-- end::Row-->
                 <!-- begin::Row-->
                 <div class="row">
-                    <form class="border">
-                        <div>
-                            <!-- 서식 이름 입력 -->
-                            <input type="text" class="form-control form-control-lg form-control-plaintext" placeholder="새 서식 이름을 입력하세요">
-
-                            <!-- 서식 설명 입력 -->
-                            <input type="text" class="form-control form-control-sm form-control-plaintext" placeholder="서식에 대한 설명을 입력해두면 작성자가 확인할 수 있어요">
-
-                            <!-- 필드 추가하기 버튼 시작 -->
-                            <button type="button" class="btn btn-secondary">
-                                <i class="fa-solid fa-square-plus"></i>
-                                필드 추가하기
+                    <!-- 왼쪽: 컴포넌트 라이브러리 -->
+                    <div class="col-md-3">
+                        <div class="card p-3">
+                            <h5>필드 추가하기</h5>
+                            <button class="btn btn-outline-secondary mb-2 text-start border-0 shadow-none" onclick="addField('text')">
+                                <i class="fa-solid fa-t"></i>
+                                단일 텍스트
                             </button>
-                            <!-- 필드 추가하기 버튼 끝 -->
-
+                            <button class="btn btn-outline-secondary mb-2 text-start border-0 shadow-none" onclick="addField('date')">
+                                <i class="fa-solid fa-calendar-days"></i>
+                                날짜 선택
+                            </button>
+                            <button class="btn btn-outline-secondary mb-2 text-start border-0 shadow-none" onclick="addField('time')">
+                                <i class="fa-solid fa-clock"></i>
+                                시간
+                            </button>
+                            <button class="btn btn-outline-secondary mb-2 text-start border-0 shadow-none" onclick="addField('number')">
+                                <i class="fa-solid fa-won-sign"></i>
+                                금액
+                            </button>
+                            <hr>
+<!--                            <h6>추천 템플릿</h6>-->
+<!--                            <button class="btn btn-sm btn-primary mb-1" onclick="applyTemplate('leave')">연차 신청</button>-->
+<!--                            <button class="btn btn-sm btn-primary mb-1" onclick="applyTemplate('early')">조퇴 신청</button>-->
+<!--                            <button class="btn btn-sm btn-primary mb-1" onclick="applyTemplate('expense')">지출 결의</button>-->
                         </div>
+                    </div>
 
-                    </form>
+                    <!-- 오른쪽: 폼 캔버스 (미리보기 및 편집) -->
+                    <div class="col-md-9">
+                        <form id="formEditor" th:action="@{/admin/forms/save}" method="post">
+                            <div class="card p-4">
+                                <!-- 기본 정보 (고정) -->
+                                <div class="mb-4 border-bottom pb-3 text-center">
+                                    <input type="text" name="formTitle" class="form-control form-control-lg text-center" placeholder="서식 제목을 입력하세요 (예: 연차 신청서)">
+                                </div>
+
+                                <!-- 동적 필드가 추가될 영역 -->
+                                <div id="dynamicFields">
+                                    <!-- JS로 필드가 삽입됩니다 -->
+                                </div>
+
+                                <div class="text-end mt-4">
+                                    <button type="submit" class="btn btn-success">서식 저장하기</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <!-- end::Row-->
-
-
-
             </div>
             <!--end::Container-->
         </div>
@@ -76,7 +103,9 @@
 <!--end::App Wrapper-->
 <!--스크립트 시작-->
 <th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<script src="/js/approval/createTemplate.js"></script>
 <!--스크립트 끝-->
 </body>
 <!--end::Body-->
