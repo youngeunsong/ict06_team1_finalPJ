@@ -1,3 +1,16 @@
+/**
+ * @FileName : AuthController.java
+ * @Description : 사원 인증(로그인) 처리 컨트롤러
+ * @Author : 김다솜
+ * @Date : 2026. 04. 16
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.16    김다솜        최초 생성
+ * @ 2026.04.17    김다솜        로그인 처리 메서드 추가 (JWT 연동)
+ */
+
 package com.ict06.team1_fin_pj.domain.auth.controller;
 
 import com.ict06.team1_fin_pj.domain.auth.service.AuthServiceImpl;

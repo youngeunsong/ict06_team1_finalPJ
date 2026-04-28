@@ -34,7 +34,8 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
 1. **깃허브로 공유하면 안 되는 파일 다운로드** : `구글 공유 드라이브(ICT06_최종프로젝트)/환경설정_백업` 경로에 깃허브로 공유해서는 안 되는 파일을 백업해놨으니, 여기에서 별도로 다운로드 받으셔서 프로젝트 내에 위치시켜 주세요.
 
     * 각 폴더 별 파일은 아래의 경로에 위치시킵니다:
-        * properties 폴더 내용물: `src/main/resources/` 폴더 안 (원격 DB 연결용)  
+        * properties 폴더 내용물: `src/main/resources/` 폴더 안 (원격 DB 연결용)
+        * ai_server 폴더 내용물: `ai_server` 폴더 안 (파이썬에서 사용하는 api 키)
 
     **⚠️ 개인정보, 보안 등의 이슈와 관련된 파일은 절대 github에 공유하지 않아야 합니다.**
     이런 파일들은 반드시 구글 드라이브를 이용해 공유해주시고, .gitignore에 파일명을 등록하여 깃허브에 올라가지 않게 방지해주세요.
@@ -65,6 +66,13 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
 1. **프론트엔드 작업용 폴더로 이동하기**: `Terminal` -> `New Terminal` -> `+` 옆의 `V` -> `command prompt` 선택-> cmd에서 `cd react-frontend` 입력
 
 1. **처음 깃허브에서 clone해오거나 pull 해온 직후 입력**: **반드시** `npm install`**을 먼저 cmd에 입력**해주세요. 다른 팀원이 추가한 라이브러리를 설치하는 과정입니다.
+
+1. **Q클래스 생성** : 
+    VSCode
+    좌측 하단 MAVEN 탭
+    com.ict06:team1_fin_pj > Lifecycle > clean(실행), compile(실행)
+    *clean: 터미널에 BUILD SUCCESS 뜨면 성공
+    *compile: Q클래스 만드는 작업
 
 1. **프로젝트 실행**: `npm start`를 cmd에 입력.
     1. `Module not found` 에러 발생 시 : 해당 모듈을 cmd에서 설치하면 오류가 사라집니다.
@@ -544,3 +552,39 @@ path.js 추가 → routes/index.js 등록 → 페이지에서 PATH 사용
             { path: PATH.APPROVAL.NEW, element: <ApprovalNew userInfo={userInfo} /> }, 
         ]
         ```
+
+## 트러블슈팅 (문제 해결)
+
+### Q 클래스 생성 시 발생한 문제 해결법
+
+VSCode cmd 터미널에서 자바 버전 확인: java -version
+(17.0.17)
+.\mvnw.cmd -version
+Maven이 보고 있는 Java version 확인. 17이 아닌 경우 수정 필요
+
+1단계 — Java 17 경로 확인
+C:\Program Files\Java\jdk-17
+
+2단계 — 환경변수 변경
+
+1. 윈도우 검색 → 환경 변수 편집 열기
+2. 시스템 변수에서 JAVA_HOME 찾기
+3. 값을 Java 17 경로로 변경(C:\Program Files\Java\jdk-17)
+4. Path 변수에서 %JAVA_HOME%\bin 있는지 확인
+
+3단계 — 터미널 재시작 후 확인
+bash.\mvnw.cmd -version
+Java version: 17.x.x 로 바뀌었는지 확인
+
+터미널에 입력:
+.\mvnw.cmd compile -f "d:\DEV06\ict06_team1_finalPJ\pom.xml"
+오류 없으면 빌드 성공
+
+생성된 Q클래스 파일 확인
+프로젝트 루트 > target > generated-sources > Q...Entity.java (java 파일로 직접 생성한 dto/엔티티 개수만큼 자동생성되어 있음)
+
+dto(Entity) 수정 시 반드시 rebuild, pom.xml 컴파일
+IntelliJ > 상단메뉴 Build > Rebuild Project
+VSCode > 터미널 cmd > .\mvnw.cmd clean compile -f "d:\DEV06\ict06_team1_finalPJ\pom.xml"
+
+둘 다 오류 없이 성공해야 프로젝트가 정상적으로 실행됨
