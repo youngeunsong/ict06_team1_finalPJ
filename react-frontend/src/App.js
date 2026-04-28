@@ -1,59 +1,61 @@
 // 4) path.js에서 만든 상수를 불러와서 실제 React 컴포넌트와 매핑 (로직)
 // path.js -> routes/대분류 별 파일 -> routes/index.js -> App.js(여기!)
 
-import { Routes, Route, Navigate } from "react-router-dom";
-import React, { Suspense, useState } from "react";
+import { Routes, Route, Navigate, useRoutes } from 'react-router-dom';
+import React, { Suspense } from 'react';
 
-import { PATH } from "./constants/path";
-
-// 1. 기존 페이지 컴포넌트
-// [그룹 A] 독립 페이지(초기 진입 시 빠른 로딩을 위해 일반 import)
-import LoginPage from "./pages/auth/LoginPage";
-import WelcomePage from "./pages/auth/WelcomePage";
-import { getAppRoutes } from "./routes/index";
+//1. 기존 페이지 컴포넌트
+//[그룹 A] 독립 페이지(초기 진입 시 빠른 로딩을 위해 일반 import)
+import LoginPage from './pages/auth/LoginPage';
+import WelcomePage from './pages/auth/WelcomePage';
+import { UserProvider, useUser, } from './api/UserContext';
+import NotificationListener from './pages/auth/NotificationListener';
+import { PATH } from './constants/path';
+import { getAppRoutes } from './routes/index';
 
 // 레이아웃 및 하위 서비스 페이지(Lazy Loading 적용)
 const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
-function App() {
-  const [userInfo, setUserInfo] = useState({
-    emp_no: "20209999",
-    name: "홍길동",
-  });
 
-  // routes/index.js 시그니처와 맞춤
-  const routes = getAppRoutes(userInfo);
-  console.log(routes)
+function AppContent() {
+
+  const { userInfo, setUserInfo } = useUser();
+  const appRoutes = getAppRoutes(userInfo, setUserInfo);
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <Routes>
-        {/* [1] 초기 진입  */}
-        <Route path={PATH.ROOT} element={<Navigate to={PATH.AUTH.LOGIN} />} />
+    <NotificationListener>
+      {/* Lazy Laoding 적용: 페이지 컴포넌트가 로드될 때까지 로딩 메시지 표시 */}
+      <Suspense fallback={<div className="pt-3 text-center">Loading...</div>}>
+        <Routes>
+          {/* 1. 인증 필요 없는 공용 경로 */}
+          <Route path={PATH.ROOT} element={<Navigate to={PATH.AUTH.LOGIN} />} />
+          {/* 인증 */}
+          <Route path={PATH.AUTH.LOGIN} element={<LoginPage />} />
+          <Route path={PATH.AUTH.WELCOME} element={<WelcomePage />} />
+          {/* 3. [그룹 B] 사이드바/헤더 있는 메인 서비스 레이아웃 */}
+          {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
+          {/* 앞으로 생성할 페이지는 routes/의 각 대분류 별 파일에 Route만 추가하면 사이드바가 자동으로 적용됨 */}
+          <Route element={<DefaultLayout />}>
+            {appRoutes.map((route, idx) => (
+              <Route key={idx} path={route.path} element={route.element} />
+            ))}
+          </Route>
+          {/* 3. 예외 처리: 없는 페이지 접근 시 로그인 화면으로(404 예외 처리) */}
+          <Route path="*" element={<Navigate to={PATH.AUTH.LOGIN} />} />
+        </Routes>
+      </Suspense>
+    </NotificationListener>
+  );
+}
 
-        {/* [2] 독립 페이지(인증) : 레이아웃(헤더/사이드바)이 필요 없는 페이지 */}
-        <Route path={PATH.AUTH.LOGIN} element={<LoginPage setUserInfo={setUserInfo} />} />
-        <Route path={PATH.AUTH.WELCOME} element={<WelcomePage userInfo={userInfo} />} />
-
-        {/* [3] [그룹 B] 사이드바/헤더 있는 메인 서비스 레이아웃 */}
-        {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
-        {/* 앞으로 생성할 페이지는 routes/의 각 대분류 별 파일에 Route만 추가하면 사이드바가 자동으로 적용됨 */}
-        <Route element={<DefaultLayout />}>
-          {routes.map((route, idx) => (
-            <Route key={idx} path={route.path} element={route.element} />
-          ))}
-        </Route>
-
-        {/* [4] 예외처리 : 정의되지 않은 모든 경로는 다시 로그인으로 리다이렉트 */}
-        <Route path="*" element={<Navigate to={PATH.AUTH.LOGIN} />} />
-      </Routes>
-    </Suspense>
+function App() {
+  return (
+    <UserProvider>
+      <AppContent />
+    </UserProvider>
   );
 }
 
 export default App;
-
-
-
 
 
 // 경로 리팩토링 전 --------------------------------------------------------------------

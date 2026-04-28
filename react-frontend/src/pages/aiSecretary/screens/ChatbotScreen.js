@@ -10,28 +10,50 @@ import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
 
 export default function ChatbotScreen() {
-  const [messages, setMessages] = useState([
-    {
-      role: "ai",
-      text: "사내 규정이나 업무 절차에 대해 무엇이든 질문해 주세요.",
-      time: "오전 9:10",
-    },
-  ]);
+
+  // 내 쳇봇 세션 목록
+  const [sessions, setSessions] = useState([]);
+
+  // 지금 열려 있는 대화방 ID
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+
+  // 현재 대화방의 메시지들
+  const [messages, setMessages] = useState([]);
+
+  // 입력창 값
   const [input, setInput] = useState("");
 
-  const send = () => {
-    if (!input.trim()) return;
+  // 세션 목록/ 초기 세션 생성 중 로딩
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: input, time: "오전 9:11" },
-      {
-        role: "ai",
-        text: "관련 정보를 사내 문서에서 검색해 답변을 준비 중입니다.",
-        time: "오전 9:11",
-      },
-    ]);
-    setInput("");
+  // 메시지 목록 조회 중 로딩
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // 메시지 전송 중 중복 클릭 방지
+  const [sending, setSending] = useState(false);
+
+  // API 실패 시 표시할 에러 메시지
+  const [error, setError] = useState("");
+
+  // 메시지 포맷 맵핑 : 백엔드 - 프론트엔드 매핑
+  const mapMessageToBubble = (message) => ({
+    role: message.role === "USER" ? "user" : "ai",
+    text: message.content,
+    time: formatMessageTime(message.createdAt),
+  });
+
+  // 시간 포맷 맵핑
+  const formatMessageTime = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleDateString("ko-KR", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   return (

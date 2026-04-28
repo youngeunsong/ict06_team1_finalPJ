@@ -1,8 +1,19 @@
-//사이드바
+/**
+ * @FileName : _nav.jsx
+ * @Description : 사이드바 메뉴
+ * @Author : 김다솜
+ * @Date : 2026. 04. 21
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.21    김다솜        화면설계와 맞추어 사이드바 메뉴 생성
+ * @ 2026.04.22    김다솜        메뉴별 접근 권한 설정 예시 추가(roles)
+ */
 import React from 'react'
 import CIcon from '@coreui/icons-react'
 import { cilCalculator, cilCalendar, cilChatBubble, cilClock, cilDescription, cilHome, cilPeople, cilUser } from '@coreui/icons'
-import { CNavGroup, CNavItem, CNavTitle } from '@coreui/react'
+import { CNavItem, CNavTitle } from '@coreui/react'
 
 const _nav = [
   {
@@ -58,6 +69,19 @@ const _nav = [
     name: 'AI 퀴즈 및 평가',
     to: '/evaluation/quiz',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: '평가 조회',
+    to: '/evaluation/result',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: '평가 관리',
+    to: '/evaluation/admin',
+    icon: <CIcon icon={cilPeople} customClasqsName="nav-icon" />,
+    roles: ['ROLE_TEAM_LEADER', 'ROLE_ADMIN'],
   },
   {
     component: CNavTitle,

@@ -29,3 +29,5 @@ export const getAppRoutes = (userInfo, setUserInfo) => [
   //...chatbotRoutes(userInfo),           // AI 챗봇
   ...alertRoutes(userInfo)                // 알림
 ];
+
+// import getAppRoutes from './routes';
