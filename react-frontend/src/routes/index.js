@@ -11,8 +11,10 @@ import { chatbotRoutes } from "./chatbotRoutes";
 import { alertRoutes } from "./alertRoutes";
 import { aiPortalRoutes } from "./aiPortalRoutes";
 import { evaluationRoutes } from "./evaluationRoutes";
+import { testRoutes } from "./testRoutes";
 
 export const getAppRoutes = (userInfo, setUserInfo) => [
+  ...testRoutes(userInfo),                // [Test 예제 연결 경로 모음]
   ...authRoutes(userInfo, setUserInfo),   // 인증/ 인가
   ...attendanceRoutes(userInfo),          // 근태
   ...calendarRoutes(userInfo),            // 캘린더 

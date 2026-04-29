@@ -1,3 +1,5 @@
+
+
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
@@ -6,15 +8,7 @@ import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 
 import java.util.List;
 
-/**
- * @package : package com.ict06.team1_fin_pj.domain.approval.service;
- * @name : AdApprovalService
- * @author : 송영은
- * description : 관리자용 전자결재 서비스 인터페이스
- * ========================================
- * DATE      AUTHOR      NOTE
- * 26.04.20  송영은       최초 생성
- **/
+
 
 public interface AdApprovalService {
 

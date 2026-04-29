@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.Map;
 
 // 관리자용 전자결재 컨트롤러
-
 @RequestMapping("/admin/approval")
 @Controller
 public class AdApprovalController {
