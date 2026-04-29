@@ -97,6 +97,7 @@ $('#formEditor').on('submit', function (e) {
         type: 'POST',
         contentType: 'application/json; charset=UTF-8',
         data: JSON.stringify({
+            formName: formTitle,
             templateHtml: finTemplateHtml
         }),
 
