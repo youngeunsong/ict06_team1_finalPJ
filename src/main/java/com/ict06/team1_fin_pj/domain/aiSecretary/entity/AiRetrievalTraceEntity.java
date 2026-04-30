@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "AI_CHAT_SESSION")
+@Table(name = "AI_RETRIEVAL_TRACE")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
