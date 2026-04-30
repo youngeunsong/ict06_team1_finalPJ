@@ -14,6 +14,7 @@ import React from 'react'
 import CIcon from '@coreui/icons-react'
 import { cilCalculator, cilCalendar, cilChatBubble, cilClock, cilDescription, cilHome, cilPeople, cilUser } from '@coreui/icons'
 import { CNavItem, CNavTitle } from '@coreui/react'
+import { PATH } from './constants/path'
 
 const _nav = [
   {
@@ -29,7 +30,7 @@ const _nav = [
   {
     component: CNavItem,
     name: '홈 피드',
-    to: '/auth/userhome',
+    to: PATH.AUTH.USERHOME,
     icon: <CIcon icon={cilHome} customClassName="nav-icon" />,
   },
   {
@@ -61,14 +62,22 @@ const _nav = [
   {
     component: CNavItem,
     name: 'AI 온보딩 로드맵',
-    to: '/onboarding/myroadmap',
+    to: PATH.ONBOARDING.ROADMAP,
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    badge: {
+      color: 'primary',
+      text: 'AI',
+    },
   },
   {
     component: CNavItem,
     name: 'AI 퀴즈 및 평가',
     to: '/evaluation/quiz',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    badge: {
+      color: 'primary',
+      text: 'AI',
+    },
   },
   {
     component: CNavItem,
