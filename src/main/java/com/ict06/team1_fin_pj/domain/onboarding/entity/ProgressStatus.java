@@ -1,4 +1,4 @@
-package com.ict06.team1_fin_pj.domain.aiSecretary.entity;
+package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
 import lombok.Getter;
 
