@@ -20,13 +20,35 @@ public class OnContentEntity extends BaseTimeEntity {
     @Column(name = "content_id")
     private Integer contentId;
 
-    @Column(length = 255)
+    @Column(length = 255, nullable = false)
     private String title;
 
-    // VIDEO, PDF, QUIZ 등 → enum 추천
     @Enumerated(EnumType.STRING)
-    @Column(length = 20)
+    @Column(length = 20, nullable = false)
     private ContentType type;
+
+    @Column(name = "category", length = 50)
+    private String category;
+
+    @Column(name = "sub_category", length = 50)
+    private String subCategory;
+
+    @Column(name = "target_position", length = 50)
+    private String targetPosition;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "difficulty", length = 20, nullable = false)
+    private Difficulty difficulty;
+
+    @Column(name = "estimated_time")
+    private Integer estimatedTime;
+
+    @Column(name = "tags", columnDefinition = "jsonb")
+    private String tags;
+
+    @Builder.Default
+    @Column(name = "is_mandatory")
+    private Boolean isMandatory = false;
 
     @Column(length = 500)
     private String path;

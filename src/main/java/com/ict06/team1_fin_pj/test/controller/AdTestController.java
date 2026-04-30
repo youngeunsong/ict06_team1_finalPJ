@@ -11,7 +11,6 @@ package com.ict06.team1_fin_pj.test.controller;
 
 import com.ict06.team1_fin_pj.test.entity.TestEntity;
 import com.ict06.team1_fin_pj.test.service.AdTestServiceImpl;
-import com.ict06.team1_fin_pj.test.service.TestServiceImpl;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

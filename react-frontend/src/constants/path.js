@@ -47,15 +47,21 @@ export const PATH = {
 
   // 대분류 : 인사평가 - 온보딩
   ONBOARDING: {
-    MYROADMAP: "/onboarding/myroadmap",         // 로드맵
-    QUIZ: "/evaluation/quiz",                   // 퀴즈
+    ROOT: "/onboarding",
+    ROADMAP: "/onboarding/myroadmap",         // 로드맵
+    LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
+    LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
+    QUIZ: "/onboarding/quiz",
     EVALUATION: "/evaluation/evaluation",       // 평가
+    PROGRESS_COMPLETE: "/onboarding/progress/complete",
+    CHECKLIST: "/onboarding/checklist",
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
   AI_API: {
-    BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000',
-    ROADMAP: (empNo) => `/api/ai/roadmap/${empNo}`,
+    BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000/api',
+    ROADMAP: (empNo) => `/ai/roadmap/${empNo}`,
+    CONTENT_DETAIL: (contentId) => `/content/${contentId}`,     // 학습자료 상세 조회
   },
 
   // 대분류 : 인사관리
@@ -93,5 +99,15 @@ export const PATH = {
   ETC: {
     // 대분류 : 실시간 알림
     ALERT: "/alert",
+  },
+
+  // REST API
+  API: {
+    BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
+    USER_ME: '/user/me',
+
+    CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
+    CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
+    CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
   }
 };

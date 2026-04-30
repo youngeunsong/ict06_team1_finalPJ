@@ -40,6 +40,15 @@ public class EmpController {
         return ResponseEntity.ok(emp);
     }
 
+    //새로고침 시 로그인 사용자 정보 복구
+    @GetMapping("/me")
+    public ResponseEntity<EmpEntity> getMyInfo(Principal principal) {
+        String loginEmpNo = principal.getName();
+
+        EmpEntity emp = empService.getWelcomeInfo(loginEmpNo);
+        return ResponseEntity.ok(emp);
+    }
+
     //마이페이지 > 정보 수정
     @PutMapping("/update")
     public ResponseEntity<?> updateEmpInfo(

@@ -2,6 +2,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.DepartmentEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -39,6 +40,10 @@ public class DocumentEntity extends BaseTimeEntity {
     @Column(name = "current_stage", length = 20)
     @Builder.Default
     private DocumentStage currentStage = DocumentStage.UPLOADED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private EmpEntity createdBy;
 
     // 문서 → 청크들
     @OneToMany(mappedBy = "document", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

@@ -6,6 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @Entity
 @Table(
@@ -31,6 +32,9 @@ public class AttendanceEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "emp_no", nullable = false)
     private EmpEntity employee;
+
+    @Column(name = "work_date", nullable = false)
+    private LocalDate workDate;
 
     @Column(name = "check_in_at")
     private LocalDateTime checkInAt;
