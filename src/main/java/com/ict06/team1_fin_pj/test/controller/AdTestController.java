@@ -10,7 +10,7 @@
 package com.ict06.team1_fin_pj.test.controller;
 
 import com.ict06.team1_fin_pj.test.entity.TestEntity;
-import com.ict06.team1_fin_pj.test.service.TestServiceImpl;
+import com.ict06.team1_fin_pj.test.service.AdTestServiceImpl;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,7 +30,7 @@ import java.util.Map;
 public class AdTestController {
 
     @Autowired
-    private TestServiceImpl service;
+    private AdTestServiceImpl service;
 
     // 예제 ) 전자결재 새 서식 추가
     // 새 서식 추가 페이지
