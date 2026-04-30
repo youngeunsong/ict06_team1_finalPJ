@@ -45,7 +45,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     @Override
     public Page<AppFormEntity> getAppFormsWithPaging(int page, int size) {
         System.out.println("AdApprovalServiceImpl - getAppFormsWithPaging()");
-        Pageable pageable = PageRequest.of(page, size); // 페이지 번호와 크기 설정
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending()); // 페이지 번호와 크기 설정. 최신 순 정렬.
         return appFormRepository.findAll(pageable); // 페이징된 결과 반환
     }
 

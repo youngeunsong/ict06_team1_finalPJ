@@ -14,6 +14,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +25,7 @@ import java.util.Map;
 
 // 관리자용 전자결재 컨트롤러
 @RequestMapping("/admin/approval")
-@RestController
+@Controller
 public class AdApprovalController {
 
     @Autowired
@@ -60,20 +62,28 @@ public class AdApprovalController {
     }
 
     // [전자 결재 서식 목록 조회] ----------------------------------------------------------------------------
-    // 서식 목록 조회
-    @GetMapping("/templateList")
+    // 서식 목록 조회 화면
+    @RequestMapping("/templateList")
     public String templateList(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - templateList()");
 
         // 모든 전자 결재 서식 목록 가져오기
-        List<AppFormEntity> list= service.listAllAppForms();
+//        List<AppFormEntity> list= service.listAllAppForms();
 
         // 페이징 처리된 결재 서식 목록 가져오기
 
         // html에 전달
-        model.addAttribute("list", list);
+//        model.addAttribute("list", list);
         return "admin/approval/templateList";
+    }
+
+    // 페이징 처리된 서식 조회 (Ajax)
+    @GetMapping("/getAppForms")
+    @ResponseBody
+    public Page<AppFormEntity> getAppForms(@RequestParam(defaultValue = "0") int page,
+                                           @RequestParam(defaultValue = "10") int size) {
+        return service.getAppFormsWithPaging(page, size);
     }
 
     // 서식 상세 조회
