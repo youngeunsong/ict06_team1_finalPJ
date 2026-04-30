@@ -4,13 +4,15 @@ import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * @package : package com.ict06.team1_fin_pj.domain.approval.service;
- * @name : AdApprovalServiceImpl
  * @author : 송영은
  * description : 관리자용 전자결재 서비스 구현 클래스
  * ========================================
@@ -22,7 +24,7 @@ import java.util.List;
 public class AdApprovalServiceImpl implements AdApprovalService {
 
     @Autowired
-    AppFormRepository appFormRepository;
+    private AppFormRepository appFormRepository;
 
     // [결재 서식 관리]-----------------------------------------
     // insert
@@ -35,7 +37,16 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // list
     @Override
     public List<AppFormEntity> listAllAppForms() {
-        return List.of();
+        System.out.println("AdApprovalServiceImpl - listAllAppForms()");
+        return appFormRepository.findAll(Sort.by("formId"));
+    }
+
+    // 페이징 처리된 list로 받기
+    @Override
+    public Page<AppFormEntity> getAppFormsWithPaging(int page, int size) {
+        System.out.println("AdApprovalServiceImpl - getAppFormsWithPaging()");
+        Pageable pageable = PageRequest.of(page, size); // 페이지 번호와 크기 설정
+        return appFormRepository.findAll(pageable); // 페이징된 결과 반환
     }
 
     // 1건 select (상세 화면)
