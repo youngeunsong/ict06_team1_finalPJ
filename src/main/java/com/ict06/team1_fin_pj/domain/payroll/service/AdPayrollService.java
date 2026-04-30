@@ -50,11 +50,44 @@ public interface AdPayrollService {
      */
     boolean isValidGradeOrder(SalaryPolicyRequestDTO requestDTO);
 
-    /* 기본급 정책 등록
-       - 새로운 기본급 정책을 등록하는 기능
-       - 등록 전 중복 체크와 서열 검증을 반드시 통과한 후에 정책을 등록한다
-       - 부서, 직급, 급여등급(G1, G2 등) 및 기본급 값을 입력받고, 새로운 기본급 정책을 DB에 저장하며, 정책은 활성 상태(isActive=true)로 등록된다
-       - 기본급 정책을 등록하기 전에 모든 유효성 검사를 거쳐야 하며, 등록된 정책은 이후 수정할 수 없도록 설정된다
+    /*
+      기본급 정책 등록
+      - 부서와 직급을 선택하면 직급 기준으로 급여등급이 자동 설정된다.
+      - 등록 전 중복 체크와 서열 검증을 Service에서 다시 수행한다.
+      - 정책은 활성 상태(isActive=true)로 등록된다.
      */
     void registerSalaryPolicy(SalaryPolicyRequestDTO requestDTO);
+
+    /*
+       기본급 정책 상세 조회
+       - 수정 버튼 클릭 시 기존 정책 정보를 모달에 표시하기 위한 용도
+       - 부서, 직급, 급여등급, 기본급, 설명 정보를 조회한다.
+       - 수정 화면에서는 부서/직급/급여등급은 읽기 전용으로 보여주고,
+         기본급과 설명만 수정 가능하게 처리한다.
+     */
+    SalaryPolicyResponseDTO getSalaryPolicyDetail(Long policyId);
+
+    /* 수정용 기본급 서열 검증
+       - 수정 모달에서 기본급 입력 직후 AJAX로 호출
+       - 현재 수정 중인 정책은 비교 대상에서 제외하고,
+         같은 부서 기준 G1 < G2 < G3 < G4 순서가 유지되는지 확인
+     */
+    boolean isValidGradeOrderForUpdateCheck(SalaryPolicyRequestDTO requestDTO);
+
+    /*
+       기본급 정책 수정
+       - 기본급과 설명만 수정한다.
+       - 기존 정책은 isActive=false로 비활성화한다.
+       - 수정된 값으로 새 기본급 정책을 isActive=true 상태로 다시 등록한다.
+       - AJAX에서 검증했더라도 Service에서 서열 검증을 다시 수행한다.
+    */
+    void updateSalaryPolicy(SalaryPolicyRequestDTO requestDTO);
+
+    /*
+      기본급 정책 삭제
+      - 실제 삭제가 아니라 isActive=false 처리
+      - 과거 급여 데이터 보존 목적
+     */
+    void deleteSalaryPolicy(Long policyId);
 }
+

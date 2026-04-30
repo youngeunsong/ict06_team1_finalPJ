@@ -1,5 +1,7 @@
 package com.ict06.team1_fin_pj.common.dto.payroll;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +10,8 @@ import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SalaryPolicyResponseDTO {
 
     // 🔹 PK
