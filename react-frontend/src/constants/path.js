@@ -2,6 +2,11 @@
 export const PATH = {
   ROOT: "/",
 
+  // 학습용 예제
+  TEST: {
+    LIST: "/test/list"
+  },
+
   // 대분류 : 인증/인가   
   AUTH: {
     LOGIN: "/auth/login",
