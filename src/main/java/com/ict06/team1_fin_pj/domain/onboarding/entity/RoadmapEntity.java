@@ -2,6 +2,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.DepartmentEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.PositionEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,8 +26,12 @@ public class RoadmapEntity extends BaseTimeEntity {
     @Column(name = "roadmap_id")
     private Integer roadmapId;
 
-    @Column(length = 200)
+    @Column(length = 200, nullable = false)
     private String title;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "emp_no", nullable = false)
+    private EmpEntity employee;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id")
@@ -35,6 +40,17 @@ public class RoadmapEntity extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private PositionEntity position;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "generated_type", length = 20)
+    private GeneratedType generatedType;
+
+    @Builder.Default
+    private Integer version = 1;
+
+    @Builder.Default
+    @Column(name = "is_completed")
+    private Boolean isCompleted = false;
 
     @OneToMany(mappedBy = "roadmap", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

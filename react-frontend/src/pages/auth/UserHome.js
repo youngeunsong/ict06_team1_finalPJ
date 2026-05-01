@@ -18,8 +18,11 @@ import { cilSun, cilClock, cilEducation, cilCalendar, cilCheckCircle } from '@co
 
 import { fetchHomeData } from './Crawling';
 import { useUser } from 'src/api/UserContext';
+import { useNavigate } from 'react-router-dom';
+import { PATH } from 'src/constants/path';
 
 const UserHome = () => {
+  const navigate = useNavigate();
   const {userInfo} = useUser();
   const [homeData, setHomeData] = useState({
     temp: '--',
@@ -159,12 +162,18 @@ const UserHome = () => {
                   <CCardHeader className="bg-light border-0">
                       <CIcon icon={cilCheckCircle} className="me-2 text-success" />
                       <strong>To-Do List</strong>
-                    <small className="text-primary" style={{cursor: 'pointer'}}>+ 추가</small>
+                    <small
+                      className="text-primary"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(PATH.ONBOARDING.CHECKLIST)}
+                      >
+                        전체 보기
+                      </small>
                   </CCardHeader>
                   <CCardBody>
-                    <div className="mb-2"><CFormCheck label={<small>API 연동 테스트(날씨/뉴스)</small>} /></div>
-                    <div className="mb-2"><CFormCheck label={<small>Thymeleaf template 테스트</small>} /></div>
-                    <div className="mb-2"><CFormCheck label={<small>발표자료 제출</small>} /></div>
+                    <div className="mb-2"><CFormCheck label={<small>개인정보 확인 및 연락처 등록</small>} /></div>
+                    <div className="mb-2"><CFormCheck label={<small>근태/전자결재 시스템 사용법 확인</small>} /></div>
+                    <div className="mb-2"><CFormCheck label={<small>보안 서약 및 필수 교육 이수</small>} /></div>
                   </CCardBody>
                 </CCard>
               </CCol>

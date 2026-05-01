@@ -7,7 +7,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "ROAD_ITEM")
+@Table(
+        name = "ROAD_ITEM",
+        indexes = {
+                @Index(name = "idx_roadmap_order", columnList = "roadmap_id, order_no")
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -30,6 +35,9 @@ public class RoadItemEntity {
     @JoinColumn(name = "content_id", nullable = false)
     private OnContentEntity content;
 
-    @Column(name = "order_no")
+    @Column(name = "category_name", length = 50, nullable = false)
+    private String categoryName;
+
+    @Column(name = "order_no", nullable = false)
     private Integer orderNo;
 }

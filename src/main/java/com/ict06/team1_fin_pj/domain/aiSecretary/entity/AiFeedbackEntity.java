@@ -9,7 +9,7 @@ import jakarta.persistence.*;
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_message_emp",
-                        columnNames = {"message_id", "emp_id"}
+                        columnNames = {"message_id", "emp_no"}
                 )
         }
 )

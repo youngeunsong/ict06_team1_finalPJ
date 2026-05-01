@@ -27,6 +27,7 @@ public class ScheduleParticipantEntity {
     @JoinColumn(name = "emp_no", nullable = false)
     private EmpEntity employee;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     private ParticipantStatus status = ParticipantStatus.PENDING;
 
