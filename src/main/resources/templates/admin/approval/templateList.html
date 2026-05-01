@@ -127,7 +127,7 @@
 
         list.forEach(item => {
             let createdAt = new Date(item.updatedAt).toLocaleString();
-            // event.stopPropagation() : 버튼 클릭 시 row 클릭 이벤트 방지
+            // event.stopPropagation() : 버튼 클릭 시 기본 이벤트 (row 클릭) 방지
             html += `
                 <tr onclick="goDetail(${item.formId})" style="cursor:pointer;">
                     <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation()"></td>
@@ -136,10 +136,13 @@
                     <td>${createdAt ?? ''}</td>
                     <td>
                         <button class="btn btn-primary btn-sm"
-                            onclick="goEdit(${item.formId})">
+                            onclick="event.stopPropagation();goEdit(${item.formId})">
                             수정
                         </button>
-                        <button class="btn btn-danger btn-sm">삭제</button>
+                        <button class="btn btn-danger btn-sm" 
+                            onclick="event.stopPropagation();">
+                            삭제
+                        </button>
                     </td>
                 </tr>
             `;

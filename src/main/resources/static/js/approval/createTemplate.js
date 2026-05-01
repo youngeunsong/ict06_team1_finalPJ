@@ -2,7 +2,7 @@
 let fields = [];
 
 // 1. 필드 동적 추가 로직
-function addField(type, label = '새 필드', placeholder = '') {
+function addField(type, label = '⭐항목 명을 작성해주세요', placeholder = '') {
     const container = document.getElementById('dynamicFields');
     const fieldId = 'field_' + Date.now();
     const fieldNameId = fieldId + '_name';
@@ -10,7 +10,7 @@ function addField(type, label = '새 필드', placeholder = '') {
     const now = new Date().toTimeString().slice(0, 5);// 현재 시각
     const today = new Date().toISOString().slice(0, 10);// 현재 날짜
 
-    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="⭐항목 명을 작성해주세요" id="${fieldNameId}" required>`; // 반드시 필드명 작성해야 제출 가능
+    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="⭐항목 명을 작성해주세요" id="${fieldNameId}" required value="${label}">`; // 반드시 필드명 작성해야 제출 가능
     let inputHtml = '';
     if(type === 'text') inputHtml += `<input type="text" class="form-control" placeholder="${placeholder}">`;
     if(type === 'number') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
@@ -77,7 +77,7 @@ $('#formEditor').on('submit', function (e) {
         contentType: 'application/json; charset=UTF-8',
         data: JSON.stringify({
             formName: formData.title,
-            template: JSON.stringify(formData)
+            template: JSON.stringify(formData) // DB에는 문자열로 저장
         }),
 
         success: function (res) {

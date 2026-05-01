@@ -9,13 +9,16 @@
 
 package com.ict06.team1_fin_pj.domain.approval.controller;
 
+import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
 import com.ict06.team1_fin_pj.domain.approval.service.AdApprovalServiceImpl;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -92,7 +95,11 @@ public class AdApprovalController {
         return "admin/approval/viewForm"; // thymeleaf 파일
     }
 
-    // 서식 수정
+    // [전자 결재 서식 삭제] ----------------------------------------------------------------------------
+
+
+    // [전자 결재 서식 수정] ----------------------------------------------------------------------------
+    // 서식 수정 페이지
     @GetMapping("/edit/{formId}")
     public String editForm(@PathVariable int formId, Model model) {
         System.out.println("[AdApprovalController] - editForm()");
@@ -101,15 +108,14 @@ public class AdApprovalController {
         return "admin/approval/editForm"; // thymeleaf 파일
     }
 
-    // TODO: 현재 테스트용 서식이 어떻게 출력되는 지만 구현. 추후 필요한 버튼 영역 추가 필요
-    @RequestMapping("/viewTestTemplate")
-    public String viewTestTemplate(HttpServletRequest request, HttpServletResponse response, Model model)
-            throws ServletException, IOException {
-        System.out.println("[AdApprovalController] - viewTestTemplate()");
-        return "admin/approval/viewTestTemplate";
+    // 서식 수정 처리
+    @PutMapping("/update/{formId}")
+    @ResponseBody
+    public ResponseEntity<?> updateForm(@PathVariable int formId,
+                                        @RequestBody AppFormDto dto){
+        System.out.println("[AdApprovalController] - updateForm()");
+        service.updateAppForm(formId, dto);
+        return ResponseEntity.ok().build();
     }
 
-    // [전자 결재 서식 삭제] ----------------------------------------------------------------------------
-
-    // [전자 결재 서식 수정] ----------------------------------------------------------------------------
 }

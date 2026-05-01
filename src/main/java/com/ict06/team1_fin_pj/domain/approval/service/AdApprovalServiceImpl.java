@@ -1,5 +1,6 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
+import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -64,9 +66,17 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     }
 
     // update
+    // JPA는 Dirty Checking을 사용합니다. 변경이 발생한 엔티티를 자동 감지하여 데이터베이스에 반영합니다.
+    // 따라서 별도로 update 쿼리를 선언 안 해도 update 됩니다.
+    @Transactional // 있어야 dirty checking 작동
     @Override
-    public void updateAppForm(AppFormEntity entity) {
-
+    public void updateAppForm(int formId, AppFormDto dto) {
+        System.out.println("AdApprovalServiceImpl - updateAppForm()");
+        // 1. DB에서 조회 (영속 상태)
+        AppFormEntity prevEntity = appFormRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("서식 없음"));
+        // 2. 값 변경 -> JPA가 변경 감지 -> UPDATE 쿼리 자동 실행
+        prevEntity.updateForm(dto.getFormName(), dto.getTemplate());
     }
 
     // [결재선 서식 관리]--------------------------------------------
