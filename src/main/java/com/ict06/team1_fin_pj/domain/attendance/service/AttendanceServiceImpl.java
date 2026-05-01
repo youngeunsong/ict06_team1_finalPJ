@@ -41,6 +41,12 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public void checkIn(String empNo, Double lat, Double lng) {
 
+        // GPS 값이 없으면 출근 처리 불가
+        // 프론트에서 lat, lng가 넘어오지 않으면 여기서 막는다.
+        if (lat == null || lng == null) {
+            throw new RuntimeException("GPS 위치 정보가 없습니다.");
+        }
+
         // 오늘 날짜
         LocalDate today = LocalDate.now();
 
@@ -60,7 +66,9 @@ public class AttendanceServiceImpl implements AttendanceService {
 
             // 허용 반경보다 멀면 출근을 막는다.
             if (distance > ALLOWED_DISTANCE_METER) {
-                throw new RuntimeException("회사 근처에서만 출근할 수 있습니다.");
+                throw new RuntimeException(
+                        "회사 근처에서만 출근할 수 있습니다. 현재 거리: " + Math.round(distance) + "m"
+                );
             }
 
         // 2. 사원 조회 (FK 연결용)
@@ -147,6 +155,12 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public void checkOut(String empNo, Double lat, Double lng) {
 
+        // GPS 값이 없으면 퇴근 처리 불가
+        // 프론트에서 lat, lng가 넘어오지 않으면 여기서 막는다.
+        if (lat == null || lng == null) {
+            throw new RuntimeException("GPS 위치 정보가 없습니다.");
+        }
+
         // 오늘 날짜
         LocalDate today = LocalDate.now();
 
@@ -159,7 +173,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         );
 
         if (distance > ALLOWED_DISTANCE_METER) {
-            throw new RuntimeException("회사 근처에서만 퇴근할 수 있습니다.");
+            throw new RuntimeException(
+                    "회사 근처에서만 퇴근할 수 있습니다. 현재 거리: " + Math.round(distance) + "m"
+            );
         }
 
         // 1. 오늘 출근 기록 조회

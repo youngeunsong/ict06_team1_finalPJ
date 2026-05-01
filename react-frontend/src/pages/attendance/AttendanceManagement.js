@@ -17,6 +17,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { PATH } from 'src/constants/path';
 
+// 2차 시연용 화면 실제 근태 기능 컴포넌트
+import Attendance from './Attendance';
+
 // [근태관리] 근태관리 홈 화면
 const AttendanceManagement = () => {
 
@@ -67,6 +70,8 @@ const AttendanceManagement = () => {
                 <h2>🚀 {userInfo?.name}님의 근태 현황</h2>
             </header>    
 
+            {/* 실제 출근/퇴근 기능 영역 */}
+            <Attendance />
 
             {/* 1차 시연용 영역 */}
             <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
