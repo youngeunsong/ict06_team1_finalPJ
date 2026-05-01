@@ -19,7 +19,7 @@ function addField(type, label = '새 필드', placeholder = '') {
     if(type === 'amount') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
 
     const fieldHtml = `
-        <div class="input-group mb-3 border-0 p-2 position-relative" id="${fieldId}">
+        <div class="input-group mb-3 border-0 p-2 position-relative gap-3" id="${fieldId}">
             ${fieldName}
             ${inputHtml}
             <button type="button" class="btn btn-sm btn-danger  top-0 end-0" onclick="removeField('${fieldId}')">X</button>

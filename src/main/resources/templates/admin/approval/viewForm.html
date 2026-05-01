@@ -96,6 +96,9 @@
     function renderForm(templateJson) {
         let html = '';
 
+        const now = new Date().toTimeString().slice(0, 5);// 현재 시각
+        const today = new Date().toISOString().slice(0, 10);// 현재 날짜
+
         // 서식 제목 가져오기
         html += `
             <div class="text-center mb-4">
@@ -105,25 +108,24 @@
 
         // input 태그 유형 따라 가져오기 
         templateJson.fields.forEach(field => {
-            html += `<div class="mb-3">`;
-            html += `<label>${field.label}</label>`;
+            html += `<div class="input-group mb-3 border-0 p-2 position-relative gap-3 align-items-center">`;
+            html += `<label class="mb-0">${field.label}</label>`;
 
             if(field.type === 'text'){
                 html += `<input type="text" class="form-control" placeholder="${field.placeholder}">`;
             }
             if(field.type === 'date'){
-                html += `<input type="date" class="form-control">`;
+                html += `<input type="date" class="form-control" value="${today}">`;
             }
             if(field.type === 'number'){
-                html += `<input type="number" class="form-control">`;
+                html += `<input type="number" class="form-control placeholder="${field.placeholder}">`;
+            } 
+            if(field.type === 'time'){
+                html += `<input type="time" class="form-control" value="${now}">`;
             }
-            // TODO: 다음 입력 값도 정상적으로 표시될 수 있게 수정 필요. 
-            // if(field.type === 'time'){
-            //     html += `<input type="number" class="form-control">`;
-            // }
-            // if(field.type === 'amount'){
-            //     html += `<input type="number" class="form-control">`;
-            // }
+            if(field.type === 'amount'){
+                html += `<input type="number" class="form-control" placeholder="${field.placeholder}">`;
+            }
 
             html += `</div>`;
         });
