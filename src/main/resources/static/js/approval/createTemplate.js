@@ -10,7 +10,7 @@ function addField(type, label = '새 필드', placeholder = '') {
     const now = new Date().toTimeString().slice(0, 5);// 현재 시각
     const today = new Date().toISOString().slice(0, 10);// 현재 날짜
 
-    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="필드 명을 작성해주세요" id="${fieldNameId}">`;
+    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="⭐항목 명을 작성해주세요" id="${fieldNameId}" required>`; // 반드시 필드명 작성해야 제출 가능
     let inputHtml = '';
     if(type === 'text') inputHtml += `<input type="text" class="form-control" placeholder="${placeholder}">`;
     if(type === 'number') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
@@ -35,12 +35,6 @@ function addField(type, label = '새 필드', placeholder = '') {
         placeholder: placeholder,
         required: false
     });
-//    fields.push({
-//        id: fieldId,
-//        nameId: fieldNameId,
-//        type: type,
-//        inputHtml: inputHtml
-//    });
     console.log(fields)
 }
 
@@ -96,54 +90,4 @@ $('#formEditor').on('submit', function (e) {
             alert('오류가 발생했습니다.');
         }
     });
-
-//    let finTemplateHtml = '';
-//
-//    // 1. 서식 제목 가져오기
-//    const formTitle = $('#formTitle').val();
-//    finTemplateHtml += `
-//        <div class="mb-4 border-bottom pb-3 text-center">
-//            <h3>"${formTitle}"</h3>
-//        </div>`;
-//
-//    // 2. fields에 저장된 html 가져오기
-//    for(let field of fields){
-//        const labelValue = $(`#${field.nameId}`).val();
-//
-//        finTemplateHtml += `
-//            <div class="input-group mb-3 border-0 p-2 position-relative">
-//                <label>${labelValue}</label>
-//                ${field.inputHtml}
-//            </div>
-//        `;
-//    }
-//
-//    // 3. 첨부파일 필수면 해당 UI 추가
-//    if($('#isFileRequired').val() === 'yes'){
-//        finTemplateHtml += `
-//            <div class="mb-3">
-//              <label for="formFile" class="form-label">파일을 첨부해주세요</label>
-//              <input class="form-control" type="file" id="formFile">
-//            </div>
-//        `
-//    }
-//
-//    $.ajax({
-//        url: '/admin/approval/addTemplate',
-//        type: 'POST',
-//        contentType: 'application/json; charset=UTF-8',
-//        data: JSON.stringify({
-//            formName: formTitle,
-//            templateHtml: finTemplateHtml
-//        }),
-//
-//        success: function (res) {
-//            console.log('저장 성공:', res);
-//            alert('저장되었습니다.');
-//        },
-//        error: function (err) {
-//            console.error('에러:', err);
-//            alert('오류 발생');
-//        }
-//    });
 });
