@@ -5,7 +5,7 @@ import com.ict06.team1_fin_pj.domain.employee.entity.DepartmentEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.PositionEntity;
 import com.ict06.team1_fin_pj.domain.payroll.entity.GradeCodeEntity;
 import com.ict06.team1_fin_pj.domain.payroll.entity.SalaryPolicyEntity;
-import com.ict06.team1_fin_pj.domain.payroll.repository.AdSalaryPolicyRepository;
+import com.ict06.team1_fin_pj.domain.payroll.repository.SalaryPolicyRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -21,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdPayrollServiceImpl implements AdPayrollService {
 
-    private final AdSalaryPolicyRepository adSalaryPolicyRepository;
+    private final SalaryPolicyRepository adSalaryPolicyRepository;
 
     @PersistenceContext
     private EntityManager entityManager;

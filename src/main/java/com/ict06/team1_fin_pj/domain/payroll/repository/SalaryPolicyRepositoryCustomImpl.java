@@ -22,7 +22,7 @@ import static com.ict06.team1_fin_pj.domain.payroll.entity.QSalaryPolicyEntity.s
 
 @Repository
 @RequiredArgsConstructor
-public class AdSalaryPolicyRepositoryCustomImpl implements AdSalaryPolicyRepositoryCustom {
+public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 

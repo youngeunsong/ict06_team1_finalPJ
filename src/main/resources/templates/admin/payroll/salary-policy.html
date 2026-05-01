@@ -225,7 +225,7 @@
 
                 <!-- begin::Salary Policy Row -->
                 <tr th:each="item, stat : ${salaryPolicyList}">
-                  <td th:text="${stat.count}">1</td>
+                  <td th:text="${(pageResponse.page - 1) * pageResponse.size + stat.count}">1</td>
                   <td th:text="${item.deptName}">개발팀</td>
                   <td th:text="${item.positionName}">사원</td>
                   <td th:text="${item.gradeId}">G1</td>
