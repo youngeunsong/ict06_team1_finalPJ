@@ -71,28 +71,30 @@ const AppSidebar = ({ userInfo }) => {
           <div className="d-flex align-items-center">
             <CAvatar src={avatar8} size="md" className="me-2" />
               <div>
-                <div className="small text-white-50">
-                  {userInfo?.dept_name || '개발팀'} / {userInfo?.position_name || '사원'}
+                <div className="small text-secondary fw-semibold">
+                  {userInfo?.department?.deptName || userInfo?.dept_name || '개발팀'}
+                  / {userInfo?.position?.positionName || userInfo?.position_name || '사원'}
                 </div>
-                <div className="fw-semibold">{userInfo?.name || '사용자'}</div>
+                <div className="fw-semibold text-dark">
+                  {userInfo?.name || '사용자'}
+                </div>
               </div>
           </div>
 
           {/* 알림 페이지로 이동 */}
           <Link to="/alert">
-            <CIcon icon={cilBell} size="lg" className="text-white-50" style={{ cursor: 'pointer' }} />
+            <CIcon icon={cilBell} size="lg" className="text-secondary" style={{ cursor: 'pointer' }} />
           </Link>
-          {/* <CIcon icon={cilBell} size="lg" className="text-white-50" style={{ cursor: 'pointer' }} /> */}
         </div>
 
         {/* 검색창 */}
         <CInputGroup className="mb-2">
-          <CInputGroupText className="bg-dark border-secondary text-white-50">
+          <CInputGroupText className="bg-white border-secondary text-secondary">
             <CIcon icon={cilSearch} />
           </CInputGroupText>
           <CFormInput
             placeholder='Search'
-            className="bg-dark border-secondary text-white"
+            className="bg-white border-secondary text-dark"
             style={{ fontSize: '0.85rem' }}
           />
         </CInputGroup>
