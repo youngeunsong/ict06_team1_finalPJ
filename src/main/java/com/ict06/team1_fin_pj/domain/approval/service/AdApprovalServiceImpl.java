@@ -52,7 +52,9 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // 1건 select (상세 화면)
     @Override
     public AppFormEntity selectAppForm(int id) {
-        return null;
+        System.out.println("AdApprovalServiceImpl - selectAppForm()");
+        return appFormRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 서식입니다. ID: " + id));
     }
 
     // delete

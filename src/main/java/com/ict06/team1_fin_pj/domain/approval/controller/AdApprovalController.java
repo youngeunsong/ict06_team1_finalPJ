@@ -4,6 +4,7 @@
  * ========================================
  * DATE         AUTHOR      NOTE
  * 2026-04-29   송영은       최초 생성
+ * 2026-05-01   송영은       결재 서식 생성, 조회 추가
  **/
 
 package com.ict06.team1_fin_pj.domain.approval.controller;
@@ -46,14 +47,15 @@ public class AdApprovalController {
     public String addTemplate(@RequestBody Map<String, Object> body) {
         System.out.println("[AdApprovalController] - addTemplate()");
 
-        String templateHtml = (String) body.get("templateHtml");
+//        String templateHtml = (String) body.get("templateHtml");
+        String template = (String) body.get("template");
         System.out.println("formName:" + (String) body.get("formName"));
-        System.out.println("templateHtml: " + templateHtml);
+        System.out.println("template: " + template);
 
         // AppFormEntity 형태로 준비
         AppFormEntity entity = AppFormEntity.builder()
                 .formName((String) body.get("formName"))
-                .template((String) body.get("templateHtml"))
+                .template(template)
                 .build();
 
         // 서비스에 전달
@@ -67,27 +69,39 @@ public class AdApprovalController {
     public String templateList(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - templateList()");
-
-        // 모든 전자 결재 서식 목록 가져오기
-//        List<AppFormEntity> list= service.listAllAppForms();
-
-        // 페이징 처리된 결재 서식 목록 가져오기
-
-        // html에 전달
-//        model.addAttribute("list", list);
         return "admin/approval/templateList";
     }
 
-    // 페이징 처리된 서식 조회 (Ajax)
+    // 페이징 처리된 서식 목록 조회 (Ajax)
     @GetMapping("/getAppForms")
     @ResponseBody
     public Page<AppFormEntity> getAppForms(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "10") int size) {
+        System.out.println("[AdApprovalController] - getAppForms()");
         return service.getAppFormsWithPaging(page, size);
     }
 
-    // 서식 상세 조회
-    // TODO: 현재 서식이 어떻게 출력되는 지만 구현. 추후 필요한 버튼 영역 추가 필요
+    // 서식 1건 상세 보기
+    @GetMapping("/viewForm/{formId}")
+    public String viewForm(@PathVariable int formId, Model model) {
+        System.out.println("[AdApprovalController] - viewForm()");
+
+        AppFormEntity form = service.selectAppForm(formId);
+        model.addAttribute("form", form);
+
+        return "admin/approval/viewForm"; // thymeleaf 파일
+    }
+
+    // 서식 수정
+    @GetMapping("/edit/{formId}")
+    public String editForm(@PathVariable int formId, Model model) {
+        System.out.println("[AdApprovalController] - editForm()");
+        AppFormEntity form = service.selectAppForm(formId); //
+        model.addAttribute("form", form);
+        return "admin/approval/editForm"; // thymeleaf 파일
+    }
+
+    // TODO: 현재 테스트용 서식이 어떻게 출력되는 지만 구현. 추후 필요한 버튼 영역 추가 필요
     @RequestMapping("/viewTestTemplate")
     public String viewTestTemplate(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
