@@ -1,11 +1,18 @@
-// 모든 리액트 페이지에서 공통적으로 필요한 요소를 넣은 예시 파일입니다. 이 파일을 응용하여 페이지 구현해주세요. 
+/**
+ * @author : 송영은
+ * description : 모든 리액트 페이지에서 공통적으로 필요한 요소를 넣은 예시 파일입니다. 이 파일을 응용하여 페이지 구현해주세요. 
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-04-23   송영은      최초 생성
+ **/
+
 // 수정 금지
 import React from 'react';
 
 // 경로 상수 
 import { PATH } from "src/constants/path";
 
-// CoreUI 
+// CoreUI 템플릿. 
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
 // 페이지 이동
