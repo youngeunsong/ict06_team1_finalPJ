@@ -76,7 +76,8 @@
                                 <h5 class="card-header">서식 미리보기</h5>
                                 <!-- 기본 정보 (고정) -->
                                 <div class="mb-4 border-bottom pb-3 text-center">
-                                    <input type="text" name="formTitle" id="formTitle" class="form-control form-control-lg text-center border-0 shadow-none" placeholder="서식 제목을 입력하세요 (예: 연차 신청서)">
+                                    <input type="text" name="formTitle" id="formTitle" class="form-control form-control-lg text-center border-0 shadow-none"
+                                           placeholder="서식 제목을 입력하세요 (예: 연차 신청서)" required>
                                 </div>
 
                                 <!-- 동적 필드가 추가될 영역 시작 -->
@@ -89,8 +90,8 @@
                                 <div class="mb-4 border-bottom pb-3 text-center">
                                     <div class="d-flex align-items-center">
                                         <label class="col-md-auto"><i class="fa-solid fa-cloud-arrow-up"></i>첨부파일</label>
-                                        <select class="form-select" aria-label="Default select example" id="isFileRequired">
-                                            <option selected>선택해주세요</option>
+                                        <select class="form-select" aria-label="Default select example" id="isFileRequired" required>
+                                            <option value="" selected>선택해주세요</option>
                                             <option value="no">사용 안 함</option>
                                             <option value="yes">필수 사용</option>
                                         </select>

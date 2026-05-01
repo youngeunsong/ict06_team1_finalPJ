@@ -173,10 +173,4 @@ public class AdPayrollController {
             redirectAttributes.addAttribute("keyword", keyword);
         }
     }
-
-
-
-
-
-
 }

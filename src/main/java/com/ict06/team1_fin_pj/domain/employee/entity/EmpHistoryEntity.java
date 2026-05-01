@@ -27,6 +27,9 @@ public class EmpHistoryEntity {
     @JoinColumn(name = "emp_no", nullable = false)
     private EmpEntity employee;
 
+    @Column(name = "emp_id", nullable = false, length = 20)
+    private String empId;
+
     //변경 전 부서
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "old_dept_id")
@@ -63,4 +66,6 @@ public class EmpHistoryEntity {
     @Column(name = "changed_at")
     @CreatedDate
     private LocalDateTime changedAt;
+
+
 }
