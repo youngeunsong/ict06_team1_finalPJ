@@ -44,9 +44,11 @@ public class SalaryPolicyEntity extends BaseTimeEntity {
     @Column(name = "basic_salary", nullable = false, precision = 15, scale = 2)
     private BigDecimal basicSalary;
 
+    @Builder.Default
     @Column(name = "bonus_rate", nullable = false, precision = 5, scale = 2)
     private BigDecimal bonusRate = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "position_allowance", nullable = false, precision = 15, scale = 2)
     private BigDecimal positionAllowance = BigDecimal.ZERO;
 
