@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // CoreUI 
 import { CCard, CCardBody } from '@coreui/react';
@@ -11,6 +11,7 @@ import CalendarSimpleAdd from './CalendarSimpleAdd';
 
 // 경로 상수
 import { PATH } from 'src/constants/path';
+import { request } from 'src/helpers/axios_helper';
 
 // 풀캘린더
 import FullCalendar from '@fullcalendar/react';
@@ -71,43 +72,67 @@ const Calendar = () => {
         { id: 'kim', name: '김다솜', checked: true, color: '#6F42C1' },
     ]);
 
-    // 백엔드 연결 전까지 화면 확인용으로 사용할 더미 일정 데이터
-    const dummyEvents = [
-        {
-            id: '1',
-            title: '팀 회의',
-            start: '2026-04-27T10:00:00',
-            end: '2026-04-27T11:00:00',
-            extendedProps: {
-                type: '부서일정',
-                category: '회의',
-            },
-        },
-        {
-            id: '2',
-            title: '프로젝트 일정 공유',
-            start: '2026-04-29',
-            extendedProps: {
-                type: '개인일정',
-                category: '업무',
-            },
-        },
-        {
-            id: '3',
-            title: '전사 공지 일정',
-            start: '2026-05-01',
-            extendedProps: {
-                type: '전사일정',
-                category: '공지',
-            },
-        },
-    ];
+    // 캘린더 일정 목록
+    // 백엔드 조회 결과를 FullCalendar 형식으로 관리한다.
+    const [calendarEvents, setCalendarEvents] = useState([]);
+
+    // 등록 완료 알림
+    const [successMessage, setSuccessMessage] = useState('');
 
     // 캘린더 일정 클릭 시 일정 상세 화면으로 이동
     const handleEventClick = (info) => {
         const scheduleId = info.event.id;
 
         navigate(`${PATH.CALENDAR.DETAIL}?id=${scheduleId}`);
+    };
+
+    // 일정 목록 조회
+    // 서버 데이터를 FullCalendar 형식으로 변환한다.
+    const fetchScheduleList = async () => {
+        try {
+            // GET 요청으로 일정 목록 API 호출
+            // response.data 에 백엔드가 준 일정 배열이 들어있다.
+            const response = await request('GET', '/calendar/list', null);
+
+            // FullCalendar 형식 변환
+            // 백엔드 DTO 배열을 캘린더에서 쓰는 event 배열로 바꿈
+            const events = response.data.map((schedule) => ({
+                id: String(schedule.scheduleId),
+                title: schedule.title,
+                start: schedule.startTime,
+                end: schedule.endTime,
+                allDay: schedule.isAllDay,
+                extendedProps: {
+                    type: schedule.type,
+                    category: schedule.category,
+                    location: schedule.location,
+                    creatorNo: schedule.creatorNo,
+                },
+            }));
+
+            // 화면에 표시할 일정 state 저장
+            setCalendarEvents(events);
+        } catch (error) {
+            console.error('일정 목록 조회 실패:', error);
+        }
+    };
+
+    // 첫 화면 조회
+    // 페이지가 열릴 때 일정 목록을 한 번 불러온다.
+    useEffect(() => {
+        fetchScheduleList();
+    }, []);
+
+    // 등록 성공 처리
+    // 목록을 다시 불러오고 성공 문구 띄움
+    const handleCreateSuccess = async () => {
+        await fetchScheduleList();
+        setSimpleAddVisible(false);
+        setSuccessMessage('일정이 등록되었습니다.');
+
+        setTimeout(() => {
+            setSuccessMessage('');
+        }, 2000);
     };
 
     // 날짜 숫자 클릭 시 선택 날짜 옆에 간편등록 퀵 팝업 열기
@@ -413,6 +438,28 @@ const Calendar = () => {
                 }
             `}
             </style>
+
+            {successMessage && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: '90px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#22c55e',
+                        color: '#ffffff',
+                        padding: '12px 18px',
+                        borderRadius: '10px',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        boxShadow: '0 10px 24px rgba(34, 197, 94, 0.28)',
+                        zIndex: 2000,
+                    }}
+                >
+                    {successMessage}
+                </div>
+            )}
+
             <CCard
                 className="mb-0"
                 style={{
@@ -667,7 +714,7 @@ const Calendar = () => {
                                 initialView="dayGridMonth"
                                 locale={koLocale}
                                 height="100%"
-                                events={dummyEvents}
+                                events={calendarEvents}
                                 eventClick={handleEventClick}
                                 dateClick={handleDateClick}
                                 headerToolbar={false}
@@ -694,6 +741,7 @@ const Calendar = () => {
                 onClose={() => setSimpleAddVisible(false)}
                 selectedDateProp={selectedDate}
                 popupPosition={popupPosition}
+                onCreateSuccess={handleCreateSuccess}
             />
         </div>
     );

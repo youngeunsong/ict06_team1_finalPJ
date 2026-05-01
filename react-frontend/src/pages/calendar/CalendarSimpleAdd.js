@@ -4,15 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { CButton, CForm, CFormInput, CFormSelect, CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter } from '@coreui/react';
 
 // 페이지 이동
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 
 import { PATH } from 'src/constants/path';
+import { request } from 'src/helpers/axios_helper';
 
 // [캘린더] 일정 간단 등록 페이지
-const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPosition }) => {
+const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPosition, onCreateSuccess }) => {
+
 
     // js 코드로 페이지 이동할 때 사용하는 함수
     const navigate = useNavigate();
+    const [userInfo] = useOutletContext();
 
     // 캘린더에서 선택된 날짜를 URL query string으로 받음
     const location = useLocation();
@@ -24,6 +27,8 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
     // 퀵 팝업으로 열렸으면 팝업만 닫고,
     // 단독 페이지로 접근한 경우에는 캘린더 메인으로 이동
     const handleClose = () => {
+        resetSimpleForm();
+
         if (onClose) {
             onClose();
         } else {
@@ -47,6 +52,24 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
     const defaultStart = getDefaultDateTime(selectedDate, 0);
     const defaultEnd = getDefaultDateTime(selectedDate, 1);
 
+    // 퀵 팝업 초기화
+    // 닫을 때 이전 입력값을 비운다
+    const resetSimpleForm = () => {
+        setFormData({
+            title: '',
+            type: 'PERSONAL',
+            category: 'MEETING',
+            start: getDefaultDateTime(selectedDate, 0),
+            end: getDefaultDateTime(selectedDate, 1),
+            location: '',
+            content: '',
+            participants: [],
+        });
+        setAllDay(false);
+        setErrorMessage('');
+        setParticipantModalVisible(false);
+    };
+
     // 간단 등록 폼 입력값 관리
     const [formData, setFormData] = useState({
         title: '',
@@ -64,6 +87,9 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
 
     // 종일 여부
     const [allDay, setAllDay] = useState(false);
+
+    // 등록 오류 메세지
+    const [errorMessage, setErrorMessage] = useState('');
 
     // 날짜/종일 상태에 따른 시간 세팅
     useEffect(() => {
@@ -136,15 +162,59 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
     };
 
     // 등록 버튼 클릭 시 현재 입력값을 확인하고 팝업을 닫음
-    // 추후 백엔드 연결 시 이 위치에서 등록 API를 호출할 예정
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setErrorMessage('');
 
-        console.log('간단 등록 데이터:', formData);
-        alert('입력값이 콘솔에 출력되었습니다.');
+        if (!formData.title.trim()) {
+            setErrorMessage('제목을 입력해 주세요.');
+            return;
+        }
 
-        handleClose();
+        if (!userInfo?.empNo) {
+            setErrorMessage('로그인 사용자 정보를 확인할 수 없습니다.');
+            return;
+        }
+
+        const payload = {
+            title: formData.title.trim(),
+            content: formData.content,
+            startTime: formData.start,
+            endTime: formData.end,
+            type: formData.type,
+            creatorNo: userInfo.empNo,
+            deptId: null,
+            category: formData.category,
+            location: formData.location,
+            isAllDay: allDay,
+            isPublic: true,
+            repeatRule: null,
+        };
+
+        try {
+            await request('POST', '/calendar/create', payload);
+
+            // 등록 성공 처리
+            // 입력값을 초기화한 뒤 부모 캘린더에 성공을 알린다.
+            resetSimpleForm();
+
+            if (onCreateSuccess) {
+                await onCreateSuccess();
+            } else {
+                handleClose();
+            }
+        } catch (error) {
+            console.error('일정 등록 실패:', error);
+
+            const message = error.response?.data;
+            setErrorMessage(
+                typeof message === 'string' ? message : '일정 등록에 실패했습니다.'
+            );
+        }
+
+
     };
+
 
     // 간편등록 팝업 스타일
     // Calendar.js에서 클릭 위치를 넘겨주면 해당 위치 근처에 띄우고,
@@ -155,8 +225,8 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
         left: popupPosition?.left || '50%',
         transform: popupPosition ? 'none' : 'translateX(-50%)',
         width: '390px',
-        maxHeight: 'none',
-        overflowY: 'visible',
+        maxHeight: 'calc(100vh - 40px)',
+        overflowY: 'auto',
         backgroundColor: '#ffffff',
         color: '#111827',
         border: '1px solid #e5e7eb',
@@ -363,7 +433,11 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
                                 </CButton>
                             </div>
                         </div>
-
+                        {errorMessage && (
+                            <div style={{ marginTop: '12px', color: '#dc3545', fontSize: '13px' }}>
+                                {errorMessage}
+                            </div>
+                        )}
                         {/* 등록/상세등록/취소 버튼 영역 */}
                         <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                             <CButton
