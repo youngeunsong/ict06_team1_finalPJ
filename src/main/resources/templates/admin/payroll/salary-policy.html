@@ -1,0 +1,401 @@
+<!--
+[ 관리자용 페이지 템플릿 사용 방법]
+1. 핵심 콘텐츠 작성법
+<div class="container-fluid">
+    이 사이에 넣을 핵심콘텐츠에 필요한 타임리프 코드를 작성해주세요
+</div>
+
+2. 모든 관리자용 페이지에 반드시 포함시킬 파일: header, head, sidebar, commonJs.html (이 파일들은 수정 시 반드시 팀원들과 협의해주세요)
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+  <title id="page_title">관리자 템플릿</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+  <!-- 헤더 시작 -->
+  <th:block th:replace="~{/admin/common/header}"></th:block>
+  <!-- 헤더 끝 -->
+
+  <!-- 사이드바 시작-->
+  <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+  <!-- 사이드바 끝-->
+
+  <!-- 메인 콘텐츠 시작 -->
+  <main class="app-main">
+    <!--begin::App Content-->
+    <div class="app-content">
+      <!--begin::Container-->
+      <div class="container-fluid">
+        <br>
+
+        <!-- begin::Page Title Row -->
+        <div class="row mb-3">
+          <div class="col">
+            <h3 class="fw-bold">급여 관리</h3>
+          </div>
+        </div>
+        <!-- end::Page Title Row -->
+
+        <!-- ===================================================== -->
+        <!-- 성공 메시지 -->
+        <!-- ===================================================== -->
+        <div th:if="${successMessage}"
+             class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+          <span th:text="${successMessage}"></span>
+
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="alert"
+                  aria-label="닫기">
+          </button>
+        </div>
+
+        <!-- begin::Salary Policy Card -->
+        <div class="card">
+          <div class="card-body">
+
+            <!-- begin::Card Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+              <div>
+                <h4 class="fw-bold mb-2">기본급 설정</h4>
+                <p class="text-muted mb-0">부서 · 직급 · 급여등급별 기본급을 관리합니다.</p>
+              </div>
+
+              <!-- begin::Register Button -->
+              <button type="button" class="btn btn-primary"  data-bs-toggle="modal"
+                      data-bs-target="#salaryPolicyRegisterModal">
+                <i class="fa-solid fa-plus"></i>
+                기본급 등록
+              </button>
+              <!-- end::Register Button -->
+            </div>
+            <!-- end::Card Header -->
+
+            <!-- begin::Search Filter Form -->
+            <form method="get"
+                  th:action="@{/admin/payroll/salary-policy}"
+                  class="mb-4">
+
+              <!-- 검색 시 항상 1페이지부터 조회 -->
+              <input type="hidden" name="page" value="1">
+
+              <!-- 페이지 크기 유지 -->
+              <input type="hidden" name="size" th:value="${searchDTO.size}">
+
+              <!-- ===================================================== -->
+              <!-- 검색어 영역 (상단 배치 / 너무 길지 않게 col-md-4 사용) -->
+              <!-- ===================================================== -->
+              <div class="row g-3 mb-3">
+
+                <div class="col-md-4">
+                  <label class="form-label">검색어</label>
+
+                  <!-- 검색어 입력 -->
+                  <!-- 부서명 / 직급명 / 급여등급명 기준 통합 검색 -->
+                  <input type="text"
+                         class="form-control"
+                         name="keyword"
+                         placeholder="부서, 직급, 급여등급 검색"
+                         th:value="${searchDTO.keyword}">
+                </div>
+
+              </div>
+
+              <!-- ===================================================== -->
+              <!-- 필터 + 버튼 영역 -->
+              <!-- ===================================================== -->
+              <div class="row g-3 align-items-end">
+
+                <!-- ===================== -->
+                <!-- 부서 필터 -->
+                <!-- ===================== -->
+                <div class="col-md-3">
+                  <label class="form-label">부서</label>
+
+                  <select class="form-select" name="deptId">
+                    <option value="">전체</option>
+
+                    <option th:each="dept : ${departmentList}"
+                            th:value="${dept.id}"
+                            th:text="${dept.name}"
+                            th:selected="${searchDTO.deptId == dept.id}">
+                    </option>
+                  </select>
+                </div>
+
+                <!-- ===================== -->
+                <!-- 직급 필터 -->
+                <!-- ===================== -->
+                <div class="col-md-3">
+                  <label class="form-label">직급</label>
+
+                  <select class="form-select" name="positionId">
+                    <option value="">전체</option>
+
+                    <option th:each="position : ${positionList}"
+                            th:value="${position.id}"
+                            th:text="${position.name}"
+                            th:selected="${searchDTO.positionId == position.id}">
+                    </option>
+                  </select>
+                </div>
+
+                <!-- ===================== -->
+                <!-- 급여등급 필터 -->
+                <!-- ===================== -->
+                <div class="col-md-3">
+                  <label class="form-label">급여등급</label>
+
+                  <select class="form-select" name="gradeId">
+                    <option value="">전체</option>
+
+                    <option th:each="grade : ${gradeCodeList}"
+                            th:value="${grade.id}"
+                            th:text="${grade.id}"
+                            th:selected="${searchDTO.gradeId == grade.id}">
+                    </option>
+                  </select>
+                </div>
+
+                <!-- ===================== -->
+                <!-- 검색 버튼 -->
+                <!-- ===================== -->
+                <div class="col-md-1">
+
+                  <!-- form submit → 필터 + 검색어 기준 조회 실행 -->
+                  <button type="submit" class="btn btn-primary w-100">
+                    검색
+                  </button>
+
+                </div>
+
+                <!-- ===================== -->
+                <!-- 초기화 버튼 -->
+                <!-- ===================== -->
+                <div class="col-md-1">
+
+                  <!-- 전체 조회 페이지로 이동 (필터 초기화) -->
+                  <a th:href="@{/admin/payroll/salary-policy}"
+                     class="btn btn-outline-secondary w-100">
+                    초기화
+                  </a>
+
+                </div>
+
+              </div>
+
+            </form>
+            <!-- end::Search Filter Form -->
+
+            <!-- begin::Salary Policy Table -->
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover text-center align-middle">
+                <!-- begin::Table Head -->
+                <thead class="table-light">
+                <tr>
+                  <th>번호</th>
+                  <th>부서</th>
+                  <th>직급</th>
+                  <th>급여등급</th>
+                  <th>기본급 (원)</th>
+                  <th>생성일</th>
+                  <th>수정일</th>
+                  <th>관리</th>
+                </tr>
+                </thead>
+                <!-- end::Table Head -->
+
+                <!-- begin::Table Body -->
+                <tbody>
+                <!-- begin::Empty Row -->
+                <tr th:if="${#lists.isEmpty(salaryPolicyList)}">
+                  <td colspan="8" class="text-muted py-4">
+                    조회된 기본급 정책이 없습니다.
+                  </td>
+                </tr>
+                <!-- end::Empty Row -->
+
+                <!-- begin::Salary Policy Row -->
+                <tr th:each="item, stat : ${salaryPolicyList}">
+                  <td th:text="${(pageResponse.page - 1) * pageResponse.size + stat.count}">1</td>
+                  <td th:text="${item.deptName}">개발팀</td>
+                  <td th:text="${item.positionName}">사원</td>
+                  <td th:text="${item.gradeId}">G1</td>
+                  <td th:text="${#numbers.formatInteger(item.basicSalary, 3, 'COMMA')}">2,200,000</td>
+                  <td th:text="${#temporals.format(item.createdAt, 'yyyy-MM-dd')}">2024-04-23</td>
+                  <td th:text="${#temporals.format(item.updatedAt, 'yyyy-MM-dd')}">2024-05-08</td>
+                  <td>
+                    <!-- begin::Update Button -->
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            th:data-policy-id="${item.policyId}">
+                      수정
+                    </button>
+                    <!-- end::Update Button -->
+
+                    <!-- begin::Delete Form -->
+                    <form th:action="@{/admin/payroll/salary-policy/delete}"
+                          method="post"
+                          class="d-inline"
+                          onsubmit="return confirm('해당 기본급 정책을 삭제하시겠습니까?');">
+
+                      <!-- 삭제 대상 정책 ID -->
+                      <input type="hidden" name="policyId" th:value="${item.policyId}">
+
+                      <!-- ===================================================== -->
+                      <!-- 현재 조회 상태 유지용 (페이지 + 필터 + 검색어) -->
+                      <!-- 삭제 후에도 같은 페이지/조건으로 돌아오기 위해 필요 -->
+                      <!-- ===================================================== -->
+                      <input type="hidden" name="searchPage" th:value="${searchDTO.page}">
+                      <input type="hidden" name="searchSize" th:value="${searchDTO.size}">
+                      <input type="hidden" name="searchDeptId" th:value="${searchDTO.deptId}">
+                      <input type="hidden" name="searchPositionId" th:value="${searchDTO.positionId}">
+                      <input type="hidden" name="searchGradeId" th:value="${searchDTO.gradeId}">
+                      <input type="hidden" name="searchKeyword" th:value="${searchDTO.keyword}">
+
+                      <!-- 삭제 버튼 -->
+                      <button type="submit" class="btn btn-sm btn-outline-danger">
+                        삭제
+                      </button>
+                    </form>
+                    <!-- end::Delete Form -->
+                  </td>
+                </tr>
+                <!-- end::Salary Policy Row -->
+                </tbody>
+                <!-- end::Table Body -->
+              </table>
+            </div>
+            <!-- end::Salary Policy Table -->
+
+            <!-- begin::Table Footer -->
+            <div class="mt-3">
+              <span>전체 </span>
+              <strong th:text="${pageResponse.totalCount}">0</strong>
+              <span>건</span>
+            </div>
+            <!-- end::Table Footer -->
+
+            <th:block th:replace="~{admin/payroll/salary-policy-pagination :: pagination(${pageResponse}, ${searchDTO})}"></th:block>
+
+          </div>
+        </div>
+        <!-- end::Salary Policy Card -->
+
+        <!-- begin::Salary Policy Register Modal -->
+        <div class="modal fade" id="salaryPolicyRegisterModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+              <form id="salaryPolicyRegisterForm"
+                    th:action="@{/admin/payroll/salary-policy/register}"
+                    method="post">
+
+                <!-- 현재 조회 상태 유지용 hidden 값 -->
+                <!-- 등록 처리 후에도 현재 페이지/필터/검색어 상태로 돌아가기 위한 값 -->
+                <input type="hidden" name="searchPage" th:value="${searchDTO.page}">
+                <input type="hidden" name="searchSize" th:value="${searchDTO.size}">
+                <input type="hidden" name="searchDeptId" th:value="${searchDTO.deptId}">
+                <input type="hidden" name="searchPositionId" th:value="${searchDTO.positionId}">
+                <input type="hidden" name="searchGradeId" th:value="${searchDTO.gradeId}">
+                <input type="hidden" name="searchKeyword" th:value="${searchDTO.keyword}">
+
+                <div class="modal-header">
+                  <h5 class="modal-title fw-bold">기본급 신규 등록</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+
+                <div class="modal-body">
+
+                  <div id="registerCheckMessage" class="alert d-none mb-3"></div>
+
+                  <div class="mb-3">
+                    <label class="form-label">부서 <span class="text-danger">*</span></label>
+                    <select class="form-select" id="registerDeptId" name="deptId" required>
+                      <option value="">부서를 선택하세요.</option>
+                      <option th:each="dept : ${departmentList}"
+                              th:value="${dept.id}"
+                              th:text="${dept.name}">
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">직급 <span class="text-danger">*</span></label>
+                    <select class="form-select" id="registerPositionId" name="positionId" required>
+                      <option value="">직급을 선택하세요.</option>
+                      <option th:each="position : ${positionList}"
+                              th:value="${position.id}"
+                              th:text="${position.name}">
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">급여등급</label>
+                    <input type="text"
+                           class="form-control"
+                           id="registerGradeDisplay"
+                           placeholder="부서와 직급 선택 시 자동 표시됩니다."
+                           readonly>
+
+                    <!-- 급여등급 설명 (GRADE_CODE.description) -->
+                    <div id="registerGradeDesc"
+                         class="form-text text-primary fw-semibold">
+                    </div>
+                    <input type="hidden" id="registerGradeId" name="gradeId">
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">기본급 (원) <span class="text-danger">*</span></label>
+                    <input type="number"
+                           class="form-control"
+                           id="registerBasicSalary"
+                           name="basicSalary"
+                           placeholder="기본급을 입력하세요."
+                           min="1"
+                           required
+                           disabled>
+                    <div id="salaryOrderMessage"
+                         class="form-text"
+                         style="min-height: 24px;">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                  <button type="submit" id="registerSubmitBtn" class="btn btn-primary" disabled>등록</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end::Salary Policy Register Modal -->
+
+      </div>
+    </div>
+    <!--end::App Content-->
+  </main>
+  <!-- 메인 콘텐츠 끝 -->
+  <!-- 푸터 시작 -->
+  <th:block th:replace="~{/admin/common/footer}"></th:block>
+  <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!--스크립트 시작-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<script src="/js/payroll/salary-policy.js"></script>
+<!--스크립트 끝-->
+</body>
+<!--end::Body-->
+</html>
