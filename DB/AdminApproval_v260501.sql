@@ -15,3 +15,21 @@ drop table app_form cascade;
 -- 테스트 용으로 만든 근로자 데이터 삭제 
 delete from employee 
  where emp_no = '20260001';
+
+select * from pg_settings
+where name = 'max_connections';
+
+SELECT * FROM pg_stat_activity;
+
+-- 현재 connection 상태 확인
+SELECT count(*) FROM pg_stat_activity;
+
+SELECT state, count(*)
+FROM pg_stat_activity
+GROUP BY state;
+
+-- 오래된 세션 종료 
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE state = 'idle'
+AND now() - state_change > interval '5 minutes';
