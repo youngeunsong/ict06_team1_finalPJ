@@ -13,13 +13,13 @@ public class SalaryPolicySearchDTO {
     // 직급 필터
     private String positionId;
 
-    // 급여등급 필터: G1, G2, G3, G4
+    // 급여등급 필터: G1, G2, G3, G4, G5
     private String gradeId;
 
-    // 검색어: 부서명, 직급명, 등급명, 설명 등 검색용
+    // 검색어: 부서명, 직급명, 급여등급 검색용
     private String keyword;
 
-    // 0부터 시작
+    // 1부터 시작
     private int page = 1;
 
     // 한 페이지 10개

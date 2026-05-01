@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
@@ -63,9 +64,21 @@ public class AdPayrollController {
 
     // 기본급 정책 최종 등록 - AJAX 검증을 통과했더라도 Service에서 중복/서열 다시 검증
     @PostMapping("/salary-policy/register")
-    public String registerSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO) {
+    public String registerSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO,
+                                       @RequestParam(defaultValue = "1") int searchPage,
+                                       @RequestParam(defaultValue = "10") int searchSize,
+                                       @RequestParam(required = false) String searchDeptId,
+                                       @RequestParam(required = false) String searchPositionId,
+                                       @RequestParam(required = false) String searchGradeId,
+                                       @RequestParam(required = false) String searchKeyword,
+                                       RedirectAttributes redirectAttributes) {
 
         adPayrollService.registerSalaryPolicy(requestDTO);
+
+        redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 등록되었습니다.");
+
+        addSearchCondition(redirectAttributes, searchPage, searchSize,
+                searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
     }
@@ -91,9 +104,21 @@ public class AdPayrollController {
     // 수정 화면에서는 부서, 직급, 급여등급은 변경하지 않는다.
     // 실제 DB 처리 방식은 기존 정책을 비활성화(isActive=false), 수정된 값으로 새로운 기본급 정책을 등록하는 방식
     @PostMapping("/salary-policy/update")
-    public String updateSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO) {
+    public String updateSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO,
+                                     @RequestParam(defaultValue = "1") int searchPage,
+                                     @RequestParam(defaultValue = "10") int searchSize,
+                                     @RequestParam(required = false) String searchDeptId,
+                                     @RequestParam(required = false) String searchPositionId,
+                                     @RequestParam(required = false) String searchGradeId,
+                                     @RequestParam(required = false) String searchKeyword,
+                                     RedirectAttributes redirectAttributes) {
 
         adPayrollService.updateSalaryPolicy(requestDTO);
+
+        redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 수정되었습니다.");
+
+        addSearchCondition(redirectAttributes, searchPage, searchSize,
+                searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
     }
@@ -101,11 +126,52 @@ public class AdPayrollController {
     // 기본급 정책 삭제 처리 - 실제 DB에서 행을 삭제하지 않고 isActive=false로 비활성화
     // 과거 급여대장이나 기존 급여 계산 데이터가 깨지지 않도록 하기 위한 방식
     @PostMapping("/salary-policy/delete")
-    public String deleteSalaryPolicy(@RequestParam Long policyId) {
+    public String deleteSalaryPolicy(@RequestParam Long policyId,
+                                     @RequestParam(defaultValue = "1") int searchPage,
+                                     @RequestParam(defaultValue = "10") int searchSize,
+                                     @RequestParam(required = false) String searchDeptId,
+                                     @RequestParam(required = false) String searchPositionId,
+                                     @RequestParam(required = false) String searchGradeId,
+                                     @RequestParam(required = false) String searchKeyword,
+                                     RedirectAttributes redirectAttributes) {
 
         adPayrollService.deleteSalaryPolicy(policyId);
 
+        redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 삭제되었습니다.");
+
+        addSearchCondition(redirectAttributes, searchPage, searchSize,
+                searchDeptId, searchPositionId, searchGradeId, searchKeyword);
+
         return "redirect:/admin/payroll/salary-policy";
+    }
+
+    // 등록/수정/삭제 후 기존 페이지 번호와 검색 조건을 유지하기 위한 공통 메서드
+    private void addSearchCondition(RedirectAttributes redirectAttributes,
+                                    int page,
+                                    int size,
+                                    String deptId,
+                                    String positionId,
+                                    String gradeId,
+                                    String keyword) {
+
+        redirectAttributes.addAttribute("page", page);
+        redirectAttributes.addAttribute("size", size);
+
+        if (deptId != null && !deptId.isBlank()) {
+            redirectAttributes.addAttribute("deptId", deptId);
+        }
+
+        if (positionId != null && !positionId.isBlank()) {
+            redirectAttributes.addAttribute("positionId", positionId);
+        }
+
+        if (gradeId != null && !gradeId.isBlank()) {
+            redirectAttributes.addAttribute("gradeId", gradeId);
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            redirectAttributes.addAttribute("keyword", keyword);
+        }
     }
 
 

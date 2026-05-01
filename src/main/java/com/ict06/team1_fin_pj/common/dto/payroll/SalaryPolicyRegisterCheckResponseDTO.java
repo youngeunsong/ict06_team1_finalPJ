@@ -12,4 +12,5 @@ public class SalaryPolicyRegisterCheckResponseDTO {
     private String gradeName;
     private boolean duplicate;
     private String message;
+    private String description;
 }

@@ -64,6 +64,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         // 2. 직급 기준으로 급여등급 결정
         String gradeId = getGradeIdByPosition(positionId);
         String gradeName = getGradeNameByGradeId(gradeId);
+        String description = getGradeDescriptionByGradeId(gradeId);
 
         // 3. 중복 여부 확인
         boolean duplicate = adSalaryPolicyRepository.existsActiveSalaryPolicy(
@@ -85,7 +86,8 @@ public class AdPayrollServiceImpl implements AdPayrollService {
                 gradeId,
                 gradeName,
                 duplicate,
-                message
+                message,
+                description
         );
     }
 
@@ -171,11 +173,11 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             throw new IllegalArgumentException("이미 등록된 기본급 정책입니다.");
         }
 
-        // 6. 같은 부서 기준으로 G1 < G2 < G3 < G4 순서 검증
+        // 6. 같은 부서 기준으로 G1 < G2 < G3 < G4 < G5 순서 검증
         boolean isValidOrder = isValidGradeOrder(requestDTO);
 
         if (!isValidOrder) {
-            throw new IllegalArgumentException("기본급은 G1 < G2 < G3 < G4 순서로 입력해야 합니다.");
+            throw new IllegalArgumentException("기본급은 G1 < G2 < G3 < G4 < G5 순서로 입력해야 합니다.");
         }
 
         // 7. FK 연관 엔티티 참조
@@ -256,14 +258,14 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         boolean valid = isValidGradeOrderForUpdate(requestDTO, oldPolicy.getPolicyId());
 
         if (!valid) {
-            throw new IllegalArgumentException("기본급은 G1 < G2 < G3 < G4 순서를 유지해야 합니다.");
+            throw new IllegalArgumentException("기본급은 G1 < G2 < G3 < G4 < G5 순서를 유지해야 합니다.");
         }
 
-        // 6. 기존 정책 비활성화
-        adSalaryPolicyRepository.deactivateSalaryPolicy(oldPolicy.getPolicyId());
-
-        // 7. 새로운 정책 등록 (기존 로직 재사용)
-        registerSalaryPolicy(requestDTO);
+        // 6. 기본급 정책 직접 수정
+        adSalaryPolicyRepository.updateSalaryPolicy(
+                oldPolicy.getPolicyId(),
+                requestDTO.getBasicSalary()
+        );
     }
 
     @Override
@@ -279,13 +281,8 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         SalaryPolicyEntity policy = adSalaryPolicyRepository.findById(policyId.intValue())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기본급 정책입니다."));
 
-        // 3. 이미 삭제(비활성화)된 정책인지 확인 - isActive = false 상태라면 이미 삭제된 것으로 간주
-        if (Boolean.FALSE.equals(policy.getIsActive())) {
-            throw new IllegalArgumentException("이미 삭제된 기본급 정책입니다.");
-        }
-
-        // 4. 실제 삭제 대신 비활성화 처리 - 물리 삭제를 하지 않고 isActive=false로 변경하여 과거 급여 이력 및 데이터 정합성을 유지
-        adSalaryPolicyRepository.deactivateSalaryPolicy(policyId.intValue());
+        // 3. 기본급 정책 물리 삭제
+        adSalaryPolicyRepository.delete(policy);
     }
 
     @Override
@@ -321,7 +318,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         BigDecimal inputSalary = requestDTO.getBasicSalary();
 
         // 2. 같은 부서에 등록된 활성 기본급 정책 목록을 조회한다.
-        //    기본급 서열은 같은 부서 안에서 G1 < G2 < G3 < G4 순서를 유지해야 한다.
+        //    기본급 서열은 같은 부서 안에서 G1 < G2 < G3 < G4 < G5 순서를 유지해야 한다.
         List<SalaryPolicyResponseDTO> list =
                 adSalaryPolicyRepository.selectActivePoliciesByDept(requestDTO.getDeptId());
 
@@ -422,12 +419,14 @@ public class AdPayrollServiceImpl implements AdPayrollService {
 
         if (positionName.contains("사원")) {
             return "G1";
-        } else if (positionName.contains("대리")) {
+        } else if (positionName.contains("주임")) {
             return "G2";
-        } else if (positionName.contains("팀장")) {
+        } else if (positionName.contains("선임")) {
             return "G3";
-        } else if (positionName.contains("관리자")) {
+        } else if (positionName.contains("책임")) {
             return "G4";
+        } else if (positionName.contains("수석")) {
+            return "G5";
         }
 
         throw new IllegalArgumentException("직급에 매핑된 급여등급이 없습니다.");
@@ -446,6 +445,20 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return gradeId;
     }
 
+    // 급여등급 설명 조회 (GRADE_CODE.description)
+    private String getGradeDescriptionByGradeId(String gradeId) {
+
+        List<PayrollSelectOptionDTO> gradeList = getGradeCodeList();
+
+        for (PayrollSelectOptionDTO grade : gradeList) {
+            if (grade.getId().equals(gradeId)) {
+                return grade.getDescription(); // description 필요
+            }
+        }
+
+        return "";
+    }
+
     private int getGradeRank(String gradeId) {
 
         if ("G1".equals(gradeId)) {
@@ -456,6 +469,8 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             return 3;
         } else if ("G4".equals(gradeId)) {
             return 4;
+        } else if ("G5".equals(gradeId)) {
+            return 5;
         }
 
         throw new IllegalArgumentException("잘못된 급여등급 코드입니다.");

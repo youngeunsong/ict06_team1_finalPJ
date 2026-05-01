@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,8 +50,7 @@ public class AdSalaryPolicyRepositoryCustomImpl implements AdSalaryPolicyReposit
                 builder.and(
                         salaryPolicyEntity.department.deptName.containsIgnoreCase(searchDTO.getKeyword())
                                 .or(salaryPolicyEntity.position.positionName.containsIgnoreCase(searchDTO.getKeyword()))
-                                .or(salaryPolicyEntity.grade.gradeName.containsIgnoreCase(searchDTO.getKeyword()))
-                                .or(salaryPolicyEntity.description.containsIgnoreCase(searchDTO.getKeyword()))
+                                .or(salaryPolicyEntity.grade.gradeId.containsIgnoreCase(searchDTO.getKeyword()))
                 );
             }
         }
@@ -128,7 +128,8 @@ public class AdSalaryPolicyRepositoryCustomImpl implements AdSalaryPolicyReposit
                 .select(Projections.constructor(
                         PayrollSelectOptionDTO.class,
                         gradeCodeEntity.gradeId,
-                        gradeCodeEntity.gradeName
+                        gradeCodeEntity.gradeName,
+                        gradeCodeEntity.description
                 ))
                 .from(gradeCodeEntity)
                 .where(gradeCodeEntity.isActive.isTrue())
@@ -229,11 +230,22 @@ public class AdSalaryPolicyRepositoryCustomImpl implements AdSalaryPolicyReposit
     }
 
     @Override
+    public void updateSalaryPolicy(Integer policyId, BigDecimal basicSalary) {
+
+        // 기본급 정책 수정
+        // 엔티티 수정 금지 원칙 때문에 setter/dirty checking 대신 QueryDSL UPDATE 사용
+        queryFactory
+                .update(salaryPolicyEntity)
+                .set(salaryPolicyEntity.basicSalary, basicSalary)
+                .where(salaryPolicyEntity.policyId.eq(policyId))
+                .execute();
+    }
+
+    @Override
     public void deactivateSalaryPolicy(Integer policyId) {
 
         // 기존 정책을 삭제하지 않고 비활성화 처리
         // 수정 시 "이력 유지"를 위한 핵심 로직
-
         queryFactory
                 .update(salaryPolicyEntity)
 
