@@ -112,7 +112,7 @@
                             <div class="d-flex justify-content-end gap-2">
                                 <a th:href="@{/admin/approval/viewForm/{id}(id=${form.formId})}" class="btn btn-secondary">돌아가기</a>
                                 <button type="submit" id="" class="btn btn-primary">수정 완료</button>
-                                <button class="btn btn-danger btn-sm">삭제</button>
+                                <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
                             </div>
                             <!-- 목록, 수정, 삭제 버튼 바 끝 -->
                         </form>
@@ -139,7 +139,10 @@
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
 <!-- 템플릿 추가: 동적 필드 추가 메서드 활용 -->
 <script src="/js/approval/createTemplate.js"></script>  
+<script src="/js/approval/deleteForm.js"></script> <!-- 서식 삭제 함수 -->
 <script th:inline="javascript">
+    const formId = /*[[${form.formId}]]*/ 0; // Thymeleaf로 주입
+
     // DB에 저장된 값을 html 형식으로 변경 
     function loadTemplate(template) {
 
@@ -159,11 +162,9 @@
         $('#isFileRequired').val(template.fileRequired ? 'yes' : 'no');
     }
 
-    // submit 버튼 누르면 DB에 저장할 최종 json 도출 후 컨트롤러에 전달
+    // submit 버튼 누르면 DB에 수정할 최종 json 도출 후 컨트롤러에 전달
     $('#formUpdateEditor').on('submit', function (e) {
         e.preventDefault(); // 🔥 기본 submit 막기
-
-        const formId = /*[[${form.formId}]]*/ 0; // Thymeleaf로 주입
 
         // 서식 제목, 첨부파일 필수 여부 설정 가져오기
         let formData = {
@@ -206,6 +207,25 @@
             }
         });
     });
+
+    // 서식 삭제 Ajax 
+    // function deleteForm() {
+
+    //     if (!confirm("정말 삭제하시겠습니까?")) return;
+
+    //     $.ajax({
+    //         url: `/admin/approval/deleteForm/${formId}`,
+    //         type: 'DELETE',
+    //         success: function () {
+    //             alert("삭제되었습니다.");
+    //             location.href = "/admin/approval/templateList";
+    //         },
+    //         error: function (err) {
+    //             console.error(err);
+    //             alert("삭제 실패");
+    //         }
+    //     });
+    // }
 </script>
 <!--스크립트 끝-->
 </body>

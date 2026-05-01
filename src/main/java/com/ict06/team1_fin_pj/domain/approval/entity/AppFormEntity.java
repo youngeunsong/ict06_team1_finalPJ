@@ -26,7 +26,7 @@ public class AppFormEntity extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String template;
 
-    // 상태 변경 메서드
+    // 값 수정 메서드
     public void updateForm(String formName, String template) {
         this.formName = formName;
         this.template = template;

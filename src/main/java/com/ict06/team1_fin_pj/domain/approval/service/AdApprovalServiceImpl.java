@@ -61,8 +61,11 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
     // delete
     @Override
+    @Transactional
     public void deleteAppForm(int id) {
-
+        AppFormEntity form = appFormRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("서식 없음"));
+        appFormRepository.delete(form);
     }
 
     // update

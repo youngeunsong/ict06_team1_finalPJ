@@ -35,6 +35,7 @@ public class AdApprovalController {
     @Autowired
     private AdApprovalServiceImpl service;
 
+    // [[ 전자 결재 서식 관리 ]]
     // [새 전자 결재 서식 만들기] ----------------------------------------------------------------------------
     // 새 서식 추가 페이지
     @RequestMapping("/createTemplate")
@@ -96,7 +97,13 @@ public class AdApprovalController {
     }
 
     // [전자 결재 서식 삭제] ----------------------------------------------------------------------------
-
+    @DeleteMapping("/deleteForm/{formId}")
+    @ResponseBody
+    public ResponseEntity<?> deleteForm(@PathVariable int formId) {
+        System.out.println("[AdApprovalController] - delete()");
+        service.deleteAppForm(formId);
+        return ResponseEntity.ok().build();
+    }
 
     // [전자 결재 서식 수정] ----------------------------------------------------------------------------
     // 서식 수정 페이지
@@ -117,5 +124,8 @@ public class AdApprovalController {
         service.updateAppForm(formId, dto);
         return ResponseEntity.ok().build();
     }
+    
+    // ---------------------------------------------------------------
+    // [[ 전자 결재 결재선 관리 ]]
 
 }

@@ -90,7 +90,7 @@
 
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
-
+<script src="/js/approval/deleteForm.js"></script> <!-- 서식 삭제 함수 -->
 <script>
     // [Ajax + 렌더링 js]
     let currentPage = 0;
@@ -139,10 +139,7 @@
                             onclick="event.stopPropagation();goEdit(${item.formId})">
                             수정
                         </button>
-                        <button class="btn btn-danger btn-sm" 
-                            onclick="event.stopPropagation();">
-                            삭제
-                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteForm(${item.formId})">삭제</button>
                     </td>
                 </tr>
             `;
