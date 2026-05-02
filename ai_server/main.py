@@ -55,7 +55,6 @@ USE_MOCK = True
 # API KEY 정상 로딩 여부 확인용(앞 10자리만 출력)
 print(f"🔑 DEBUG KEY: {GEMINI_API_KEY[:10] if GEMINI_API_KEY else 'NONE'}")
 
-
 # =========================
 # AI 로드맵 API
 # =========================

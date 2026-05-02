@@ -51,10 +51,15 @@ export const PATH = {
     ROADMAP: "/onboarding/myroadmap",         // 로드맵
     LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
     LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
-    QUIZ: "/onboarding/quiz",
-    EVALUATION: "/evaluation/evaluation",       // 평가
     PROGRESS_COMPLETE: "/onboarding/progress/complete",
     CHECKLIST: "/onboarding/checklist",
+  }, 
+
+  // 대분류 : 인사평가 - AI 퀴즈 및 평가
+  EVALUATION: {
+    ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
+    QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
+    RESULT: "/evaluation/result", // 평가 결과 조회
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
@@ -101,13 +106,20 @@ export const PATH = {
     ALERT: "/alert",
   },
 
-  // REST API
+  // SpringBoot REST API
   API: {
     BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
     USER_ME: '/user/me',
 
-    CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
-    CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
-    CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
+    ONBOARDING: {
+      CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
+      CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
+      CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
+    },
+    EVALUATION: {
+      QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,
+      QUIZ_SUBMIT: "/evaluation/quiz/submit",
+      QUIZ_RESULT: (empNo) => `/evaluation/quiz/result/${empNo}`
+    }
   }
 };

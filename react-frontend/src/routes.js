@@ -5,7 +5,7 @@ const AIPortal = React.lazy(() => import('./pages/chatbot/Chatbot'))
 const Calendar = React.lazy(() => import('./pages/calendar/Calendar'))
 const Approval = React.lazy(() => import('./pages/approval/Approval'))
 const MyRoadmap = React.lazy(() => import('./pages/onboarding/MyRoadmap'))
-const Evaluation = React.lazy(() => import('./pages/evaluation/Evaluation'))
+const Evaluation = React.lazy(() => import('./pages/evaluation/Quiz.js'))
 const Employee = React.lazy(() => import('./pages/employee/Employee'))
 const Attendance = React.lazy(() => import('./pages/attendance/Attendance'))
 const Payroll = React.lazy(() => import('./pages/payroll/Payroll'))
@@ -27,7 +27,8 @@ export const routes = [
   
   //인사 평가
   { path: '/onboarding/myroadmap', name: 'AI 온보딩 로드맵', element: <MyRoadmap /> },
-  { path: '/evaluation/quiz', name: 'AI 퀴즈 및 평가', element: <Evaluation /> },
+  { path: '/evaluation', name: 'AI 평가 현황', element: <Evaluation /> },
+  { path: '/evaluation/quiz', name: 'AI 퀴즈 응시', element: <Evaluation /> },
   
   //인사 관리
   { path: '/employee', name: '내 정보 및 조직도', element: <Employee /> },
@@ -37,8 +38,6 @@ export const routes = [
   
   //급여 관리
   { path: '/payroll', name: '급여관리', element: <Payroll /> },
-  
-
 ]
 
 export default routes

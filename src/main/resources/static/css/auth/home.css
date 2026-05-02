@@ -1,0 +1,74 @@
+/**
+ * @FileName : home.css
+ * @Description : 관리자 홈 화면 스타일 정의
+ *                - 관리자 홈 레이아웃 및 헤더 스타일
+ *                - 관리 메뉴 카드 그리드 스타일
+ *                - 로그아웃 버튼 및 임시 비활성 카드 스타일
+ * @Author : 김다솜
+ * @Date : 2026. 05. 01
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.01    김다솜        최초 생성 및 관리자 홈 스타일 분리
+ */
+
+/* ===== 기본 ===== */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+}
+
+/* ===== 헤더 ===== */
+header {
+    background-color: #343a40;
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ===== 컨테이너 ===== */
+.container {
+    padding: 20px;
+}
+
+/* ===== 카드 그리드 ===== */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+/* ===== 카드 ===== */
+.card {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ===== 텍스트 ===== */
+.card-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+/* ===== 버튼 ===== */
+.logout-btn {
+    background: #dc3545;
+    border: none;
+    padding: 6px 12px;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}

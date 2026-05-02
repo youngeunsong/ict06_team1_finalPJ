@@ -13,9 +13,9 @@
  * @ 2026.04.29    김다솜        최초 생성 및 체크리스트 조회/완료 기능 구현
  */
 
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import axiosInstance from 'src/api/axiosInstance';
 import { useUser } from 'src/api/UserContext';
 import { PATH } from 'src/constants/path';
 import { actionButton, actionButtonCompleted, actionButtonPending, actionButtonPrimary, actionButtonSuccess, checkDoneIcon, checklistActionRow, checklistCategory, checklistGrid, checklistItem, checklistItemCompleted, checklistItemMandatory, checklistTitle, checkTodoIcon, mandatoryBadge, optionalBadge } from 'src/styles/js/onboarding/ChecklistStyle';
@@ -32,14 +32,18 @@ const Checklist = () => {
     //체크리스트 조회
     useEffect(() => {
         const fetchChecklist = async () => {
-            if (!userInfo?.empNo) {
+            const empNo = userInfo?.empNo;
+
+            if (!empNo) {
+                console.warn("[Checklist] empNo 없음:", userInfo);
                 setLoading(false);
                 return;
             }
 
             try {
-                const url = `${PATH.API.BASE}${PATH.API.CHECKLIST_LIST(userInfo.empNo)}`;
-                const res = await axios.get(url);
+                const res = await axiosInstance.get(
+                    PATH.API.ONBOARDING.CHECKLIST_LIST(empNo)
+                );
                 setChecklist(res.data);
             } catch (err) {
                 console.error("체크리스트 조회 실패", err);
@@ -73,9 +77,9 @@ const Checklist = () => {
     //완료 처리
     const handleComplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.CHECKLIST_COMPLETE}`;
+            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_COMPLETE}`;
 
-            await axios.post(url, {
+            await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_COMPLETE, {
                 empNo: userInfo.empNo,
                 checklistId
             });
@@ -96,11 +100,12 @@ const Checklist = () => {
     //미완료 처리
     const handleUncomplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.CHECKLIST_UNCOMPLETE}`;
+            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE}`;
 
-            await axios.post(url, {
-                empNo: userInfo.empNo,
-                checklistId
+            await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE,
+                {
+                    empNo: userInfo.empNo,
+                    checklistId
             });
 
             setChecklist(prev =>
