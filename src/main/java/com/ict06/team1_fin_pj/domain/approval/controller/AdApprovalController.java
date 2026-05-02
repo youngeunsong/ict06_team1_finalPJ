@@ -1,3 +1,11 @@
+/**
+ * @author : 송영은
+ * description : 관리자용 전자결재 컨트롤러
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-04-29   송영은       최초 생성
+ **/
+
 package com.ict06.team1_fin_pj.domain.approval.controller;
 
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
@@ -6,14 +14,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 // 관리자용 전자결재 컨트롤러
@@ -55,6 +62,30 @@ public class AdApprovalController {
     }
 
     // [전자 결재 서식 목록 조회] ----------------------------------------------------------------------------
+    // 서식 목록 조회 화면
+    @RequestMapping("/templateList")
+    public String templateList(HttpServletRequest request, HttpServletResponse response, Model model)
+            throws ServletException, IOException {
+        System.out.println("[AdApprovalController] - templateList()");
+
+        // 모든 전자 결재 서식 목록 가져오기
+//        List<AppFormEntity> list= service.listAllAppForms();
+
+        // 페이징 처리된 결재 서식 목록 가져오기
+
+        // html에 전달
+//        model.addAttribute("list", list);
+        return "admin/approval/templateList";
+    }
+
+    // 페이징 처리된 서식 조회 (Ajax)
+    @GetMapping("/getAppForms")
+    @ResponseBody
+    public Page<AppFormEntity> getAppForms(@RequestParam(defaultValue = "0") int page,
+                                           @RequestParam(defaultValue = "10") int size) {
+        return service.getAppFormsWithPaging(page, size);
+    }
+
     // 서식 상세 조회
     // TODO: 현재 서식이 어떻게 출력되는 지만 구현. 추후 필요한 버튼 영역 추가 필요
     @RequestMapping("/viewTestTemplate")
