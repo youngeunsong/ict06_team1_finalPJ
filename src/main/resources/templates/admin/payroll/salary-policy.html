@@ -106,7 +106,6 @@
                          placeholder="부서, 직급, 급여등급 검색"
                          th:value="${searchDTO.keyword}">
                 </div>
-
               </div>
 
               <!-- ===================================================== -->
@@ -189,9 +188,7 @@
                   </a>
 
                 </div>
-
               </div>
-
             </form>
             <!-- end::Search Filter Form -->
 
@@ -235,7 +232,7 @@
                   <td>
                     <!-- begin::Update Button -->
                     <button type="button"
-                            class="btn btn-sm btn-outline-primary"
+                            class="btn btn-sm btn-outline-primary update-btn"
                             th:data-policy-id="${item.policyId}">
                       수정
                     </button>
@@ -380,6 +377,88 @@
           </div>
         </div>
         <!-- end::Salary Policy Register Modal -->
+
+        <!-- begin::Salary Policy Update Modal -->
+        <div class="modal fade" id="salaryPolicyUpdateModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+              <form id="salaryPolicyUpdateForm"
+                    th:action="@{/admin/payroll/salary-policy/update}"
+                    method="post">
+
+                <!-- 수정 대상 정책 ID -->
+                <input type="hidden" id="updatePolicyId" name="policyId">
+
+                <!-- 현재 조회 상태 유지용 -->
+                <input type="hidden" name="searchPage" th:value="${searchDTO.page}">
+                <input type="hidden" name="searchSize" th:value="${searchDTO.size}">
+                <input type="hidden" name="searchDeptId" th:value="${searchDTO.deptId}">
+                <input type="hidden" name="searchPositionId" th:value="${searchDTO.positionId}">
+                <input type="hidden" name="searchGradeId" th:value="${searchDTO.gradeId}">
+                <input type="hidden" name="searchKeyword" th:value="${searchDTO.keyword}">
+
+                <div class="modal-header">
+                  <h5 class="modal-title fw-bold">기본급 수정</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+
+                <div class="modal-body">
+
+                  <div id="updateCheckMessage" class="alert d-none mb-3"></div>
+
+                  <div class="mb-3">
+                    <label class="form-label">부서</label>
+                    <input type="text" class="form-control" id="updateDeptName" disabled>
+                    <input type="hidden" id="updateDeptId" name="deptId">
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">직급</label>
+                    <input type="text" class="form-control" id="updatePositionName" disabled>
+                    <input type="hidden" id="updatePositionId" name="positionId">
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">급여등급</label>
+                    <input type="text" class="form-control" id="updateGradeDisplay" disabled>
+
+                    <!-- 급여등급 설명 -->
+                    <div id="updateGradeDesc"
+                         class="form-text text-primary fw-semibold">
+                    </div>
+
+                    <input type="hidden" id="updateGradeId" name="gradeId">
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">기본급 (원) <span class="text-danger">*</span></label>
+                    <input type="number"
+                           class="form-control"
+                           id="updateBasicSalary"
+                           name="basicSalary"
+                           min="1"
+                           required>
+
+                    <!-- 메시지 영역 높이 고정: 입력 시 모달 떨림 방지 -->
+                    <div id="updateSalaryOrderMessage"
+                         class="form-text"
+                         style="min-height: 24px;">
+                    </div>
+                  </div>
+
+                </div>
+
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                  <button type="submit" id="updateSubmitBtn" class="btn btn-primary">수정</button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- end::Salary Policy Update Modal -->
 
       </div>
     </div>

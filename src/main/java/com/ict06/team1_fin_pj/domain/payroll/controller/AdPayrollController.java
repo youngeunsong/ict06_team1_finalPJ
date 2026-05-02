@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequiredArgsConstructor
+@RequiredArgsConstructor // final 필드 생성자 자동 생성
 @RequestMapping("/admin/payroll")
 public class AdPayrollController {
 
@@ -19,16 +19,20 @@ public class AdPayrollController {
     @GetMapping("/salary-policy")
     public String salaryPolicyPage(SalaryPolicySearchDTO searchDTO, Model model) {
 
+        // 검색조건 + 페이징 기반으로 기본급 정책 조회
         SalaryPolicyPageResponseDTO pageResponse =
                 adPayrollService.getSalaryPolicyList(searchDTO);
 
+        // 화면에 뿌릴 데이터
         model.addAttribute("salaryPolicyList", pageResponse.getContent());
         model.addAttribute("pageResponse", pageResponse);
 
+        // select box 데이터 (부서 / 직급 / 급여등급)
         model.addAttribute("departmentList", adPayrollService.getDepartmentList());
         model.addAttribute("positionList", adPayrollService.getPositionList());
         model.addAttribute("gradeCodeList", adPayrollService.getGradeCodeList());
 
+        // 검색 조건 유지 (화면에 다시 뿌리기 위함)
         model.addAttribute("searchDTO", searchDTO);
 
         return "admin/payroll/salary-policy";
@@ -37,6 +41,7 @@ public class AdPayrollController {
     // 기본급 등록 페이지 (등록화면)
     @GetMapping("/salary-policy/register")
     public String showSalaryPolicyRegistrationPage(Model model) {
+
         // 부서, 직급 리스트를 모달에 넣기
         model.addAttribute("departmentList", adPayrollService.getDepartmentList());
         model.addAttribute("positionList", adPayrollService.getPositionList());
@@ -44,21 +49,24 @@ public class AdPayrollController {
         return "admin/payroll/salary-policy-register";
     }
 
-    // 부서 + 직급 선택 직후 실행 - 직급에 맞는 급여등급 자동 조회 && 해당 부서 + 직급 + 등급 기본급 정책 중복 여부 확인
-
+    // 등록 가능 여부 체크 (AJAX)
     @GetMapping("/salary-policy/register-check")
-    @ResponseBody
+    @ResponseBody // JSON으로 반환
     public SalaryPolicyRegisterCheckResponseDTO checkSalaryPolicyRegisterAvailable(
             @RequestParam String deptId,
             @RequestParam String positionId
     ) {
+        // 해당 부서+직급에 등록 가능한 급여등급 + 중복 여부 반환
         return adPayrollService.checkSalaryPolicyRegisterAvailable(deptId, positionId);
     }
 
-    // 기본급 입력 직후 실행 - 같은 부서 기준 G1 < G2 < G3 < G4 서열 검증
+    // 등록 시 서열 검증 (AJAX)
     @GetMapping("/salary-policy/check-grade-order")
-    @ResponseBody
+    @ResponseBody // JSON으로 반환
     public boolean checkGradeOrder(SalaryPolicyRequestDTO requestDTO) {
+
+        // G1 < G2 < G3 < G4 < G5 서열 검증
+        // DB 조회 → Java에서 비교
         return adPayrollService.isValidGradeOrder(requestDTO);
     }
 
@@ -73,36 +81,38 @@ public class AdPayrollController {
                                        @RequestParam(required = false) String searchKeyword,
                                        RedirectAttributes redirectAttributes) {
 
+        // 최종 등록 (서비스에서 중복 + 서열 다시 검증)
         adPayrollService.registerSalaryPolicy(requestDTO);
 
+        // 사용자에게 메시지 전달 (1회성)
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 등록되었습니다.");
 
+        // 기존 검색 조건 유지
         addSearchCondition(redirectAttributes, searchPage, searchSize,
                 searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
     }
 
-    // 기본급 정책 상세 조회 - 수정 버튼 클릭 시 실행되며, 수정 모달에 기존 정책 정보를 채우기 위한 용도
+    // 수정 모달용 단건 조회 - 수정 버튼 클릭 시 실행되며, 수정 모달에 기존 정책 정보를 채우기 위한 용도
     @GetMapping("/salary-policy/{policyId}")
     @ResponseBody
     public SalaryPolicyResponseDTO getSalaryPolicyDetail(@PathVariable Long policyId) {
 
+        // 특정 정책 상세 조회 (모달에 채우기)
         return adPayrollService.getSalaryPolicyDetail(policyId);
     }
 
-    // 수정 중 AJAX 서열 검증 - 수정 모달에서 기본급 입력 직후 실행
-    // 현재 수정 중인 정책은 비교 대상에서 제외하고, 같은 부서 기준 G1 < G2 < G3 < G4 서열을 검증한다.
+    // 수정 시 서열 검증 (AJAX)
     @GetMapping("/salary-policy/check-grade-order-update")
     @ResponseBody
     public boolean checkGradeOrderForUpdate(SalaryPolicyRequestDTO requestDTO) {
 
+        // 수정 시에는 "자기 자신 제외"하고 서열 검증
         return adPayrollService.isValidGradeOrderForUpdateCheck(requestDTO);
     }
 
-    // 기본급 정책 수정 처리 - 기본급과 설명만 수정
-    // 수정 화면에서는 부서, 직급, 급여등급은 변경하지 않는다.
-    // 실제 DB 처리 방식은 기존 정책을 비활성화(isActive=false), 수정된 값으로 새로운 기본급 정책을 등록하는 방식
+    // 수정 처리
     @PostMapping("/salary-policy/update")
     public String updateSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO,
                                      @RequestParam(defaultValue = "1") int searchPage,
@@ -113,18 +123,20 @@ public class AdPayrollController {
                                      @RequestParam(required = false) String searchKeyword,
                                      RedirectAttributes redirectAttributes) {
 
+        // 수정 로직 실행
+        // 기존 데이터 비활성화 + 새 정책 등록 방식
         adPayrollService.updateSalaryPolicy(requestDTO);
 
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 수정되었습니다.");
 
+        // 검색 조건 유지
         addSearchCondition(redirectAttributes, searchPage, searchSize,
                 searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
     }
 
-    // 기본급 정책 삭제 처리 - 실제 DB에서 행을 삭제하지 않고 isActive=false로 비활성화
-    // 과거 급여대장이나 기존 급여 계산 데이터가 깨지지 않도록 하기 위한 방식
+    // 삭제 처리
     @PostMapping("/salary-policy/delete")
     public String deleteSalaryPolicy(@RequestParam Long policyId,
                                      @RequestParam(defaultValue = "1") int searchPage,
@@ -135,6 +147,7 @@ public class AdPayrollController {
                                      @RequestParam(required = false) String searchKeyword,
                                      RedirectAttributes redirectAttributes) {
 
+        // 실제 삭제
         adPayrollService.deleteSalaryPolicy(policyId);
 
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 삭제되었습니다.");
@@ -145,7 +158,7 @@ public class AdPayrollController {
         return "redirect:/admin/payroll/salary-policy";
     }
 
-    // 등록/수정/삭제 후 기존 페이지 번호와 검색 조건을 유지하기 위한 공통 메서드
+    // 검색 조건 유지 공통 메서드
     private void addSearchCondition(RedirectAttributes redirectAttributes,
                                     int page,
                                     int size,
@@ -154,9 +167,11 @@ public class AdPayrollController {
                                     String gradeId,
                                     String keyword) {
 
+        // 페이지 유지
         redirectAttributes.addAttribute("page", page);
         redirectAttributes.addAttribute("size", size);
 
+        // 검색 조건 유지 (null/빈값 제외)
         if (deptId != null && !deptId.isBlank()) {
             redirectAttributes.addAttribute("deptId", deptId);
         }

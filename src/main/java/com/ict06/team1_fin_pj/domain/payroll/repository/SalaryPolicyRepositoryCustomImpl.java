@@ -21,31 +21,44 @@ import static com.ict06.team1_fin_pj.domain.payroll.entity.QGradeCodeEntity.grad
 import static com.ict06.team1_fin_pj.domain.payroll.entity.QSalaryPolicyEntity.salaryPolicyEntity;
 
 @Repository
-@RequiredArgsConstructor
+@RequiredArgsConstructor // final 필드 생성자 주입
 public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryCustom {
 
+
+    // QueryDSL 핵심 객체
+    // - SQL을 Java 코드로 작성하게 해주는 도구
     private final JPAQueryFactory queryFactory;
 
+    // 기본급 정책 목록 조회 메서드
+    // - 관리자 메인 화면에서 사용하는 핵심 조회 로직
     @Override
     public SalaryPolicyPageResponseDTO selectSalaryPolicyList(SalaryPolicySearchDTO searchDTO){
 
+        // 동적 WHERE 조건 생성
         BooleanBuilder builder = new BooleanBuilder();
+
+        // 기본 조건: 활성 데이터만 조회
         builder.and(salaryPolicyEntity.isActive.isTrue());
 
+        // 검색 조건이 있을 경우에만 추가
         if (searchDTO != null) {
 
+            // 부서 필터
             if (StringUtils.hasText(searchDTO.getDeptId())) {
                 builder.and(salaryPolicyEntity.department.deptId.eq(Integer.valueOf(searchDTO.getDeptId())));
             }
 
+            // 직급 필터
             if (StringUtils.hasText(searchDTO.getPositionId())) {
                 builder.and(salaryPolicyEntity.position.positionId.eq(Integer.valueOf(searchDTO.getPositionId())));
             }
 
+            // 급여등급 필터 (G1 ~ G5)
             if (StringUtils.hasText(searchDTO.getGradeId())) {
                 builder.and(salaryPolicyEntity.grade.gradeId.eq(searchDTO.getGradeId()));
             }
 
+            // 키워드 검색 (부서명 OR 직급명 OR 등급코드)
             if (StringUtils.hasText(searchDTO.getKeyword())) {
                 builder.and(
                         salaryPolicyEntity.department.deptName.containsIgnoreCase(searchDTO.getKeyword())
@@ -55,12 +68,18 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
             }
         }
 
+        // 페이징 계산
         int page = searchDTO != null ? searchDTO.getPage() : 1;
         int size = searchDTO != null ? searchDTO.getSize() : 10;
+
+        // 최소값 보정
         page = page < 1 ? 1 : page;
         size = size < 1 ? 10 : size;
+
+        // offset 계산 (SQL offset)
         long offset = (long) (page - 1) * size;
 
+        // 전체 개수 조회 (count)
         Long countResult = queryFactory
                 .select(salaryPolicyEntity.count())
                 .from(salaryPolicyEntity)
@@ -68,36 +87,52 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .fetchOne();
 
         long totalCount = countResult != null ? countResult : 0;
+
+        // 총 페이지 수 계산
         int totalPages = (int) Math.ceil((double) totalCount / size);
 
+        // 실제 데이터 조회
         List<SalaryPolicyResponseDTO> content = queryFactory
                 .select(Projections.fields(
                         SalaryPolicyResponseDTO.class,
+
+                        // 정책 ID
                         salaryPolicyEntity.policyId.longValue().as("policyId"),
+
+                        // 부서
                         salaryPolicyEntity.department.deptId.stringValue().as("deptId"),
                         salaryPolicyEntity.department.deptName.as("deptName"),
+
+                        // 직급
                         salaryPolicyEntity.position.positionId.stringValue().as("positionId"),
                         salaryPolicyEntity.position.positionName.as("positionName"),
+
+                        // 급여등급
                         salaryPolicyEntity.grade.gradeId.as("gradeId"),
                         salaryPolicyEntity.grade.gradeName.as("gradeName"),
+
+                        // 급여 정보
                         salaryPolicyEntity.basicSalary,
                         salaryPolicyEntity.bonusRate,
                         salaryPolicyEntity.positionAllowance,
+
+                        // 기타
                         salaryPolicyEntity.description,
                         salaryPolicyEntity.isActive,
                         salaryPolicyEntity.createdAt,
                         salaryPolicyEntity.updatedAt
                 ))
                 .from(salaryPolicyEntity)
-                .where(builder)
-                .orderBy(salaryPolicyEntity.policyId.desc())
-                .offset(offset)
-                .limit(size)
+                .where(builder) // 동적 조건 적용
+                .orderBy(salaryPolicyEntity.policyId.desc()) // 최신순
+                .offset(offset) // 페이징 시작 위치
+                .limit(size) // 페이지 크기
                 .fetch();
 
         return new SalaryPolicyPageResponseDTO(content, totalCount, page, size, totalPages);
     }
 
+    // select box용 조회 (부서)
     @Override
     public List<PayrollSelectOptionDTO> selectDepartmentList() {
         return queryFactory
@@ -110,6 +145,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .fetch();
     }
 
+    // select box용 조회 (직급)
     @Override
     public List<PayrollSelectOptionDTO> selectPositionList() {
         return queryFactory
@@ -122,6 +158,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .fetch();
     }
 
+    // select box용 조회 (급여등급 G1~G5)
     @Override
     public List<PayrollSelectOptionDTO> selectGradeCodeList() {
         return queryFactory
@@ -136,6 +173,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .fetch();
     }
 
+    // 중복 체크 (EXISTS)
     @Override
     public boolean existsActiveSalaryPolicy(String deptId, String positionId, String gradeId) {
 
@@ -148,11 +186,12 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                         salaryPolicyEntity.grade.gradeId.eq(gradeId),
                         salaryPolicyEntity.isActive.isTrue()
                 )
-                .fetchFirst();
+                .fetchFirst(); // 첫 결과만 가져옴 (exists 최적화)
 
         return result != null;
     }
 
+    // 서열 검증용 조회
     @Override
     public List<SalaryPolicyResponseDTO> selectActivePoliciesByDept(String deptId) {
 
@@ -163,7 +202,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                         // 수정 검증에서 "자기 자신 제외"를 위해 반드시 필요
                         salaryPolicyEntity.policyId.longValue().as("policyId"),
 
-                        // 급여등급 (G1, G2, G3, G4)
+                        // 급여등급 (G1, G2, G3, G4, G5)
                         salaryPolicyEntity.grade.gradeId.as("gradeId"),
 
                         // 기본급 (서열 비교 대상)
@@ -180,6 +219,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .fetch();
     }
 
+    // 수정 모달 단건 조회
     @Override
     public Optional<SalaryPolicyResponseDTO> selectSalaryPolicyDetail(Long policyId) {
 
@@ -202,6 +242,9 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                         // 급여등급
                         salaryPolicyEntity.grade.gradeId.as("gradeId"),
                         salaryPolicyEntity.grade.gradeName.as("gradeName"),
+
+                        // 수정 모달에서 급여등급 설명을 표시하기 위한 값
+                        salaryPolicyEntity.grade.description.as("gradeDescription"),
 
                         // 급여 정보
                         salaryPolicyEntity.basicSalary,
@@ -229,6 +272,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
         return Optional.ofNullable(result);
     }
 
+    // 수정 (QueryDSL UPDATE)
     @Override
     public void updateSalaryPolicy(Integer policyId, BigDecimal basicSalary) {
 
@@ -241,11 +285,11 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .execute();
     }
 
+    // 비활성화 (Soft Delete)
     @Override
     public void deactivateSalaryPolicy(Integer policyId) {
 
-        // 기존 정책을 삭제하지 않고 비활성화 처리
-        // 수정 시 "이력 유지"를 위한 핵심 로직
+        // 기존 정책을 삭제하지 않고 비활성화 처리 - 수정 시 "이력 유지"를 위한 핵심 로직
         queryFactory
                 .update(salaryPolicyEntity)
 
