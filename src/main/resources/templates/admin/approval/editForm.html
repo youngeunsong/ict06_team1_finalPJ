@@ -176,17 +176,25 @@
             fileRequired: $('#isFileRequired').val() === 'yes'
         };
 
-        // fields 배열 → JSON 변환
-        for (let field of fields) {
-            const labelValue = $(`#${field.nameId}`).val();
+
+        // DOM 기준으로 직접 수집
+        $('#dynamicFields .field-item').each(function () {
+
+            const field = $(this);
+
+            const id = field.data('id');              // data-id
+            const type = field.data('type');          // data-type
+            const label = field.find('.field-label').val();
+            const input = field.find('.field-placeholder');
+            const placeholder = input.attr('placeholder') || '';
 
             formData.fields.push({
-                id: field.id,                   // input 태그 id
-                type: field.type,               // input 태그 type
-                label: labelValue,              // input 태그와 연결될 label의 필드명
-                placeholder: field.placeholder  // input 태그 placeholder
+                id: id,
+                type: type,
+                label: label,
+                placeholder: placeholder
             });
-        }
+        });
 
         console.log("전송 JSON:", formData);
 
@@ -210,25 +218,6 @@
             }
         });
     });
-
-    // 서식 삭제 Ajax 
-    // function deleteForm() {
-
-    //     if (!confirm("정말 삭제하시겠습니까?")) return;
-
-    //     $.ajax({
-    //         url: `/admin/approval/deleteForm/${formId}`,
-    //         type: 'DELETE',
-    //         success: function () {
-    //             alert("삭제되었습니다.");
-    //             location.href = "/admin/approval/templateList";
-    //         },
-    //         error: function (err) {
-    //             console.error(err);
-    //             alert("삭제 실패");
-    //         }
-    //     });
-    // }
 </script>
 <!--스크립트 끝-->
 </body>
