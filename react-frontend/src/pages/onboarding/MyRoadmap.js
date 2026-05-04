@@ -18,7 +18,6 @@
  */
 
 import { CBadge, CCard, CCardBody, CSpinner } from '@coreui/react';
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -27,12 +26,14 @@ import { containerStyle } from 'src/styles/js/demoPageStyle';
 
 import ChecklistPreview from './ChecklistPreview';
 import { previewWrapper } from 'src/styles/js/onboarding/ChecklistStyle';
-import { progressBoxStyle, progressTrackStyle, roadmapHeaderStyle } from 'src/styles/js/onboarding/RoadmapStyle';
+import { progressBoxStyle, progressTrackStyle, quizButtonAreaStyle, quizButtonStyle, roadmapHeaderStyle } from 'src/styles/js/onboarding/RoadmapStyle';
+import axios from 'axios';
 
 function MyRoadmap({ userInfo }) {
     console.log("🔥 최종 userInfo:", userInfo);
     const navigate = useNavigate();
     const location = useLocation();
+
     const [roadmapGroups, setRoadmapGroups] = useState([]);
     const [openGroup, setOpenGroup] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -63,12 +64,16 @@ function MyRoadmap({ userInfo }) {
                 setLoading(true);
 
                 const url = `${PATH.AI_API.BASE}${PATH.AI_API.ROADMAP(empNo)}`;
+                console.log("[MyRoadmap] AI 로드맵 요청 URL:", url);
+
                 const response = await axios.get(url);
 
                 console.log("[MyRoadmap] 응답 전체: ", response);
                 console.log("[MyRoadmap] 응답 data:", response.data);
                 console.log("[MyRoadmap] recommended_roadmap:", response.data?.recommended_roadmap);
                 console.log("[MyRoadmap] 첫 번째 item 확인:", response.data?.recommended_roadmap?.[0]?.items?.[0]);
+
+                console.log("[MyRoadmap] response.data keys:", Object.keys(response.data || {}));
 
                 if (!response.data.error && response.data.recommended_roadmap) {
                     //1. 받아온 로드맵 그룹 출력
@@ -94,6 +99,9 @@ function MyRoadmap({ userInfo }) {
         // 전달 받은 updatedItemId에 해당하는 항목을 즉시 '완료' 상태로 변경
         const updatedItemId = location.state?.updatedItemId;
 
+        console.log("[MyRoadmap] updatedItemId:", location.state?.updatedItemId);
+        console.log("[MyRoadmap] roadmapGroups:", roadmapGroups);
+
         if (!updatedItemId) return;
 
         setRoadmapGroups((prevGroups) =>
@@ -113,7 +121,7 @@ function MyRoadmap({ userInfo }) {
 
         //새로고침/뒤로가기 시 같은 state 반복 적용되지 않도록 정리
         navigate(location.pathname, { replace: true, state: {} });
-    }, [location.state, location.pathname, navigate]);
+    }, [location.state, location.pathname, navigate, roadmapGroups.length]);
 
     /**
      * 콘텐츠 학습 상태에 따라 배지 색상+텍스트 반환하는 함수
@@ -162,6 +170,12 @@ function MyRoadmap({ userInfo }) {
     };
 
     const totalProgress = calculateTotalProgress(roadmapGroups);
+
+    // 퀴즈 풀기 버튼
+    const handleGoQuiz = (categoryName) => {
+        console.log("[MyRoadmap] 퀴즈 페이지 이동 categoryName:", categoryName);
+        navigate(`${PATH.EVALUATION.QUIZ}?categoryName=${encodeURIComponent(categoryName)}`);
+    };
 
     return (
         <div style={containerStyle}>
@@ -212,120 +226,158 @@ function MyRoadmap({ userInfo }) {
                 ) : (
                     // 3. 데이터 있을 때 - 로드맵 리스트(드롭다운) 영역
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        {roadmapGroups.map((group, idx) => (
-                            <div
-                                key={idx}
-                                style={{
-                                    background: '#ffffff',
-                                    borderRadius: '12px',
-                                    padding: '16px',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                                    border: '1px solid #f1f3f5',
-                                    marginBottom: '20px'
-                                }}
-                            >
+                        {roadmapGroups.map((group, idx) => {
+                            const progress = calculateProgress(group.items);
+                            const isCategoryCompleted = progress.completed === progress.total;
+                            
+                            return (
                                 <div
-                                    onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
+                                    key={idx}
                                     style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        cursor: 'pointer',
-                                        padding: '10px 0'
+                                        background: '#ffffff',
+                                        borderRadius: '12px',
+                                        padding: '16px',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                                        border: '1px solid #f1f3f5',
+                                        marginBottom: '20px'
                                     }}
                                 >
-                                    {/* 왼쪽: 카테고리 이름 */}
-                                    <div style={{ fontWeight: '600', fontSize: '15px', color: '#212529' }}>
-                                        📚 {group.category_name}
-                                        <span style={{ marginLeft: '10px', fontSize: '12px', color: '#868e96' }}>
-                                            {calculateProgress(group.items).completed}/{calculateProgress(group.items).total}
-                                            완료 · {calculateProgress(group.items).percent}%
-                                        </span>
-                                    </div>
+                                    <div
+                                        onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            padding: '10px 0'
+                                        }}
+                                    >
+                                        {/* 왼쪽: 카테고리 이름 + 평가 상태 */}
+                                        <div>
+                                            <div style={{ fontWeight: '600', fontSize: '15px', color: '#212529' }}>
+                                                📚 {group.category_name}
+                                                <span style={{ marginLeft: '10px', fontSize: '12px', color: '#868e96' }}>
+                                                    {progress.completed}/{progress.total}
+                                                    완료 · {progress.percent}%
+                                                </span>
+                                            </div>
 
-                                    {/* 오른쪽: 열기/닫기 */}
-                                    <div style={{ fontSize: '13px', color: '#868e96' }}>
-                                        {openGroup === idx ? '접기 ▲' : '열기 ▼'}
-                                    </div>
-                                </div>
+                                            <div style={{ marginTop: '6px', fontSize: '13px', color: '#6c757d' }}>
+                                                {(() => {
+                                                    // TODO: 추후 평가 결과 API로 교체
+                                                    const isPassed = false;
 
-                                {openGroup === idx && (
-                                    <div style={{ marginTop: '10px' }}>
-                                        {group.items?.map((content, i) => (
-                                            <CCard
-                                                key={i}
-                                                className="mb-2 border-0"
-                                                style={{
-                                                    background: '#f8f9fa',
-                                                    borderRadius: '10px',
-                                                    transition: 'all 0.2s ease',
-                                                    cursor: 'pointer'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(0)';
-                                                    e.currentTarget.style.boxShadow = 'none';
-                                                }}
-                                                onClick={() => {
-                                                    const contentId = content.content_id || content.contentId;
-                                                    const itemId = content.item_id || content.itemId;
-                                                    const title = content.item_title || content.title;
-
-                                                    console.log("[MyRoadmap] 이동 contentId: ", contentId);
-                                                    console.log("[MyRoadmap] 이동 itemId: ", itemId);
-
-                                                    if (!contentId) {
-                                                        alert('콘텐츠 ID가 없습니다.');
-                                                        return;
+                                                    if(!isCategoryCompleted) {
+                                                        return `학습 진행 중 (${progress.completed}/${progress.total})`;
                                                     }
 
-                                                    handleLearningClick(contentId, title, itemId);
-                                                }}
-                                            >
-                                                <CCardBody className="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <div style={{ fontWeight: '500', color: '#212529' }}>
-                                                            {content.item_title}
-                                                        </div>
+                                                    if(isCategoryCompleted && !isPassed) {
+                                                        return "학습 완료 / 평가 미응시";
+                                                    }
 
-                                                        <div style={{ fontSize: '12px', color: '#adb5bd' }}>
-                                                            CONTENT {i + 1}
-                                                        </div>
+                                                    if(!isPassed) {
+                                                        return "평가 통과 완료";
+                                                    }
+                                                    
+                                                    return "";
+                                                })()}
+                                            </div>
+                                        </div>
 
-                                                        <div style={{ fontSize: '12px', color: '#868e96' }}>
-                                                            진행률: {content.rate || 0}%
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        {/* 진행 상태 배지 */}
-                                                        <CBadge
-                                                            color={getStatusBadge(content.status).color}
-                                                            shape="rounded-pill"
-                                                            style={{ padding: '6px 12px' }}
-                                                        >
-                                                            {getStatusBadge(content.status).text}
-                                                        </CBadge>
-
-                                                        {/* 학습 버튼 */}
-                                                        <CBadge
-                                                            color="primary"
-                                                            shape="rounded-pill"
-                                                            style={{ padding: '6px 12px' }}
-                                                        >
-                                                            학습하기
-                                                        </CBadge>
-                                                    </div>
-                                                </CCardBody>
-                                            </CCard>
-                                        ))}
+                                        {/* 오른쪽: 열기/닫기 */}
+                                        <div style={{ fontSize: '13px', color: '#868e96' }}>
+                                            {openGroup === idx ? '접기 ▲' : '열기 ▼'}
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+
+                                    {openGroup === idx && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            {group.items?.map((content, i) => (
+                                                <CCard
+                                                    key={i}
+                                                    className="mb-2 border-0"
+                                                    style={{
+                                                        background: '#f8f9fa',
+                                                        borderRadius: '10px',
+                                                        transition: 'all 0.2s ease',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = 'none';
+                                                    }}
+                                                    onClick={() => {
+                                                        const contentId = content.content_id || content.contentId;
+                                                        const itemId = content.item_id || content.itemId;
+                                                        const title = content.item_title || content.title;
+
+                                                        console.log("[MyRoadmap] 이동 contentId: ", contentId);
+                                                        console.log("[MyRoadmap] 이동 itemId: ", itemId);
+
+                                                        if (!contentId) {
+                                                            alert('콘텐츠 ID가 없습니다.');
+                                                            return;
+                                                        }
+
+                                                        handleLearningClick(contentId, title, itemId);
+                                                    }}
+                                                >
+                                                    <CCardBody className="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <div style={{ fontWeight: '500', color: '#212529' }}>
+                                                                {content.item_title}
+                                                            </div>
+
+                                                            <div style={{ fontSize: '12px', color: '#adb5bd' }}>
+                                                                CONTENT {i + 1}
+                                                            </div>
+
+                                                            <div style={{ fontSize: '12px', color: '#868e96' }}>
+                                                                진행률: {content.rate || 0}%
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            {/* 진행 상태 배지 */}
+                                                            <CBadge
+                                                                color={getStatusBadge(content.status).color}
+                                                                shape="rounded-pill"
+                                                                style={{ padding: '6px 12px' }}
+                                                            >
+                                                                {getStatusBadge(content.status).text}
+                                                            </CBadge>
+
+                                                            {/* 학습 버튼 */}
+                                                            <CBadge
+                                                                color="primary"
+                                                                shape="rounded-pill"
+                                                                style={{ padding: '6px 12px' }}
+                                                            >
+                                                                학습하기
+                                                            </CBadge>
+                                                        </div>
+                                                    </CCardBody>
+                                                </CCard>
+                                            ))}
+                                            <div style={quizButtonAreaStyle}>
+                                                <button
+                                                    className={`btn btn-sm ${isCategoryCompleted ? 'btn-success' : 'btn-secondary'}`}
+                                                    style={quizButtonStyle}
+                                                    disabled={!isCategoryCompleted}
+                                                    onClick={() => handleGoQuiz(group.category_name)}
+                                                >
+                                                    {isCategoryCompleted ? "퀴즈 풀기" : "학습 완료 후 응시 가능"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
                 )}
             </div>

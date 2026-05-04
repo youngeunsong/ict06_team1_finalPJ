@@ -34,7 +34,7 @@ const PageTemplate = () => {
     // 방법1. 버튼 클릭 시 링크 이동
     const navigate = useNavigate();
     const handleButtonClick = () => {
-        navigate(PATH.ONBOARDING.QUIZ); // path에서 경로 상수 불러오기 
+        navigate(PATH.EVALUATION.QUIZ); // path에서 경로 상수 불러오기 
         // navigate('/evaluation/quiz')
     }
     
