@@ -52,11 +52,18 @@ export const request = (method, url, data) => {
     console.log('url: ', url); 
     console.log('data: ', data); 
 
+    // 메서드를 대문자로 변환하여 비교
+    const upperMethod = method.toUpperCase();
+
     return axios ({
         method: method, 
         headers: headers,
         url: url, 
-        data: data
+        // data: data
+        // ✅ GET 또는 DELETE일 때는 params(쿼리 스트링)로 전달
+        params: (upperMethod === 'GET' || upperMethod === 'DELETE') ? data : null,
+        // ✅ POST, PUT, PATCH일 때는 data(Body)로 전달
+        data: (upperMethod !== 'GET' && upperMethod !== 'DELETE') ? data : null
     });
 };
 
