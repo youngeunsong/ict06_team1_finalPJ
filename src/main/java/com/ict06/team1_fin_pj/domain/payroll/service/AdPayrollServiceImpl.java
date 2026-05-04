@@ -18,15 +18,16 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor  // final 필드 생성자 주입
 public class AdPayrollServiceImpl implements AdPayrollService {
 
     private final SalaryPolicyRepository adSalaryPolicyRepository;
 
+    // JPA의 핵심 객체(EntityManager)를 주입
     @PersistenceContext
     private EntityManager entityManager;
 
-    // 기본급 정책 목록 조회
+    // 기본급 정책 목록 조회 -  검색 조건, 필터, 페이징 처리는 Repository(QueryDSL)에서 수행
     @Override
     @Transactional(readOnly = true)
     public SalaryPolicyPageResponseDTO getSalaryPolicyList(SalaryPolicySearchDTO searchDTO) {
@@ -54,6 +55,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return adSalaryPolicyRepository.selectGradeCodeList();
     }
 
+    // 등록 전 사전 체크 - 부서 + 직급 선택 시 자동으로 급여등급을 결정하고, 같은 부서/직급/등급 정책이 이미 존재하는지 확인
     @Override
     @Transactional(readOnly = true)
     public SalaryPolicyRegisterCheckResponseDTO checkSalaryPolicyRegisterAvailable(String deptId, String positionId) {
@@ -91,6 +93,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         );
     }
 
+    // 등록 시 기본급 서열 검증 - 같은 부서 안에서 G1 < G2 < G3 < G4 < G5 순서로 기본급이 증가해야 한다.
     @Override
     @Transactional(readOnly = true)
     public boolean isValidGradeOrder(SalaryPolicyRequestDTO requestDTO) {
@@ -100,7 +103,6 @@ public class AdPayrollServiceImpl implements AdPayrollService {
 
         String inputGradeId = requestDTO.getGradeId();
         BigDecimal inputBasicSalary = requestDTO.getBasicSalary();
-
         int inputGradeRank = getGradeRank(inputGradeId);
 
         // 2. 같은 부서에 등록된 기존 기본급 정책 조회
@@ -125,14 +127,14 @@ public class AdPayrollServiceImpl implements AdPayrollService {
 
             int savedGradeRank = getGradeRank(savedGradeId);
 
-            // 기존 등급이 입력 등급보다 낮으면, 입력 기본급은 기존 기본급보다 커야 한다.
+            // 기존 등급이 입력 등급보다 낮으면, 입력 기본급은 기존 기본급보다 커야 함
             if (savedGradeRank < inputGradeRank) {
                 if (inputBasicSalary.compareTo(savedBasicSalary) <= 0) {
                     return false;
                 }
             }
 
-            // 기존 등급이 입력 등급보다 높으면, 입력 기본급은 기존 기본급보다 작아야 한다.
+            // 기존 등급이 입력 등급보다 높으면, 입력 기본급은 기존 기본급보다 작아야 함
             if (savedGradeRank > inputGradeRank) {
                 if (inputBasicSalary.compareTo(savedBasicSalary) >= 0) {
                     return false;
@@ -143,6 +145,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return true;
     }
 
+    // 기본급 정책 등록 - 중복 검증 → G1~G5 서열 검증 → FK 참조 → INSERT
     @Override
     @Transactional
     public void registerSalaryPolicy(SalaryPolicyRequestDTO requestDTO) {
@@ -212,6 +215,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         adSalaryPolicyRepository.save(salaryPolicy);
     }
 
+    // 수정 모달용 단건 상세 조회
     @Override
     @Transactional(readOnly = true)
     public SalaryPolicyResponseDTO getSalaryPolicyDetail(Long policyId) {
@@ -221,18 +225,13 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             throw new IllegalArgumentException("정책 ID가 없습니다.");
         }
 
-        // 2. Repository(QueryDSL)를 통해 해당 정책의 상세 정보를 조회
-        //    - Entity가 아닌 DTO로 바로 반환받는다
-        //    - isActive = true 조건이 내부에 포함되어 있어야 정상 데이터만 조회됨
-        //    - 조회 결과가 없으면 Optional.empty() 반환
-
-        // 3. 조회 결과가 없는 경우 예외 처리
+        // 2. 조회 결과가 없는 경우 예외 처리
         //    - 이미 비활성화된 정책이거나 존재하지 않는 정책일 수 있음
-
         return adSalaryPolicyRepository.selectSalaryPolicyDetail(policyId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기본급 정책입니다."));
     }
 
+    // 기본급 정책 수정
     @Override
     @Transactional
     public void updateSalaryPolicy(SalaryPolicyRequestDTO requestDTO) {
@@ -268,6 +267,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         );
     }
 
+    // 기본급 정책 삭제
     @Override
     @Transactional
     public void deleteSalaryPolicy(Long policyId) {
@@ -285,6 +285,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         adSalaryPolicyRepository.delete(policy);
     }
 
+    // 수정 모달에서 AJAX로 기본급 서열을 미리 검증하는 메서드
     @Override
     @Transactional(readOnly = true)
     public boolean isValidGradeOrderForUpdateCheck(SalaryPolicyRequestDTO requestDTO) {
@@ -310,6 +311,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return isValidGradeOrderForUpdate(requestDTO, oldPolicy.getPolicyId());
     }
 
+    // 수정 시 서열 검증 공통 로직 - 현재 수정 중인 정책은 제외하고 나머지 정책들과 기본급을 비교
     private boolean isValidGradeOrderForUpdate(SalaryPolicyRequestDTO requestDTO, Integer excludePolicyId) {
 
         // 1. 수정하려는 급여등급과 기본급을 가져온다.
@@ -349,7 +351,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             }
 
             // 8. 기존 등급이 수정 대상보다 높은 등급이면, 수정하려는 기본급은 기존 높은 등급의 기본급보다 작아야 한다.
-            //    예) G2를 수정한다면 G3, G4 기본급보다 작아야 함
+            //    예) G2를 수정한다면 G3, G4, G5 기본급보다 작아야 함
             if (savedRank > inputRank && inputSalary.compareTo(savedSalary) >= 0) {
                 return false;
             }
@@ -359,6 +361,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return true;
     }
 
+    // 부서와 직급이 정상적으로 선택되었는지 검사하는 공통 검증 메서드 - 등록, 수정, 서열 검증 등 여러 곳에서 반복 사용
     private void validateDeptAndPosition(String deptId, String positionId) {
 
         if (deptId == null || deptId.trim().isEmpty()) {
@@ -370,6 +373,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         }
     }
 
+    // 기본급 서열 검증에 필요한 필수값을 검사하는 메서드 - 부서, 직급, 급여등급, 기본급이 모두 있어야 G1~G5 비교가 가능하다.
     private void validateRequiredForGradeCheck(SalaryPolicyRequestDTO requestDTO) {
 
         if (requestDTO == null) {
@@ -397,26 +401,36 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         }
     }
 
+    // 등록 시 필수값 검증 메서드 - 현재는 서열 검증용 필수값과 동일하므로 그대로 재사용
     private void validateRequiredForRegister(SalaryPolicyRequestDTO requestDTO) {
         validateRequiredForGradeCheck(requestDTO);
     }
 
+    // 직급 ID를 기준으로 해당 직급명이 무엇인지 찾고, 직급명에 따라 급여등급 코드 G1~G5를 자동 매핑하는 메서드
     private String getGradeIdByPosition(String positionId) {
 
+        // 선택된 직급 ID에 해당하는 직급명을 담을 변수
         String positionName = null;
+
+        // DB에서 직급 select box용 목록을 조회 - 각 항목에는 id(positionId), name(positionName)이 포함
         List<PayrollSelectOptionDTO> positionList = getPositionList();
 
+        // 전체 직급 목록을 돌면서 화면에서 넘어온 positionId와 같은 항목을 찾음
         for (PayrollSelectOptionDTO position : positionList) {
+
+            // position.getId()가 현재 선택한 positionId와 같으면 해당 직급을 찾음
             if (position.getId().equals(positionId)) {
-                positionName = position.getName();
+                positionName = position.getName(); // 직급명 저장
                 break;
             }
         }
 
+        // 직급 목록 안에서 해당 positionId를 찾지 못한 경우
         if (positionName == null) {
             throw new IllegalArgumentException("존재하지 않는 직급입니다.");
         }
 
+        // 직급명에 따라 급여등급 자동 결정
         if (positionName.contains("사원")) {
             return "G1";
         } else if (positionName.contains("주임")) {
@@ -429,38 +443,50 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             return "G5";
         }
 
+        // 위 조건에 해당하지 않는 직급명은 급여등급 매핑 불가
         throw new IllegalArgumentException("직급에 매핑된 급여등급이 없습니다.");
     }
 
+    // 급여등급 코드로 급여등급명을 찾는 메서드
     private String getGradeNameByGradeId(String gradeId) {
 
         List<PayrollSelectOptionDTO> gradeList = getGradeCodeList();
 
+        // 급여등급 목록을 돌면서 입력된 gradeId와 같은 항목을 찾음
         for (PayrollSelectOptionDTO grade : gradeList) {
+
+            // 같은 급여등급 코드를 찾으면 해당 급여등급명 반환
             if (grade.getId().equals(gradeId)) {
                 return grade.getName();
             }
         }
 
+        // 못 찾으면 최소한 코드라도 화면에 표시할 수 있도록 gradeId 반환
         return gradeId;
     }
 
-    // 급여등급 설명 조회 (GRADE_CODE.description)
+    // 급여등급 코드로 급여등급 설명을 조회하는 메서드
     private String getGradeDescriptionByGradeId(String gradeId) {
 
         List<PayrollSelectOptionDTO> gradeList = getGradeCodeList();
 
+        // 급여등급 목록에서 입력된 gradeId와 같은 항목 찾기
         for (PayrollSelectOptionDTO grade : gradeList) {
+
+            // 같은 급여등급 코드가 있으면 설명 반환
             if (grade.getId().equals(gradeId)) {
                 return grade.getDescription(); // description 필요
             }
         }
 
+        // 설명을 찾지 못하면 빈 문자열 반환
         return "";
     }
 
+    // 급여등급 코드를 숫자 순위로 변환하는 메서드 - 문자열 G1~G5는 직접 크기 비교가 어렵기 때문에 숫자로 바꿔서 비교
     private int getGradeRank(String gradeId) {
 
+        // G1은 가장 낮은 급여등급
         if ("G1".equals(gradeId)) {
             return 1;
         } else if ("G2".equals(gradeId)) {
@@ -473,6 +499,7 @@ public class AdPayrollServiceImpl implements AdPayrollService {
             return 5;
         }
 
+        // G1~G5 외의 값이 들어오면 잘못된 코드로 판단
         throw new IllegalArgumentException("잘못된 급여등급 코드입니다.");
     }
 }
