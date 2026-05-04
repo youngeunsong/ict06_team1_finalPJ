@@ -2,7 +2,7 @@
 let fields = [];
 
 // 1. 필드 동적 추가 로직
-function addField(type, label = '새 필드', placeholder = '') {
+function addField(type, label = '⭐항목 명을 작성해주세요', placeholder = '') {
     const container = document.getElementById('dynamicFields');
     const fieldId = 'field_' + Date.now();
     const fieldNameId = fieldId + '_name';
@@ -10,7 +10,7 @@ function addField(type, label = '새 필드', placeholder = '') {
     const now = new Date().toTimeString().slice(0, 5);// 현재 시각
     const today = new Date().toISOString().slice(0, 10);// 현재 날짜
 
-    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="필드 명을 작성해주세요" id="${fieldNameId}">`;
+    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="⭐항목 명을 작성해주세요" id="${fieldNameId}" required value="${label}">`; // 반드시 필드명 작성해야 제출 가능
     let inputHtml = '';
     if(type === 'text') inputHtml += `<input type="text" class="form-control" placeholder="${placeholder}">`;
     if(type === 'number') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
@@ -19,7 +19,7 @@ function addField(type, label = '새 필드', placeholder = '') {
     if(type === 'amount') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
 
     const fieldHtml = `
-        <div class="input-group mb-3 border-0 p-2 position-relative" id="${fieldId}">
+        <div class="input-group mb-3 border-0 p-2 position-relative gap-3" id="${fieldId}">
             ${fieldName}
             ${inputHtml}
             <button type="button" class="btn btn-sm btn-danger  top-0 end-0" onclick="removeField('${fieldId}')">X</button>
@@ -28,20 +28,12 @@ function addField(type, label = '새 필드', placeholder = '') {
     container.insertAdjacentHTML('beforeend', fieldHtml);
 
     // DB에 저장할 최종 서식 배열에 저장
-//    fields.push({
-//        id: fieldId,
-//        html: `
-//            <div class="input-group mb-3 border-0 p-2 position-relative" id="${fieldId}">
-//                <label>"$('#fieldNameId').val"</label>
-//                ${inputHtml}
-//            </div>
-//        `
-//    });
     fields.push({
         id: fieldId,
         nameId: fieldNameId,
         type: type,
-        inputHtml: inputHtml
+        placeholder: placeholder,
+        required: false
     });
     console.log(fields)
 }
@@ -56,58 +48,46 @@ function removeField(fieldId) {
     console.log(fields)
 }
 
-// 3. submit 버튼 누르면 DB에 저장할 최종 html 도출 후 컨트롤러에 전달
+// 3. submit 버튼 누르면 DB에 저장할 최종 html 도출 후 컨트롤러에 전달 (기존)
+// 3. submit 버튼 누르면 DB에 저장할 최종 json 도출 후 컨트롤러에 전달
 $('#formEditor').on('submit', function (e) {
     e.preventDefault(); // 🔥 기본 submit 막기
 
-    let finTemplateHtml = '';
+    // 서식 제목, 첨부파일 필수 여부 설정 가져오기
+    let formData = {
+        title: $('#formTitle').val(),
+        fields: [],
+        fileRequired: $('#isFileRequired').val() === 'yes'
+    };
 
-    // 1. 서식 제목 가져오기
-    const formTitle = $('#formTitle').val();
-    finTemplateHtml += `
-        <div class="mb-4 border-bottom pb-3 text-center">
-            <h3>"${formTitle}"</h3>
-        </div>`;
-
-    // 2. fields에 저장된 html 가져오기
+    // 동적으로 추가된 인풋 태그 정보 json화
     for(let field of fields){
-//        finTemplateHtml += field.html;
-        const labelValue = $(`#${field.nameId}`).val();
-
-        finTemplateHtml += `
-            <div class="input-group mb-3 border-0 p-2 position-relative">
-                <label>${labelValue}</label>
-                ${field.inputHtml}
-            </div>
-        `;
+        formData.fields.push({
+            id: field.id,                       // input 태그 id
+            type: field.type,                   // input 태그 type
+            label: $(`#${field.nameId}`).val(), // input 태그와 연결될 label의 필드명
+            placeholder: field.placeholder      // input 태그 placeholder
+        });
     }
 
-    // 3. 첨부파일 필수면 해당 UI 추가
-    if($('#isFileRequired').val() === 'yes'){
-        finTemplateHtml += `
-            <div class="mb-3">
-              <label for="formFile" class="form-label">파일을 첨부해주세요</label>
-              <input class="form-control" type="file" id="formFile">
-            </div>
-        `
-    }
-
+    // Ajax 방식으로 보내기
     $.ajax({
         url: '/admin/approval/addTemplate',
         type: 'POST',
         contentType: 'application/json; charset=UTF-8',
         data: JSON.stringify({
-            formName: formTitle,
-            templateHtml: finTemplateHtml
+            formName: formData.title,
+            template: JSON.stringify(formData) // DB에는 문자열로 저장
         }),
 
         success: function (res) {
             console.log('저장 성공:', res);
             alert('저장되었습니다.');
+            window.location.href = "/admin/approval/templateList"; // DB 저장 성공 시 서식 목록으로 돌아가기
         },
         error: function (err) {
             console.error('에러:', err);
-            alert('오류 발생');
+            alert('오류가 발생했습니다.');
         }
     });
 });

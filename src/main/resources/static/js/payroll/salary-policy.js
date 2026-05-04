@@ -14,6 +14,16 @@
  * POST /admin/payroll/salary-policy/register
  */
 
+// DOM이 완전히 로드된 후 실행되는 이벤트
+// - HTML 요소들이 모두 생성된 이후에 JS가 실행되도록 보장
+// 이유:
+// - JS가 HTML보다 먼저 실행되면 getElementById 등이 null이 될 수 있음
+// - 즉, 요소를 찾기 전에 DOM이 준비되어 있어야 함
+// 특징:
+// - 이미지, CSS 등은 로딩 안 끝나도 실행됨 (HTML 구조만 완성되면 실행)
+// - window.onload보다 빠르게 실행됨 (성능 유리)
+// 결론:
+// - "HTML 요소를 안전하게 접근하기 위한 필수 이벤트"
 document.addEventListener('DOMContentLoaded', function () {
 
     // 등록 모달 요소
@@ -186,20 +196,16 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-   // ===============================
    // 기본급 입력 AJAX 떨림 방지용 타이머
-   // ===============================
    let salaryDebounceTimer;
 
    // 모달 입력값 변경 이벤트
    deptSelect.addEventListener('change', checkRegisterAvailable);
    positionSelect.addEventListener('change', checkRegisterAvailable);
 
-   // ===============================
    // 기본급 입력 이벤트
    // 입력할 때마다 바로 AJAX 호출하지 않고,
    // 사용자가 입력을 잠깐 멈춘 뒤 400ms 후 서열 검증 실행
-   // ===============================
    basicSalaryInput.addEventListener('input', function () {
 
        // 이전 예약 검증 취소
@@ -211,12 +217,183 @@ document.addEventListener('DOMContentLoaded', function () {
        }, 400);
    });
 
-   // ===============================
    // 기본급 입력칸에서 포커스가 빠질 때 최종 검증
    // debounce 대기 중이어도 마지막 값 기준으로 한 번 더 확인
-   // ===============================
    basicSalaryInput.addEventListener('blur', function () {
        clearTimeout(salaryDebounceTimer);
        checkGradeOrder();
    });
+
+   // 수정 모달 요소
+   const updateButtons = document.querySelectorAll('.update-btn');
+
+   const updateModalElement = document.getElementById('salaryPolicyUpdateModal');
+   const updateModal = updateModalElement ? new bootstrap.Modal(updateModalElement) : null;
+
+   const updatePolicyId = document.getElementById('updatePolicyId');
+   const updateDeptName = document.getElementById('updateDeptName');
+   const updateDeptId = document.getElementById('updateDeptId');
+   const updatePositionName = document.getElementById('updatePositionName');
+   const updatePositionId = document.getElementById('updatePositionId');
+   const updateGradeDisplay = document.getElementById('updateGradeDisplay');
+   const updateGradeDesc = document.getElementById('updateGradeDesc');
+   const updateGradeId = document.getElementById('updateGradeId');
+   const updateBasicSalary = document.getElementById('updateBasicSalary');
+   const updateSubmitBtn = document.getElementById('updateSubmitBtn');
+   const updateCheckMessage = document.getElementById('updateCheckMessage');
+   const updateSalaryOrderMessage = document.getElementById('updateSalaryOrderMessage');
+
+   let updateDebounceTimer;
+
+   // 수정 모달 상태 초기화
+   function resetUpdateModal() {
+       updatePolicyId.value = '';
+       updateDeptName.value = '';
+       updateDeptId.value = '';
+       updatePositionName.value = '';
+       updatePositionId.value = '';
+       updateGradeDisplay.value = '';
+       updateGradeDesc.textContent = '';
+       updateGradeId.value = '';
+       updateBasicSalary.value = '';
+
+       updateSubmitBtn.disabled = false;
+
+       updateCheckMessage.className = 'alert d-none mb-3';
+       updateCheckMessage.textContent = '';
+
+       updateSalaryOrderMessage.className = 'form-text';
+       updateSalaryOrderMessage.textContent = '';
+   }
+
+   // 수정 모달 메시지 출력
+   function showUpdateMessage(type, message) {
+       updateCheckMessage.className = 'alert alert-' + type + ' mb-3';
+       updateCheckMessage.textContent = message;
+   }
+
+   // 수정 버튼 클릭 시 상세 조회 후 모달 표시
+   updateButtons.forEach(function (button) {
+       button.addEventListener('click', function () {
+           const policyId = button.dataset.policyId;
+
+           resetUpdateModal();
+
+           fetch(`/admin/payroll/salary-policy/${policyId}`)
+               .then(function (response) {
+                   if (!response.ok) {
+                       throw new Error('detail fetch failed');
+                   }
+                   return response.json();
+               })
+               .then(function (data) {
+                   updatePolicyId.value = data.policyId;
+
+                   updateDeptName.value = data.deptName;
+                   updateDeptId.value = data.deptId;
+
+                   updatePositionName.value = data.positionName;
+                   updatePositionId.value = data.positionId;
+
+                   updateGradeDisplay.value = data.gradeId;
+                   updateGradeId.value = data.gradeId;
+
+                   // gradeDescription을 백단에서 내려주면 이 값 사용
+                   // 없으면 일단 gradeName으로 대체 표시
+                   updateGradeDesc.textContent = data.gradeDescription || data.gradeName || '';
+
+                   updateBasicSalary.value = data.basicSalary;
+
+                   // 처음 열 때는 기존 값이 유효한 상태이므로 수정 버튼 활성화
+                   updateSubmitBtn.disabled = false;
+
+                   updateModal.show();
+               })
+               .catch(function () {
+                   showUpdateMessage('danger', '기본급 정책 정보를 불러오는 중 오류가 발생했습니다.');
+               });
+       });
+   });
+
+   // 수정 기본급 서열 검증
+   function checkUpdateGradeOrder() {
+       const policyId = updatePolicyId.value;
+       const deptId = updateDeptId.value;
+       const positionId = updatePositionId.value;
+       const gradeId = updateGradeId.value;
+       const basicSalary = updateBasicSalary.value;
+
+       updateSubmitBtn.disabled = true;
+
+       // 메시지 영역은 비우지 않는다.
+       // 입력 중마다 메시지를 지우면 모달 높이가 바뀌어서 떨림이 생길 수 있다.
+       updateSalaryOrderMessage.className = 'form-text text-muted';
+
+       if (!policyId || !deptId || !positionId || !gradeId || !basicSalary) {
+           updateSalaryOrderMessage.className = 'form-text';
+           updateSalaryOrderMessage.textContent = '';
+           return;
+       }
+
+       if (Number(basicSalary) <= 0) {
+           updateSalaryOrderMessage.className = 'form-text text-danger';
+           updateSalaryOrderMessage.textContent = '기본급은 0보다 커야 합니다.';
+           updateSubmitBtn.disabled = true;
+           return;
+       }
+
+       const url =
+           `/admin/payroll/salary-policy/check-grade-order-update` +
+           `?policyId=${encodeURIComponent(policyId)}` +
+           `&deptId=${encodeURIComponent(deptId)}` +
+           `&positionId=${encodeURIComponent(positionId)}` +
+           `&gradeId=${encodeURIComponent(gradeId)}` +
+           `&basicSalary=${encodeURIComponent(basicSalary)}`;
+
+       fetch(url)
+           .then(function (response) {
+               if (!response.ok) {
+                   throw new Error('update grade order check failed');
+               }
+               return response.json();
+           })
+           .then(function (valid) {
+               if (valid) {
+                   updateSalaryOrderMessage.className = 'form-text text-success';
+                   updateSalaryOrderMessage.textContent = '기본급 서열 조건을 만족합니다.';
+                   updateSubmitBtn.disabled = false;
+                   return;
+               }
+
+               updateSalaryOrderMessage.className = 'form-text text-danger';
+               updateSalaryOrderMessage.textContent = '기본급은 G1 < G2 < G3 < G4 < G5 순서로 입력해야 합니다.';
+               updateSubmitBtn.disabled = true;
+           })
+           .catch(function () {
+               updateSalaryOrderMessage.className = 'form-text text-danger';
+               updateSalaryOrderMessage.textContent = '기본급 서열 검증 중 오류가 발생했습니다.';
+               updateSubmitBtn.disabled = true;
+           });
+   }
+
+   // 수정 기본급 입력 시 debounce 적용
+   if (updateBasicSalary) {
+       updateBasicSalary.addEventListener('input', function () {
+           clearTimeout(updateDebounceTimer);
+
+           updateDebounceTimer = setTimeout(function () {
+               checkUpdateGradeOrder();
+           }, 400);
+       });
+
+       updateBasicSalary.addEventListener('blur', function () {
+           clearTimeout(updateDebounceTimer);
+           checkUpdateGradeOrder();
+       });
+   }
+
+   // 취소/X로 닫으면 수정 시도 값이 남지 않도록 초기화
+   if (updateModalElement) {
+       updateModalElement.addEventListener('hidden.bs.modal', resetUpdateModal);
+   }
 });
