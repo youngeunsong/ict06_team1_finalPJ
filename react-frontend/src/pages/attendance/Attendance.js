@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { CButton, CCard, CCardBody, CCardHeader, CBadge } from '@coreui/react';
+import { request } from 'src/helpers/axios_helper';
 
 // 일반 사원용 근태 메인 화면
 const Attendance = () => {
@@ -78,11 +79,13 @@ const Attendance = () => {
   const fetchAttendance = async () => {
     try {
       // 백엔드에서 내 근태 목록 조회
-      const res = await axios.get('http://localhost:8081/api/attendance/my', {
-        params: {
-          empNo: empNo, 
-        },
-      });
+      // const res = await axios.get('http://localhost:8081/api/attendance/my', {
+      //   params: {
+      //     empNo: empNo, 
+      //   },
+      // });
+      const params = {empNo}; 
+      const res = await request('GET', '/attendance/my', params);
 
       console.log('근태 조회 결과:', res.data);
 
@@ -171,13 +174,20 @@ const Attendance = () => {
           setGpsMessage('GPS 확인 완료');
 
           // 4. 백엔드 출근 API 호출
-          await axios.post('http://localhost:8081/api/attendance/check-in', null, {
-            params: {
-              empNo: empNo,
-              lat: lat,
-              lng: lng,
-            }
-          });
+          // await axios.post('http://localhost:8081/api/attendance/check-in', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
+            empNo: empNo,
+            lat: lat,
+            lng: lng,
+          }
+          await request('POST', '/attendance/check-in', params);
+
 
           // 성공 메시지
           setAttendanceMessage('출근 처리가 완료되었습니다.');
@@ -243,13 +253,19 @@ const Attendance = () => {
           // GPS 성공
           setGpsMessage('GPS 확인 완료');
 
-          await axios.post('http://localhost:8081/api/attendance/check-out', null, {
-            params: {
+          // await axios.post('http://localhost:8081/api/attendance/check-out', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
               empNo: empNo,
               lat: lat,
               lng: lng,
-            }
-          });
+          }
+          await request('POST', '/attendance/check-out', params);
 
           // 성공 메시지
           setAttendanceMessage('퇴근 처리가 완료되었습니다.');
