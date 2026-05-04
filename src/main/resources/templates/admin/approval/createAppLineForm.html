@@ -1,15 +1,15 @@
 <!--
  * @author : 송영은
- * description : 관리자용 전자결재 결재선 템플릿 관리
+ * description : 관리자용 전자결재 - 새 결재선 서식 추가 페이지
  * ========================================
  * DATE         AUTHOR      NOTE
  * 2026-05-04   송영은       최초 생성
 -->
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymleaf.org">
 <!--begin::Head-->
-<head th:include="/admin/common/head.html :: common_header">
-    <title id="page_title">관리자 템플릿</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+<head th:insert="/admin/common/head.html :: common_header">
+    <title id="page_title">새 결재선 서식 생성</title><!-- 해당 페이지별 사용할 title 내용 넣기 -->
 </head>
 <!--end::Head-->
 <!--begin::Body-->
@@ -19,11 +19,9 @@
     <!-- 헤더 시작 -->
     <th:block th:replace="~{/admin/common/header}"></th:block>
     <!-- 헤더 끝 -->
-
     <!-- 사이드바 시작-->
     <th:block th:replace="~{/admin/common/sidebar}"></th:block>
     <!-- 사이드바 끝-->
-
     <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
         <!--전자결재용 서브 헤더 시작-->
@@ -36,21 +34,14 @@
                 <br>
                 <!-- begin::Row-->
                 <div class="row">
-                    <h3>결재선 서식 목록</h3>
+                    <h3>새 전자결재선 서식 만들기</h3>
                 </div>
                 <!-- end::Row-->
-                <!--새 서식 추가 버튼 시작-->
+                <!-- begin::Row-->
                 <div class="row">
-                    <div class="d-flex flex-row-reverse">
-                        <button type="button" class="btn btn-success" th:onclick="|location.href='@{/admin/approval/createAppLineForm}'|">
-                            (+) 새 결재선 서식 추가
-                        </button>
-                    </div>
+
                 </div>
-                <!--새 서식 추가 버튼 끝-->
-                <br>
-                <!-- begin::서식 표 시작-->
-                <!-- end::서식 표 시작-->
+                <!-- end::Row-->
             </div>
             <!--end::Container-->
         </div>
@@ -64,6 +55,7 @@
 <!--end::App Wrapper-->
 <!--스크립트 시작-->
 <th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
 <!--스크립트 끝-->
 </body>
