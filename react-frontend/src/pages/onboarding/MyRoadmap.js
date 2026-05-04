@@ -99,6 +99,9 @@ function MyRoadmap({ userInfo }) {
         // 전달 받은 updatedItemId에 해당하는 항목을 즉시 '완료' 상태로 변경
         const updatedItemId = location.state?.updatedItemId;
 
+        console.log("[MyRoadmap] updatedItemId:", location.state?.updatedItemId);
+        console.log("[MyRoadmap] roadmapGroups:", roadmapGroups);
+
         if (!updatedItemId) return;
 
         setRoadmapGroups((prevGroups) =>
@@ -118,7 +121,7 @@ function MyRoadmap({ userInfo }) {
 
         //새로고침/뒤로가기 시 같은 state 반복 적용되지 않도록 정리
         navigate(location.pathname, { replace: true, state: {} });
-    }, [location.state, location.pathname, navigate]);
+    }, [location.state, location.pathname, navigate, roadmapGroups.length]);
 
     /**
      * 콘텐츠 학습 상태에 따라 배지 색상+텍스트 반환하는 함수

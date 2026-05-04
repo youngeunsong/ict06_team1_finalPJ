@@ -2,7 +2,8 @@
  * @FileName : QuizController.java
  * @Description : 온보딩 퀴즈 평가 API Controller
  *                - 학습 카테고리별 퀴즈 문항 조회
- *                - 퀴즈 답안 일괄 제출 및 채점 요청 처리
+ *                - 퀴즈 제출 처리
+ *                - 카테고리별 평가 결과 조회
  * @Author : 김다솜
  * @Date : 2026. 04. 30
  * @Modification_History
@@ -11,10 +12,12 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.30    김다솜        최초 생성 및 퀴즈 조회/제출 API 구현
  * @ 2026.05.01    김다솜        카테고리별 퀴즈 조회 및 일괄 제출 구조로 수정
+ * @ 2026.05.02    김다솜        카테고리별 평가 결과 조회 API 추가
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.controller;
 
+import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationCategoryResultResponse;
 import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationQuestionResponse;
 import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationSubmitRequest;
 import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationSubmitResponse;
@@ -31,14 +34,14 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:3000")
 public class EvaluationController {
 
-    private final EvaluationServiceImpl quizService;
+    private final EvaluationServiceImpl evaluationService;
 
     //카테고리별 퀴즈 문항 조회
     @GetMapping("/quiz/category/{categoryName}")
     public ResponseEntity<List<EvaluationQuestionResponse>> getQuizQuestionsByCategory(
             @PathVariable String categoryName) {
 
-        return ResponseEntity.ok(quizService.getQuizQuestionsByCategory(categoryName));
+        return ResponseEntity.ok(evaluationService.getQuizQuestionsByCategory(categoryName));
     }
 
     //퀴즈 답안 제출 및 채점
@@ -46,6 +49,14 @@ public class EvaluationController {
     public ResponseEntity<EvaluationSubmitResponse> submitQuiz(
             @RequestBody EvaluationSubmitRequest request) {
 
-        return ResponseEntity.ok(quizService.submitQuiz(request));
+        return ResponseEntity.ok(evaluationService.submitQuiz(request));
+    }
+
+    //카테고리별 평가 결과 조회
+    @GetMapping("/result/{empNo}")
+    public ResponseEntity<List<EvaluationCategoryResultResponse>> getEvaluationResults(
+            @PathVariable String empNo) {
+
+        return ResponseEntity.ok(evaluationService.getEvaluationResults(empNo));
     }
 }

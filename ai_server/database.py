@@ -25,19 +25,32 @@ db_config = {
 }
 
 # 2. 연결 함수
+conn = None
+
 def get_connection():
+    global conn
     try:
-        conn = pg8000.native.Connection(
-            host=db_config["host"],
-            port=db_config["port"],
-            database=db_config["database"],
-            user=db_config["user"],
-            password=db_config["password"]
-        )
+        # 연결 없거나 끊겼을 때만 새로 생성
+        if conn is None:
+            conn = pg8000.native.Connection(**db_config)
         return conn
     except Exception as e:
-        print(f"❌ 연결 실패: {e}")
+        print(f"연결 실패: {e}")
         return None
+        
+# def get_connection():
+#     try:
+#         conn = pg8000.native.Connection(
+#             host=db_config["host"],
+#             port=db_config["port"],
+#             database=db_config["database"],
+#             user=db_config["user"],
+#             password=db_config["password"]
+#         )
+#         return conn
+#     except Exception as e:
+#         print(f"❌ 연결 실패: {e}")
+#         return None
 
 # 3. 사원 정보 조회 함수 (JOIN 쿼리)
 def fetch_employee_info(emp_no):

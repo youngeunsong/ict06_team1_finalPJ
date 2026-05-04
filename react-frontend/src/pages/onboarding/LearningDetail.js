@@ -58,6 +58,8 @@ const LearningDetail = () => {
     //학습 완료 버튼 클릭 핸들러
     //DB 저장 API 연결 전이므로 itemId 전달 여부만 확인
     const handleCompleteLearning = async() => {
+        console.log("[LearningDetail] itemId 확인:", itemId);  // ← 추가
+        console.log("[LearningDetail] location.state 확인:", location.state);
         try {
             const empNo = userInfo?.empNo;
 
@@ -83,9 +85,8 @@ const LearningDetail = () => {
 
             //2-2. 체크리스트에서 진입한 경우 -> 로드맵+체크리스트 자동 완료 처리(CHECKLIST_PROGRESS 저장)
             // -> 체크리스트와 학습 콘텐츠 간 연동 위함
+            console.log("요청 경로 확인:", PATH.API.ONBOARDING.CHECKLIST_COMPLETE);
             if(checklistId) {
-                const checklistUrl = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_COMPLETE}`;
-
                 await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_COMPLETE,
                     {
                         empNo,
@@ -104,6 +105,7 @@ const LearningDetail = () => {
                 toast.success("학습 완료!", {
                     icon: "🎉"
                 });
+                console.log("[LearningDetail] navigate 직전 itemId:", itemId);
 
                 navigate(PATH.ONBOARDING.ROADMAP, {
                     state: { updatedItemId: itemId }
@@ -113,6 +115,7 @@ const LearningDetail = () => {
             console.log("[LearningDetail] 완료 처리 itemId: ", itemId);
             console.log("[LearningDetail] 완료 처리 contentId: ", contentId);
         } catch(err) {
+            console.error("에러 발생 주소:", err.config?.url);
             console.error("학습 완료 저장 실패", err);
             alert("학습 완료 저장 중 오류가 발생했습니다.");
         }

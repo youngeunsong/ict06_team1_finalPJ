@@ -115,6 +115,7 @@ export const PATH = {
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
+      PROGRESS_COMPLETE: "/onboarding/progress/complete",
     },
     EVALUATION: {
       QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,

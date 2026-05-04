@@ -16,7 +16,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from 'src/api/axiosInstance';
 import { useUser } from 'src/api/UserContext';
 import { PATH } from 'src/constants/path';
@@ -50,6 +50,7 @@ import {
 const Quiz = () => {
     const { userInfo } = useUser();
     const location = useLocation();
+    const navigate = useNavigate();
 
     const params = new URLSearchParams(location.search);
     const categoryName = params.get("categoryName");
@@ -60,6 +61,8 @@ const Quiz = () => {
     const [results, setResults] = useState({});
     const [loading, setLoading] = useState(true);
     const [submitResult, setSubmitResult] = useState(null);
+    const [evaluationResults, setEvaluationResults] = useState([]);
+    const [selfScore, setSelfScore] = useState(50);
 
     // 퀴즈 조회
     useEffect(() => {
@@ -95,7 +98,7 @@ const Quiz = () => {
         fetchQuiz();
     }, [categoryName]);
 
-    // 객관식 선택
+    // 객관식 답변 입력
     const handleSelect = (questionId, selectedNo) => {
         setAnswers(prev => ({
             ...prev,
@@ -105,6 +108,32 @@ const Quiz = () => {
                 answerText: null
             }
         }));
+    };
+
+    // 주관식(단답형/서술형) 답변 입력
+    const handleTextAnswer = (questionId, text) => {
+        setAnswers((prev) => ({
+            ...prev,
+            [questionId]: {
+                questionId,
+                selectedNo: null,
+                answerText: text
+            }
+        }));
+    };
+
+    // 응답 제출 가능 조건
+    const isAllAnswered = () => {
+        return questions.every((q) => {
+            const answer = answers[q.questionId];
+
+            if(!answer) return false;
+            if(q.questionType === 'MULTIPLE_CHOICE') {
+                return answer.selectedNo !== null && answer.selectedNo !== undefined;
+            }
+
+            return answer.answerText && answer.answerText.trim() !== '';
+        });
     };
 
     // 응답 전체 제출
@@ -135,6 +164,27 @@ const Quiz = () => {
         }
     };
 
+    // 평가 결과 조회
+    useEffect(() => {
+        if(isDirectQuizMode || !userInfo?.empNo)
+            return;
+
+        const fetchEvaluationResults = async () => {
+            try {
+                const res = await axiosInstance.get(
+                    PATH.API.EVALUATION.QUIZ_RESULT(userInfo.empNo)
+                );
+
+                console.log("[Evaluation] result:", res.data);
+                setEvaluationResults(res.data);
+            } catch(err) {
+                console.error("평가 결과 조회 실패", err);
+            }
+        };
+
+        fetchEvaluationResults();
+    }, [isDirectQuizMode, userInfo?.empNo]);
+
     if (loading)
         return <div>Loading...</div>;
 
@@ -158,18 +208,39 @@ const Quiz = () => {
                 </div>
 
                 <div style={statusGrid}>
-                    {categories.map((category) => (
-                        <div key={category} style={statusCard}>
-                            <div>
-                                <div style={statusTitle}>{category}</div>
-                                <div style={statusSubText}>학습 완료 후 응시 가능</div>
-                            </div>
+                    {categories.map((category) => {
+                        const result = evaluationResults.find(
+                            (item) => item.categoryName === category
+                        );
+                        
+                        return (
+                            <div key={category} style={statusCard}>
+                                <div>
+                                    <div style={statusTitle}>{category}</div>
+                                    <div style={statusSubText}>
+                                        {result?.submitted
+                                        ? `총점 ${result.totalScore} / ${result.maxScore}`
+                                        : '평가 미응시'
+                                    }
+                                    </div>
+                                </div>
 
-                            <button style={statusButton} disabled>
-                                응시 대기
-                            </button>
-                        </div>
-                    ))}
+                                <button
+                                    style={statusButton}
+                                    onClick={() =>
+                                        navigate(`${PATH.EVALUATION.QUIZ}?categoryName=${category}`)
+                                    }
+                                    disabled={result?.passed}
+                                >
+                                    {result?.passed
+                                        ? '통과 완료'
+                                        : result?.submitted
+                                            ? '재응시 필요'
+                                            : '응시하기'}
+                                </button>
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         );
@@ -193,25 +264,41 @@ const Quiz = () => {
                                     {index + 1}. {q.questionText}
                                 </div>
 
-                                {[1, 2, 3, 4].map((no) => {
-                                    const option = q[`option${no}`];
+                                {/* 문항 타입 분기(주관식-단답형/서술형) */}
+                                {q.questionType === 'SHORT_ANSWER' || q.questionType === 'ESSAY' ? (
+                                    <textarea
+                                        value={answers[q.questionId]?.answerText || ''}
+                                        onChange={(e) =>
+                                            handleTextAnswer(q.questionId, e.target.value)
+                                        }
+                                        style={{
+                                            width: '100%',
+                                            height: '80px',
+                                            marginTop: '10px'
+                                        }}
+                                        placeholder='답변을 입력하세요'
+                                     />
+                                ) : (
+                                    [1, 2, 3, 4].map((no) => {
+                                        const option = q[`option${no}`];
 
-                                    if (!option) return null;
+                                        if(!option) return null;
 
-                                    return (
-                                        <label key={no} style={optionLabel}>
-                                            <input
-                                                type='radio'
-                                                name={`question-${q.questionId}`}
-                                                value={no}
-                                                checked={answers[q.questionId]?.selectedNo === no}
-                                                onChange={() => handleSelect(q.questionId, no)}
-                                                style={optionInput}
-                                            />
-                                            {option}
-                                        </label>
-                                    );
-                                })}
+                                        return (
+                                            <label key={no} style={optionLabel}>
+                                                <input
+                                                    type='radio'
+                                                    name={`question-${q.questionId}`}
+                                                    value={no}
+                                                    checked={answers[q.questionId]?.selectedNo === no}
+                                                    onChange={() => handleSelect(q.questionId, no)}
+                                                    style={optionInput}
+                                                />
+                                                {option}
+                                            </label>
+                                        );
+                                    })
+                                )}
 
                                 {results[q.questionId] && (
                                     <div style={resultBox}>
@@ -239,11 +326,11 @@ const Quiz = () => {
                     <div style={submitArea}>
                         <button
                             style={
-                                Object.keys(answers).length !== questions.length || submitResult !== null
+                                !isAllAnswered() || submitResult !== null
                                     ? disabledButton
                                     : submitButton
                             }
-                            disabled={Object.keys(answers).length !== questions.length || submitResult !== null}
+                            disabled={!isAllAnswered() || submitResult !== null}
                             onClick={handleSubmit}
                         >
                             전체 제출
@@ -265,6 +352,44 @@ const Quiz = () => {
 
                             <div style={submitResult.passed ? passText : failText}>
                                 결과: {submitResult.passed ? "✅ 통과" : "❌ 미통과"}
+                            </div>
+
+                            <div style={{ marginTop: '20px' }}>
+                                <div style={{ fontWeight: 600, marginBottom: '8px' }}>
+                                    🧠 나의 이해도 (자기 평가)
+                                </div>
+
+                                <input
+                                    type='range'
+                                    min='0'
+                                    max='100'
+                                    value={selfScore}
+                                    onChange={(e) => setSelfScore(e.target.value)}
+                                    style={{ width: '100%' }}
+                                 />
+
+                                 <div style={{ textAlign: 'right', marginTop: '5px' }}>
+                                    {selfScore}점
+                                 </div>
+                            </div>
+
+                            {/* 비교 결과 */}
+                            <div style={{ marginTop: '20px' }}>
+                                <div style={{ fontWeight: 600 }}>결과 분석</div>
+
+                                <div style={{ marginTop: '8px' }}>
+                                    ✔ 자기 평가: {selfScore}점
+                                </div>
+                                <div>
+                                    ✔ 실제 점수: {submitResult.totalScore} / {submitResult.maxScore}
+                                </div>
+
+                                <div style={{ marginTop: '10px', fontWeight: 500 }}>
+                                    {selfScore > submitResult.totalScore
+                                        ? '📉 실제 이해도가 예상보다 낮습니다. 복습이 필요합니다.'
+                                        : '📈 학습 효과가 좋습니다! 잘 이해하고 있습니다.'
+                                    }
+                                </div>
                             </div>
 
                             {!submitResult.passed && (
