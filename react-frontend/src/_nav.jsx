@@ -1,15 +1,20 @@
 /**
  * @FileName : _nav.jsx
- * @Description : 사이드바 메뉴
+ * @Description : 사이드바 메뉴 구성
+ *                - 주요 기능별 화면 이동 경로 정의
+ *                - 인사 평가 영역 (로드맵 / 평가 / 결과 조회 / 관리) 포함
+ *                - 일부 메뉴는 역할 기반 접근 제어(roles) 적용
  * @Author : 김다솜
  * @Date : 2026. 04. 21
  * @Modification_History
  * @
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
- * @ 2026.04.21    김다솜        화면설계와 맞추어 사이드바 메뉴 생성
- * @ 2026.04.22    김다솜        메뉴별 접근 권한 설정 예시 추가(roles)
+ * @ 2026.04.21    김다솜        화면 설계 기반 사이드바 메뉴 초기 구성
+ * @ 2026.04.22    김다솜        메뉴별 접근 권한(roles) 설정 예시 추가
+ * @ 2026.05.01    김다솜        평가 메뉴 구조 개선 (로드맵/평가/결과 분리)
  */
+
 import React from 'react'
 import CIcon from '@coreui/icons-react'
 import { cilCalculator, cilCalendar, cilChatBubble, cilClock, cilDescription, cilHome, cilPeople, cilUser } from '@coreui/icons'
@@ -71,8 +76,8 @@ const _nav = [
   },
   {
     component: CNavItem,
-    name: 'AI 퀴즈 및 평가',
-    to: '/evaluation/quiz',
+    name: 'AI 온보딩 평가',
+    to: PATH.EVALUATION.ROOT,
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     badge: {
       color: 'primary',
@@ -82,14 +87,14 @@ const _nav = [
   {
     component: CNavItem,
     name: '평가 조회',
-    to: '/evaluation/result',
+    to: PATH.EVALUATION.RESULT,
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
   },
   {
     component: CNavItem,
     name: '평가 관리',
     to: '/evaluation/admin',
-    icon: <CIcon icon={cilPeople} customClasqsName="nav-icon" />,
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     roles: ['ROLE_TEAM_LEADER', 'ROLE_ADMIN'],
   },
   {

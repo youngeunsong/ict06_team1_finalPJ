@@ -11,9 +11,9 @@
  * @ 2026.04.29    김다솜        새로고침 시 토큰 기반 사용자 정보 복구 로직 추가
  */
 
-import axios from 'axios';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { PATH } from 'src/constants/path';
+import axiosInstance from './axiosInstance';
 
 const UserContext = createContext(null);
 
@@ -31,11 +31,7 @@ export const UserProvider = ({ children }) => {
             }
 
         try {
-            const response = await axios.get(`${PATH.API.BASE}${PATH.API.USER_ME}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            const response = await axiosInstance.get(PATH.API.USER_ME);
 
             setUserInfo(response.data);
         } catch(err) {

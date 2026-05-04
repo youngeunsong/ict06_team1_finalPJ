@@ -12,9 +12,9 @@
  * @ 2026.04.29    김다솜        최초 생성 및 체크리스트 미리보기 기능 구현
  */
 
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axiosInstance from 'src/api/axiosInstance';
 import { PATH } from 'src/constants/path';
 import { previewCard, previewHeader, previewHeaderRow, previewLink, previewList, previewSubText, previewTextArea } from 'src/styles/js/onboarding/ChecklistStyle';
 
@@ -31,8 +31,7 @@ const ChecklistPreview = ({ userInfo }) => {
             if(!empNo) return;
 
             try {
-                const url = `${PATH.API.BASE}${PATH.API.CHECKLIST_LIST(empNo)}`;
-                const res = await axios.get(url);
+                const res = await axiosInstance.get(PATH.API.ONBOARDING.CHECKLIST_LIST(empNo));
 
                 const data = res.data || [];
 

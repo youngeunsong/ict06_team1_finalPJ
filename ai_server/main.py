@@ -1,14 +1,15 @@
 #
 #  @FileName : main.py
-#  @Description : 인사평가 > AI 온보딩 로드맵 추천 API 서버
-#                 (Gemini 기반 맞춤형 교육 로드맵 생성 및 DB 저장)
+#  @Description : AI 온보딩 평가 서버
+#                 - FastAPI 기반 AI 전용 API 서버
+#                 - Spring Boot 서버와 분리하여 AI 채점/피드백 기능 처리
 #  @Author : 김다솜
 #  @Date : 2026. 04. 27
 #  @Modification_History
 #  @
 #  @ 수정일         수정자        수정내용
 #  @ ----------    ---------    -------------------------------
-#  @ 2026.04.27    김다솜        최초 생성/Gemini 기반 AI 로드맵 추천 API 구현
+#  @ 2026.04.27    김다솜        최초 생성 및 FastAPI 기본 서버 구성, Gemini 기반 AI 로드맵 추천 API 구현
 #  @ 2026.04.28    김다솜        로드맵 응답 구조 변경(교육 그룹별 JSON 형태)/DB 저장 로직 연동
 #
 
@@ -18,6 +19,7 @@ import json
 import re
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.evaluation.ai_evaluation import router as evaluation_router
 from dotenv import load_dotenv
 from pathlib import Path
 from database import (
@@ -33,15 +35,45 @@ from database import (
 # =========================
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
-app = FastAPI()
+app = FastAPI(
+    title="AI Onboarding Evaluation Server",
+    description="온보딩 퀴즈 AI 채점 및 피드백 생성 서버",
+    version="1.0.0"
+)
 
+app.include_router(
+    evaluation_router,
+    prefix="/api/ai/evaluation",
+    tags=["AI Evaluation"]
+)
+
+# SpringBoot / React와 통신 위한 CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8081"
+        ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def root():
+    return {
+        "service": "AI Onboarding Evaluation Server",
+        "status": "running",
+        "message": "AI 서버가 정상 실행 중입니다."
+    }
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "server": "ai",
+        "port": 8000
+    }
 
 # =========================
 # API KEY
@@ -55,6 +87,34 @@ USE_MOCK = True
 # API KEY 정상 로딩 여부 확인용(앞 10자리만 출력)
 print(f"🔑 DEBUG KEY: {GEMINI_API_KEY[:10] if GEMINI_API_KEY else 'NONE'}")
 
+def format_content_for_ai(contents):
+    """
+    DB에서 가져온 리스트를 AI 최적화 문자열로 변환
+    """
+    if not contents or not isinstance(contents, list):
+        return "데이터 없음"
+
+    header = "ID|제목|분류|세부분류|필수|난이도"
+    lines = [header]
+    
+    for c in contents:
+        # c가 딕셔너리일 때만 처리하고, 아니면 건너뜀
+        if not isinstance(c, dict):
+            continue
+            
+        is_req = "T" if c.get("is_mandatory") == 'Y' or c.get("is_mandatory") is True else "F"
+        
+        # 필요한 정보만 뽑아서 한 줄로 압축 (Key 이름은 다솜님 DB 컬럼명에 맞춰 확인 필요)
+        cid = c.get("content_id", "0")
+        title = c.get("title", "제목없음")
+        cat = c.get("category", "-")
+        sub_cat = c.get("sub_category", "-")
+        level = c.get("level", "1")
+        
+        line = f"{cid}|{title}|{cat}|{sub_cat}|{is_req}|{level}"
+        lines.append(line)
+        
+    return "\n".join(lines)
 
 # =========================
 # AI 로드맵 API
@@ -111,12 +171,13 @@ def get_roadmap(emp_no: str):
     try:
         # 1. 사원 정보 조회
         emp_info = fetch_employee_info(emp_no)
+        print(f"👉 입력받은 사번: {emp_no} (타입: {type(emp_no)})")
+        print(f"👉 DB 결과값: {emp_info} (타입: {type(emp_info)})")
         if not emp_info:
             return {"error": "사원 정보를 찾을 수 없습니다."}
 
-        # 2. [최적화] 이미 생성된 로드맵이 DB에 있는지 확인
+        # 2-1. [최적화] 이미 생성된 로드맵이 DB에 있는지 확인
         existing_data = fetch_existing_roadmap(emp_no)
-
         if existing_data:
             print(f"기존 로드맵을 반환합니다. (사번: {emp_no})")
             return {
@@ -125,7 +186,7 @@ def get_roadmap(emp_no: str):
                 "is_mock": False
             }
 
-        # 3. mock 데이터 불러오기(조건 분기-개발용 임시 코드)
+        # 2-2. mock 데이터 불러오기(조건 분기-개발용 임시 코드)
         if USE_MOCK:
             print("⚠️ 개발 모드: AI 호출 생략, mock 로드맵 사용")
             return {
@@ -135,68 +196,67 @@ def get_roadmap(emp_no: str):
             }
 
         # 3. AI에게 전달할 사내 강의 목록 문자열 생성
-        content_list_str = get_on_content_list()
+        raw_content_list = get_on_content_list()        # DB에서 가져온 원본 리스트
+        content_list_str = format_content_for_ai(raw_content_list)        # 압축된 문자열
 
         # 4. 프롬프트 구성(형식/강의 목록)
-        prompt_text = (
-            f"사원 {emp_info.get('name')} "
-            f"(부서: {emp_info.get('dept_name')}, 직급: {emp_info.get('position_name')})을 위한 "
-            f"맞춤형 온보딩 로드맵을 만들어줘.\n\n"
+        emp_name = emp_info.get('name', '사용자')
+        dept_name = emp_info.get('dept_name', '해당 부서')
+        pos_name = emp_info.get('position_name', '사원')
 
-            f"아래 콘텐츠 목록에는 ID, 제목, 유형, 분류, 세부분류, 대상직급, 난이도, 예상시간, 태그, 필수여부가 정보가 포함되어 있어.\n"
-            f"콘텐츠를 다음 교육 그룹으로 나누어 추천해줘.\n"
-            f"1. 필수이수교육\n"
-            f"2. 직무교육\n"
-            f"3. 심화교육\n\n"
+        prompt_text = f"""
+            사원 {emp_name} (부서: {dept_name}, 직급: {pos_name})을 위한 맞춤형 온보딩 로드맵을 작성해줘.
 
-            f"추천 기준:\n"
-            f"- 필수여부가 true인 콘텐츠는 필수이수교육에 우선 포함\n"
-            f"- 사원의 부서와 직급에 맞는 콘텐츠를 직무교육에 포함\n"
-            f"- 난이도가 높은 콘텐츠나 확장 학습은 심화교육에 포함\n"
-            f"- 전체 추천 콘텐츠는 5개에서 8개 사이로 구성\n"
-            f"- content_id는 반드시 제공된 목록의 ID만 사용\n\n"
+            사내 강의 목록 (형식: ID|제목|분류|세부분류|필수여부|난이도):
+            {content_list_str}
 
-            f"콘텐츠 목록:\n{content_list_str}\n\n"
+            지시사항:
+            1. 필수(T) 콘텐츠는 반드시 '필수이수교육' 카테고리에 포함할 것.
+            2. 부서({dept_name})와 직무에 적합한 강의를 골라 '직무교육'에 배치할 것.
+            3. 난이도가 높거나 전문적인 강의는 '심화교육'에 배치할 것.
+            4. 전체 로드맵은 5~8개의 강의로 구성하고, 반드시 제공된 ID(content_id)만 사용할 것.
 
-            f"응답은 반드시 JSON만 반환해. 다른 설명은 절대 하지 마.\n"
-            f"""
-        [
+            응답은 반드시 아래 JSON 구조로만 답변해:
+            [
             {{
                 "category_name": "필수이수교육",
                 "items": [
-                {{"item_title": "콘텐츠 제목", "content_id": 1}}
+                {{"item_title": "강의제목", "content_id": 1}}
                 ]
             }},
             {{
                 "category_name": "직무교육",
                 "items": [
-                {{"item_title": "콘텐츠 제목", "content_id": 2}}
+                {{"item_title": "강의제목", "content_id": 2}}
                 ]
             }},
             {{
                 "category_name": "심화교육",
                 "items": [
-                {{"item_title": "콘텐츠 제목", "content_id": 3}}
+                {{"item_title": "강의제목", "content_id": 3}}
                 ]
             }}
-        ]
+            ]
         """
-        )
+        # -------------------------------------------------------
 
         # 5. Gemini API 호출 설정
         target_model = "gemini-2.0-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
+        
         # 요청 데이터
         payload = {
             "contents": [
                 {
                     "parts": [{"text": prompt_text}]
                 }
-            ]
+            ],
+            # 추가: JSON 응답 강제
+            "generationConfig": {
+                "response_mime_type": "application/json",
+                "temperature": 0.2
+            }
         }
-
-        headers = {"Content-Type": "application/json"}
-
 
         # =========================
         # 요청 로그
@@ -207,7 +267,11 @@ def get_roadmap(emp_no: str):
 
         # API 호출
         print(f"\n AI 요청 시작(사번: {emp_no})")
-        response = requests.post(url, headers=headers, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=10)
+
+        if response.status_code == 429:
+            raise Exception("AI_QUOTA_LIMIT")
+            
         result = response.json()
 
         # =========================
@@ -217,21 +281,23 @@ def get_roadmap(emp_no: str):
         print("STATUS:", response.status_code)
         print("TEXT:", response.text)
 
-        # 6. AI 응답 파싱 및 DB 저장
+        # 6. AI 응답 파싱
         if "candidates" in result:
             ai_text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            # 추가
+            roadmap_items = json.loads(ai_text)
             print(f"AI 응답 원문: {ai_text}")
 
-            # JSON 형태 로드맵 파싱
-            try:
-                ai_text = re.sub(r"```.*?\n", "", ai_text)
-                ai_text = ai_text.replace("```", "").strip()
-                roadmap_items = json.loads(ai_text)
-            except Exception as parse_err:
-                print(f"JSON 파싱 실패: {parse_err}")
-                raise Exception("PARSING_ERROR")
+            # # JSON 형태 로드맵 파싱
+            # try:
+            #     ai_text = re.sub(r"```.*?\n", "", ai_text)
+            #     ai_text = ai_text.replace("```", "").strip()
+            #     roadmap_items = json.loads(ai_text)
+            # except Exception as parse_err:
+            #     print(f"JSON 파싱 실패: {parse_err}")
+            #     raise Exception("PARSING_ERROR")
 
-            # DB에 최종 저장(사번 포함)
+            # DB에 최종 저장 및 결과 반환
             save_success = save_ai_roadmap(
                 dept_id=emp_info.get("dept_id"),
                 position_id=emp_info.get("position_id"),
@@ -262,11 +328,18 @@ def get_roadmap(emp_no: str):
 
     except Exception as e:
         # 에러가 나도 리액트 화면은 정상적으로 나오게 임시 데이터 반환
-        print(f"플랜B 작동(사유: {e})")
+        import traceback
+        print("🚨 [상세 에러 발생 위치 및 내용] 🚨")
+        traceback.print_exc()  # <--- 이게 핵심입니다! 에러의 족적을 다 보여줘요.
+        
+        safe_name = "사용자"
+        # ... 이하 플랜B 리턴 로직
+        # print(f"플랜B 작동(사유: {e})")
         return {
             "name": emp_info.get("name") if 'emp_info' in locals() else "사용자",
             "recommended_roadmap": mock_roadmap,
-            "is_mock": True
+            "is_mock": True,
+            "error_msg": str(e) # 프론트에서 디버깅용으로 확인 가능
         }
 
 # =========================
