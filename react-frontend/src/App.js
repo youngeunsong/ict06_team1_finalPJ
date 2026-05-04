@@ -17,8 +17,12 @@ const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
 
 function AppContent() {
 
-  const { userInfo, setUserInfo } = useUser();
+  const { userInfo, setUserInfo, userLoading } = useUser();
   const appRoutes = getAppRoutes(userInfo, setUserInfo);
+
+  if(userLoading) {
+    return <div className='pt-3 text-center'>Loading...</div>
+  }
 
   return (
     <NotificationListener>

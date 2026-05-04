@@ -177,6 +177,15 @@ function MyRoadmap({ userInfo }) {
         navigate(`${PATH.EVALUATION.QUIZ}?categoryName=${encodeURIComponent(categoryName)}`);
     };
 
+    if(!userInfo) {
+        return (
+            <div className='text-center py-5'>
+                <CSpinner color='primary' />
+                <p>사용자 정보 로딩 중...</p>
+            </div>
+        );
+    }
+
     return (
         <div style={containerStyle}>
             {/* 체크리스트 미리보기 박스 */}

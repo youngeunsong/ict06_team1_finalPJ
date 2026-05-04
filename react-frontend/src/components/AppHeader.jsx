@@ -42,7 +42,7 @@ const AppHeader = () => {
       const response = await axiosInstance.get("/noti");
 
       //최근 알림이 가장 위에 보이도록 정렬
-      const sortedData = [...response.data].reverse();
+      const sortedData = [...response.data];
       setNotifications(sortedData);
 
       //읽지 않은 알림 개수 계산
@@ -63,9 +63,10 @@ const AppHeader = () => {
         return;
 
       //1. 백엔드 호출: NotificationController > markAsRead()
-      await axios.patch(`${PATH.API.BASE}/noti/${notiId}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axiosInstance.patch(`/noti/${notiId}/read`);
+      // await axios.patch(`${PATH.API.BASE}/noti/${notiId}/read`, {}, {
+      //   headers: { Authorization: `Bearer ${token}` }
+      // });
 
       //2. 읽음 처리 성공 시 목록 갱신
       fetchNotifications();
