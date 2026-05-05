@@ -8,6 +8,8 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.28    송혜진        최초 생성/ BACKEND 연결
+ * @ 2026.05.05    송혜진        문장 다듬기 api 추가
+ * 
  */
 
 import axios from "axios";
@@ -59,6 +61,10 @@ export const getMessages = (sessionId) =>
 // 메시지 저장
 export const sendMessage = (sessionId, payload) =>
   api.post(`/api/ai-secretary/sessions/${sessionId}/messages`, payload);
+
+// 문장 다듬기 프롬프트 실행
+export const correctText = (payload) =>
+  api.post("/api/ai-secretary/correction", payload);
 
 // 제미나이 연결
 export const askChatbot = (payload) =>

@@ -34,6 +34,7 @@ public class GeminiModelClient implements AiModelClient {
         );
 
         log.info("[GEMINI] request model={}", model);
+        log.debug("[GEMINI] apiKeyFingerprint={}", maskApiKey(apiKey));
 
         GeminiGenerateRequest request = GeminiGenerateRequest.of(prompt);
 
@@ -59,20 +60,31 @@ public class GeminiModelClient implements AiModelClient {
 
         } catch (RestClientResponseException e) {
             int statusCode = e.getStatusCode().value();
+            String responseBody = e.getResponseBodyAsString();
 
             log.warn(
-                    "[GEMINI] API 호출 실패. status={}, model={}, responseBodyLength={}",
+                    "[GEMINI] API 호출 실패. status={}, model={}, responseBody={}",
                     statusCode,
                     model,
-                    e.getResponseBodyAsString() == null ? 0 : e.getResponseBodyAsString().length()
+                    abbreviate(responseBody, 1000)
             );
 
             if (statusCode == 429) {
-                throw new IllegalStateException("Gemini API 할당량을 초과했습니다. 잠시 후 다시 시도하거나 다른 Gemini API Key를 사용하세요.");
+                throw new IllegalStateException(
+                        "Gemini API 할당량을 초과했습니다. 잠시 후 다시 시도하거나 다른 Gemini API Key를 사용하세요."
+                );
             }
 
             if (statusCode == 401 || statusCode == 403) {
-                throw new IllegalStateException("Gemini API 인증에 실패했습니다. API Key 또는 프로젝트 권한을 확인하세요.");
+                throw new IllegalStateException(
+                        "Gemini API 인증에 실패했습니다. API Key 또는 프로젝트 권한을 확인하세요."
+                );
+            }
+
+            if (statusCode == 503) {
+                throw new IllegalStateException(
+                        "Gemini API가 일시적으로 응답하지 않습니다. 다른 모델로 전환하거나 잠시 후 다시 시도하세요. status=503"
+                );
             }
 
             throw new IllegalStateException("Gemini API 호출 실패. status=" + statusCode);
@@ -87,7 +99,7 @@ public class GeminiModelClient implements AiModelClient {
 
         if (apiKey == null || apiKey.isBlank() || apiKey.contains("${")) {
             throw new IllegalStateException(
-                    "GEMINI_API_KEY가 설정되지 않았습니다. ai_server/.env 또는 spring.config.import 설정을 확인하세요."
+                    "GEMINI_API_KEY가 설정되지 않았습니다. ai_server/env 또는 spring.config.import 설정을 확인하세요."
             );
         }
 
@@ -106,5 +118,17 @@ public class GeminiModelClient implements AiModelClient {
         }
 
         return apiKey.substring(0, 6) + "..." + apiKey.substring(apiKey.length() - 6);
+    }
+
+    private String abbreviate(String text, int maxLength) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+
+        if (text.length() <= maxLength) {
+            return text;
+        }
+
+        return text.substring(0, maxLength) + "...";
     }
 }

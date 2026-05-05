@@ -6,6 +6,7 @@ import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatSessionEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.SessionType;
 import com.ict06.team1_fin_pj.domain.aiSecretary.response.ApiResponse;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiChatbotService;
+import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiCorrectionService;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiSecretaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,9 @@ public class AiSecretaryController {
 
     @Autowired
     private  AiChatbotService aiChatbotService;
+
+    @Autowired
+    private AiCorrectionService aiCorrectionService;
 
     // 챗봇 최근 세션 조회 또는 생성
     // POST /api/ai-secretary/chatbot/session?empNo=20209999
@@ -128,6 +132,7 @@ public class AiSecretaryController {
         return ApiResponse.ok("메시지 저장 성공", response);
     }
 
+    // 챗봇 응답 생성
     @PostMapping("/chatbot/ask")
     public ApiResponse<ChatbotAskResponseDto> askChatbot(
             @Valid @RequestBody ChatbotAskRequestDto requestDto
@@ -136,5 +141,19 @@ public class AiSecretaryController {
                 aiChatbotService.ask(requestDto.getSessionId(), requestDto.getContent());
 
         return ApiResponse.ok("챗봇 응답 생성 성공", response);
+    }
+
+    // 문장 다듬기
+    @PostMapping("/correction")
+    public ApiResponse<CorrectionResponseDto> correctText(
+            @Valid @RequestBody CorrectionRequestDto requestDto
+    ) {
+        CorrectionResponseDto response = aiCorrectionService.correct(
+                requestDto.getEmpNo(),
+                requestDto.getText(),
+                requestDto.getMode()
+        );
+
+        return ApiResponse.ok("문장 다듬기 성공", response);
     }
 }
