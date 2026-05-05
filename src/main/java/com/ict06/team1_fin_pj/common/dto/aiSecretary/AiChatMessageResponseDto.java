@@ -1,15 +1,14 @@
 // 메시지 응답 DTO
 package com.ict06.team1_fin_pj.common.dto.aiSecretary;
 
+import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatMessageEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.MessageRole;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
+@Data
 @Builder
 public class AiChatMessageResponseDto {
 
@@ -22,6 +21,22 @@ public class AiChatMessageResponseDto {
     private Integer promptTokens;
     private Integer completionTokens;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public static AiChatMessageResponseDto from(AiChatMessageEntity message) {
+        return AiChatMessageResponseDto.builder()
+                .messageId(message.getMessageId())
+                .sessionId(message.getSession().getSessionId())
+                .role(message.getRole())
+                .content(message.getContent())
+                .seqNo(message.getSeqNo())
+                .modelName(message.getModelName())
+                .promptTokens(message.getPromptTokens())
+                .completionTokens(message.getCompletionTokens())
+                .createdAt(message.getCreatedAt())
+                .updatedAt(message.getUpdatedAt())
+                .build();
+    }
 
 }
 

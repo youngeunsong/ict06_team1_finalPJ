@@ -4,11 +4,11 @@ package com.ict06.team1_fin_pj.common.dto.aiSecretary;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.SessionStatus;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.SessionType;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Getter
+@Data
 @Builder
 public class AiChatSessionResponseDto {
 

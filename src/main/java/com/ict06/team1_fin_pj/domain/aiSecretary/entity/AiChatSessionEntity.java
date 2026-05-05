@@ -46,7 +46,7 @@ public class AiChatSessionEntity extends BaseTimeEntity {
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt; // 마지막 메시지 시각
 
-    // 세션 → 메시지들 (1:1 관계 = 세션 1개 당 여러개의 메시지)
+    // 세션 → 메시지들 (1:N 관계 = 세션 1개 당 여러개의 메시지)
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AiChatMessageEntity> messages = new ArrayList<>();

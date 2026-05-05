@@ -1,47 +1,38 @@
 package com.ict06.team1_fin_pj.domain.aiSecretary.controller;
 
-import com.ict06.team1_fin_pj.common.dto.aiSecretary.AiChatMessageCreateRequestDto;
-import com.ict06.team1_fin_pj.common.dto.aiSecretary.AiChatMessageResponseDto;
-import com.ict06.team1_fin_pj.common.dto.aiSecretary.AiChatSessionCreateRequestDto;
-import com.ict06.team1_fin_pj.common.dto.aiSecretary.AiChatSessionResponseDto;
+import com.ict06.team1_fin_pj.common.dto.aiSecretary.*;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatMessageEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatSessionEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.SessionType;
 import com.ict06.team1_fin_pj.domain.aiSecretary.response.ApiResponse;
+import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiChatbotService;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiSecretaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/ai-secretary")
-@RequiredArgsConstructor
 public class AiSecretaryController {
 
-    private final AiSecretaryService aiSecretaryService;
+    // SERVICE 호출
+    @Autowired
+    private AiSecretaryService aiSecretaryService;
 
-    // 테스트 임시용
-    @PostMapping("/sessions/test")
-    public String testPost() {
-        return "POST OK";
-    }
+    @Autowired
+    private  AiChatbotService aiChatbotService;
 
-    // 채팅 세션(채팅방) 생성
-    @PostMapping("/sessions")
-    public ApiResponse<AiChatSessionResponseDto> createSession(
-            // 프론트에서 보낸 JSON 데이터를 AiChatSessionCreateRequestDto 객체로 변환
-            @Valid @RequestBody AiChatSessionCreateRequestDto requestDto
+    // 챗봇 최근 세션 조회 또는 생성
+    // POST /api/ai-secretary/chatbot/session?empNo=20209999
+    @PostMapping("/chatbot/session")
+    public ApiResponse<AiChatSessionResponseDto> getOrCreateChatbotSession(
+            @RequestParam String empNo
     ) {
-        // [1] 세션(대화방) 만들기
-        AiChatSessionEntity session = aiSecretaryService.createSession(
-                requestDto.getEmpNo(),
-                requestDto.getSessionType(),
-                requestDto.getTitle()
-        );
+        AiChatSessionEntity session = aiSecretaryService.getOrCreateChatbotSession(empNo);
 
-        // [2] 세션 응답 DTO 생성 => setter로 값는 넣는 것과 동일한 작업
         AiChatSessionResponseDto response = AiChatSessionResponseDto.builder()
                 .sessionId(session.getSessionId())
                 .empNo(session.getEmployee().getEmpNo())
@@ -53,8 +44,7 @@ public class AiSecretaryController {
                 .updatedAt(session.getUpdatedAt())
                 .build();
 
-        // [3] 공통 응답 포맷으로 값 리턴
-        return ApiResponse.ok("세션 생성 성공", response);
+        return ApiResponse.ok("챗봇 세션 조회 성공", response);
     }
 
     // 채팅 세션 목록 조회
@@ -136,5 +126,15 @@ public class AiSecretaryController {
                 .build();
 
         return ApiResponse.ok("메시지 저장 성공", response);
+    }
+
+    @PostMapping("/chatbot/ask")
+    public ApiResponse<ChatbotAskResponseDto> askChatbot(
+            @Valid @RequestBody ChatbotAskRequestDto requestDto
+    ) {
+        ChatbotAskResponseDto response =
+                aiChatbotService.ask(requestDto.getSessionId(), requestDto.getContent());
+
+        return ApiResponse.ok("챗봇 응답 생성 성공", response);
     }
 }

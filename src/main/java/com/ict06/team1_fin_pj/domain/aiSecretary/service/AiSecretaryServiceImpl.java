@@ -14,67 +14,125 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// 채팅 기능 메서드
 @Service
-@RequiredArgsConstructor // private final를 사용하기 위해 선언
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AiSecretaryServiceImpl implements AiSecretaryService {
 
-    // private final = @Autowired 대용
+    private static final long CHATBOT_RETENTION_HOURS = 48L;
+
     private final AiChatSessionRepository aiChatSessionRepository;
     private final AiChatMessageRepository aiChatMessageRepository;
     private final EmpRepository empRepository;
 
-    // 채팅 세션(채팅방) 생성
+    // 공통 세션 생성 진입점
     @Override
+    @Transactional
     public AiChatSessionEntity createSession(String empNo, SessionType sessionType, String title) {
-        // [1] empNo이 있으면 employee에 값을 저장하고, 없으면 오류 메시지를 뿌리고 중단해라
-        EmpEntity employee  = empRepository.findById(empNo)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사원입니다."));
 
-        // [2] Repository에 넘길 값 취합
+        if (sessionType == SessionType.CHATBOT) {
+            return getOrCreateChatbotSession(empNo);
+        }
+
+        return createAssistantSession(empNo, title);
+    }
+
+    // ASSISTANT 세션 생성
+    @Override
+    @Transactional
+    public AiChatSessionEntity createAssistantSession(String empNo, String title) {
+
+        EmpEntity employee = empRepository.findByEmpNo(empNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사원입니다. empNo=" + empNo));
+
+        LocalDateTime now = LocalDateTime.now();
+
         AiChatSessionEntity session = AiChatSessionEntity.builder()
                 .employee(employee)
-                .sessionType(sessionType)
+                .sessionType(SessionType.ASSISTANT)
                 .title(title)
-                .lastMessageAt(LocalDateTime.now())
+                .lastMessageAt(now)
                 .build();
 
         return aiChatSessionRepository.save(session);
     }
 
-    // 채팅 세션 목록 조회
+    // CHATBOT 최근 48시간 내 단일 세션 조회 또는 생성
     @Override
-    public List<AiChatSessionEntity> getSessionList(String empNo, SessionType sessionType) {
-        return aiChatSessionRepository.findByEmployeeEmpNoAndSessionTypeOrderByLastMessageAtDesc(empNo, sessionType);
+    @Transactional
+    public AiChatSessionEntity getOrCreateChatbotSession(String empNo) {
+
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(CHATBOT_RETENTION_HOURS);
+
+        return aiChatSessionRepository
+                .findTopByEmployee_EmpNoAndSessionTypeAndLastMessageAtAfterOrderByLastMessageAtDesc(
+                        empNo,
+                        SessionType.CHATBOT,
+                        cutoff
+                )
+                .orElseGet(() -> createNewChatbotSession(empNo)); // orElseGet() 값이 비어 있을 대만 대체할 값 생성
     }
 
-    // 채팅 세션 내 메시지 목록 조회
+    // CHATBOT 신규 세션 생성
+    private AiChatSessionEntity createNewChatbotSession(String empNo) {
+
+        EmpEntity employee = empRepository.findByEmpNo(empNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사원입니다. empNo=" + empNo));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        AiChatSessionEntity session = AiChatSessionEntity.builder()
+                .employee(employee)
+                .sessionType(SessionType.CHATBOT)
+                .title("챗봇 대화")
+                .lastMessageAt(now)
+                .build();
+
+        return aiChatSessionRepository.save(session);
+    }
+
+    // 세션 목록 조회
+    @Override
+    public List<AiChatSessionEntity> getSessionList(String empNo, SessionType sessionType) {
+
+        if (sessionType == SessionType.CHATBOT) {
+            return List.of();
+        }
+
+        return aiChatSessionRepository
+                .findByEmployee_EmpNoAndSessionTypeOrderByLastMessageAtDesc(
+                        empNo,
+                        SessionType.ASSISTANT
+                );
+    }
+
+    // 메시지 목록 조회
     @Override
     public List<AiChatMessageEntity> getMessageList(Integer sessionId) {
+
         return aiChatMessageRepository.findBySessionSessionIdOrderBySeqNoAsc(sessionId);
     }
 
-    // 채팅 세션 내 메시지 저장
+    // 메시지 저장
     @Override
     @Transactional
     public AiChatMessageEntity saveMessage(Integer sessionId, AiChatMessageEntity message) {
-        // [1] 세션 조회 : SELECT * FROM AI_CHAT_SESSION WHERE session_id = ${sessionId}
-        AiChatSessionEntity session = aiChatSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 대화방 입니다."));
 
-        // [2] 해당세션의 가장 마지막 메시지 seqNo 조회 - 만약 첫 메세지라면 0을 기본으로
-        Integer lastSeqNo = aiChatMessageRepository.findTopBySessionSessionIdOrderBySeqNoDesc(sessionId)
+        AiChatSessionEntity session = aiChatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 세션입니다. sessionId=" + sessionId));
+
+        Integer lastSeqNo = aiChatMessageRepository
+                .findTopBySessionSessionIdOrderBySeqNoDesc(sessionId)
                 .map(AiChatMessageEntity::getSeqNo)
                 .orElse(0);
 
-        // [3] nextSeqNo 설정
-        message.setSeqNo(lastSeqNo + 1);
+        int nextSeqNo = lastSeqNo + 1;
 
-        // [4] 새 메시지 저장
         message.setSession(session);
+        message.setSeqNo(nextSeqNo);
+
         AiChatMessageEntity savedMessage = aiChatMessageRepository.save(message);
 
-        // [5] 세션의 lastMessage 갱신
         session.updateLastMessageAt(LocalDateTime.now());
 
         return savedMessage;

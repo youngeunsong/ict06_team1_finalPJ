@@ -1,5 +1,15 @@
-/* aiSecretary 전용 사이드바 */
-// src/pages/aiSecretary/components/Sidebar.js
+/**
+ * @FileName : Sidebar.js
+ * @Description : 사내 AI 포털 전용 사이드바
+ * @Author : 송혜진
+ * @Date : 2026. 04. 29
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.27    송혜진        최초 생성/ BACKEND 연결
+ * @ 2026.04.29    송혜진        최근 작성 목록 판단 변경
+ */
 
 import React from "react";
 import { C, styles } from "../styles/aiSecretaryTheme";

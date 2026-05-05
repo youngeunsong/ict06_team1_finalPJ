@@ -59,7 +59,10 @@ import { styles } from "./styles/aiSecretaryTheme";
 
 
 // 흐름제어 컴포넌트 (화면X) ---------------------------------------------
-export default function AiSecretary() {
+export default function AiSecretary({ userInfo }) {
+  // 테스트 **********************
+  console.log("AiSecretary userInfo =", userInfo);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { docId } = useParams();
@@ -167,7 +170,7 @@ export default function AiSecretary() {
   // 독립 기능 분기 : 챗봇/ 문장 다듬기 화면/ 지식 추가 화면
   const renderStandalonePage = () => {
     if(currentTab === "chatbot") {
-      return <ChatbotScreen />
+      return <ChatbotScreen userInfo={userInfo} />;
     }
 
     if (currentTab === "polish") {
@@ -181,7 +184,7 @@ export default function AiSecretary() {
     }
 
     if (currentTab === "knowledge-request") {
-      return <KnowledgeRequestScreen />
+      return <KnowledgeRequestScreen userInfo={userInfo} />
     }
 
     return null;
@@ -247,29 +250,30 @@ export default function AiSecretary() {
 
   // 독립 기능 조립 vs AI 비서 내부 조립 둘 중 하나 선택 하여 fallback
   const page = useMemo(() => {
-    const standalonePage = renderStandalonePage();
-    if (standalonePage) return standalonePage;
+  const standalonePage = renderStandalonePage();
+  if (standalonePage) return standalonePage;
 
-    const assistantPage = renderAssistantPage();
-    if (assistantPage) return assistantPage;
+  const assistantPage = renderAssistantPage();
+  if (assistantPage) return assistantPage;
 
-    return (
-      <AssistantHome
-        onOpenForm={goAssistantForm}
-        onOpenTemplate={goAssistantTemplate}
-        recents={recents}
-        onRecentClick={handleRecentClick}
-      />
-    );
-  }, [
-    currentTab,
-    currentScreen,
-    currentFormType,
-    correction,
-    writerState,
-    recents,
-    formData,
-  ]);
+  return (
+    <AssistantHome
+      onOpenForm={goAssistantForm}
+      onOpenTemplate={goAssistantTemplate}
+      recents={recents}
+      onRecentClick={handleRecentClick}
+    />
+  );
+}, [
+  currentTab,
+  currentScreen,
+  currentFormType,
+  correction,
+  writerState,
+  recents,
+  formData,
+  userInfo,
+]);
 
   return (
     <div style={styles.app}>
