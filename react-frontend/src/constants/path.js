@@ -2,11 +2,17 @@
 export const PATH = {
   ROOT: "/",
 
+  // 학습용 예제
+  TEST: {
+    LIST: "/test/list"
+  },
+
   // 대분류 : 인증/인가   
   AUTH: {
     LOGIN: "/auth/login",
     WELCOME: "/auth/welcome",
     USERHOME: "/auth/userhome",
+    MYPAGE: "/auth/mypage"
   },
 
   // 대분류 : 근태 관리
@@ -41,10 +47,27 @@ export const PATH = {
 
   // 대분류 : 인사평가 - 온보딩
   ONBOARDING: {
-    MYROADMAP: "/onboarding/myroadmap",         // 로드맵
-    QUIZ: "/evaluation/quiz",                   // 퀴즈
-    EVALUATION: "/evaluation/evaluation",       // 평가
+    ROOT: "/onboarding",
+    ROADMAP: "/onboarding/myroadmap",         // 로드맵
+    LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
+    LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
+    PROGRESS_COMPLETE: "/onboarding/progress/complete",
+    CHECKLIST: "/onboarding/checklist",
   }, 
+
+  // 대분류 : 인사평가 - AI 퀴즈 및 평가
+  EVALUATION: {
+    ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
+    QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
+    RESULT: "/evaluation/result", // 평가 결과 조회
+  }, 
+  
+  // 인사평가 - 외부 AI 서버 통신용
+  AI_API: {
+    BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000/api',
+    ROADMAP: (empNo) => `/ai/roadmap/${empNo}`,
+    CONTENT_DETAIL: (contentId) => `/content/${contentId}`,     // 학습자료 상세 조회
+  },
 
   // 대분류 : 인사관리
   EMPLOYEE: {
@@ -81,5 +104,23 @@ export const PATH = {
   ETC: {
     // 대분류 : 실시간 알림
     ALERT: "/alert",
+  },
+
+  // SpringBoot REST API
+  API: {
+    BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
+    USER_ME: '/user/me',
+
+    ONBOARDING: {
+      CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
+      CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
+      CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
+      PROGRESS_COMPLETE: "/onboarding/progress/complete",
+    },
+    EVALUATION: {
+      QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,
+      QUIZ_SUBMIT: "/evaluation/quiz/submit",
+      QUIZ_RESULT: (empNo) => `/evaluation/quiz/result/${empNo}`
+    }
   }
 };

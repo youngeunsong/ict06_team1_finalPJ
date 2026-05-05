@@ -32,6 +32,13 @@ build/
 ### VS Code ###
 .vscode/
 
+### Python ###
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.env
+
 ### DB Preferences ###
 application.properties
 application-local.properties
@@ -41,3 +48,7 @@ application-prod.properties
 hs_err_pid*
 replay_pid*
 node_modules/
+
+
+# 사원 프로필/서명 업로드 파일
+/employee/ict_06_uploads/

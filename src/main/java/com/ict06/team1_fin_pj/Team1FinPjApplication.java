@@ -1,8 +1,19 @@
+/**
+ * @author : 송영은
+ * description : 여기에서 'Run' 버튼을 눌러서 먼저 프로젝트 실행해주세요.
+ * 그다음 비주얼 스튜디오코드에서 리액트 프로젝트를 실행해주세요.
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-04-20   송영은       최초 생성
+ **/
+
 package com.ict06.team1_fin_pj;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
+@EnableJpaAuditing
 @SpringBootApplication
 public class Team1FinPjApplication {
 
