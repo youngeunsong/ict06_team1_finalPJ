@@ -39,7 +39,59 @@
                 <!-- end::Row-->
                 <!-- begin::Row-->
                 <div class="row">
-
+                    <!-- 왼쪽: 메인 선택창 시작-->
+                    <div class="col-md-6">
+                        <form id="appFormEditor">
+                            <div class="card p-3">
+                                <!--서식 이름 입력 시작-->
+                                <div class="mb-4 border-bottom pb-3 text-center">
+                                    <input type="text" name="formName" id="formName" class="form-control form-control-lg text-center border-0 shadow-none"
+                                           placeholder="⭐서식 이름을 입력하세요" required>
+                                </div>
+                                <!--서식 이름 입력 끝-->
+                                <!--참조 대상 메뉴바 시작-->
+                                <div class="row align-items-center">
+                                    <div class="col-md-auto">
+                                        <label class="col-form-label">참조</label>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <hr>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-secondary btn-sm">+</button>
+                                    </div>
+                                </div>
+                                <!--참조 대상 메뉴바 끝-->
+                                <!--참조 대상 동적 리스트 시작-->
+                                <div id="refList"></div>
+                                <!--참조 대상 동적 리스트 끝-->
+                                <!--결재 대상 동적 메뉴바 시작-->
+                                <div id="approvalMenubar"></div>
+                                <!--결재 대상 메뉴바 끝-->
+                                <!--결재 대상 동적 리스트 시작-->
+                                <div id="approvalList"></div>
+                                <!--결재 대상 동적 리스트 끝-->
+                                <!--결재 단계 추가 버튼 시작-->
+<!--                                <div class="d-grid w-100">-->
+                                <div class="row g-0">
+                                    <div class="col-12">
+                                        <button type="button" class="btn btn-outline-primary w-100">결재 단계 추가</button>
+                                    </div>
+                                </div>
+<!--                                </div>-->
+                                <!--결재 단계 추가 버튼 끝-->
+                                <!--결재선 서식 설명 시작-->
+                                <!--결재선 서식 설명 끝-->
+                                <!--기본 결재선 설정 여부 시작-->
+                                <!--기본 결재선 설정 여부 끝-->
+                                <!--서식 제출 버튼 시작-->
+                                <!--서식 제출 버튼 끝-->
+                            </div>
+                        </form>
+                    </div>
+                    <!-- 왼쪽: 메인 선택창 끝-->
+                    <!-- 오른쪽: 참조/결재 대상 조회 시작-->
+                    <!-- 오른쪽: 참조/결재 대상 조회 끝-->
                 </div>
                 <!-- end::Row-->
             </div>
