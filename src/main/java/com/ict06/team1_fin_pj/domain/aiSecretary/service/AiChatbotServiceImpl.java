@@ -17,47 +17,72 @@ public class AiChatbotServiceImpl implements AiChatbotService {
 
     private final AiSecretaryService aiSecretaryService;
     private final AiModelClient aiModelClient;
+    private final AiLogService aiLogService;
 
     @Override
     @Transactional
     public ChatbotAskResponseDto ask(Integer sessionId, String content) {
 
-        // 1. USER 메시지 저장
+        long startTime = System.currentTimeMillis();
+
+        AiChatMessageEntity savedUserMessage = null;
+        AiChatMessageEntity savedAiMessage = null;
+
+        boolean providerSuccess = false;
+        boolean fallback = false;
+        String errorMessage = null;
+
+        // [1] USER 메시지 저장
         AiChatMessageEntity userMessage = AiChatMessageEntity.builder()
                 .role(MessageRole.USER)
                 .content(content)
                 .build();
 
-        AiChatMessageEntity savedUserMessage =
-                aiSecretaryService.saveMessage(sessionId, userMessage);
+        savedUserMessage = aiSecretaryService.saveMessage(sessionId, userMessage);
 
-        // 2. 프롬프트 생성
+        // [2] 프롬프트 생성
         String prompt = buildPrompt(content);
 
-        // 3. Gemini 호출 + 실패 시 fallback 응답
+        // [3] Gemini 호출
         String answer;
         String modelName = "gemini";
 
         try {
             answer = aiModelClient.generateAnswer(prompt);
+            providerSuccess = true;
+            fallback = false;
+            modelName = "gemini";
         } catch (Exception e) {
-            log.warn("[GEMINI] 응답 생성 실패. fallback 응답으로 대체합니다. reason={}", e.getMessage());
-
             answer = buildFallbackAnswer(content);
+            providerSuccess = false;
+            fallback = true;
+            errorMessage = e.getMessage();
             modelName = "gemini-fallback";
         }
 
-        // 4. ASSISTANT 메시지 저장
+        // [4] ASSISTANT 메시지 저장
         AiChatMessageEntity aiMessage = AiChatMessageEntity.builder()
                 .role(MessageRole.ASSISTANT)
                 .content(answer)
                 .modelName(modelName)
                 .build();
 
-        AiChatMessageEntity savedAiMessage =
-                aiSecretaryService.saveMessage(sessionId, aiMessage);
+        // 여기 중요: savedUserMessage가 아니라 savedAiMessage에 담아야 함
+        savedAiMessage = aiSecretaryService.saveMessage(sessionId, aiMessage);
 
-        // 5. 프론트 응답 반환
+        // [5] AI_LOG 저장
+        long durationMs = System.currentTimeMillis() - startTime;
+
+        aiLogService.saveChatbotLog(
+                savedUserMessage,
+                savedAiMessage,
+                providerSuccess,
+                fallback,
+                durationMs,
+                errorMessage
+        );
+
+        // [6] 응답 반환
         return ChatbotAskResponseDto.builder()
                 .userMessage(AiChatMessageResponseDto.from(savedUserMessage))
                 .aiMessage(AiChatMessageResponseDto.from(savedAiMessage))

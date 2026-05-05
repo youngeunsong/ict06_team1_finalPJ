@@ -50,20 +50,20 @@ const mapMessageToBubble = (message) => ({
 
 export default function ChatbotScreen() {
   const { userInfo, updateUserInfo } = useUser();
-
-  const bottomRef = useRef(null);
-
+ 
   // Context가 비어 있어도 화면에서 자체 복구 가능하도록 로컬 상태 사용
   const [resolvedUserInfo, setResolvedUserInfo] = useState(userInfo);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  
   const [loadingUser, setLoadingUser] = useState(false);
   const [loadingInit, setLoadingInit] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  
+  const bottomRef = useRef(null);
 
   const empNo =
     resolvedUserInfo?.empNo ??
@@ -203,34 +203,39 @@ export default function ChatbotScreen() {
   const send = useCallback(async () => {
     const trimmed = input.trim();
 
+    // [1] 빈 질문 방지
     if (!trimmed) {
       setError("질문을 입력해 주세요.");
       return;
     }
 
+    // [2] 세션 준비 전 전송 방지
     if (!currentSessionId) {
-      setError("채팅방을 불러오는 중이에요.");
+      setError("채팅방을 불러오는 중입니다.");
       return;
     }
 
+    // [3] 중복 전송 방지
     if (sending) return;
 
     setSending(true);
     setError("");
 
+    // askChatbot API = USER 메시지 저장 + Gemini 호출 + ASSISTANT 메시지 저장 처리
     try {
       await askChatbot({
         sessionId: currentSessionId,
         content: trimmed,
       });
 
+      // 입력창 초기화
       setInput("");
+
+      // DB 기준 최신 메시지 재조회
       await loadMessages(currentSessionId);
     } catch (err) {
-      console.error("메시지 저장 실패", err);
-      setError(
-        err?.response?.data?.message || "메시지를 전송하지 못했습니다."
-      );
+      console.error("챗봇 응답 생성 실패", err);
+      setError("AI 응답 생성 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSending(false);
     }
@@ -288,14 +293,14 @@ export default function ChatbotScreen() {
             paddingRight: 4,
           }}
         >
-          {isLoading ? (
+          {loadingInit || loadingMessages ? (
             <div style={{ color: C.sub, fontSize: 14 }}>
               대화를 불러오는 중입니다...
             </div>
           ) : messages.length > 0 ? (
             messages.map((msg, idx) => (
               <Bubble
-                key={msg.id ?? `${msg.time}-${idx}`}
+                key={msg.id ?? `${msg.role}-${idx}`}
                 role={msg.role}
                 text={msg.text}
                 time={msg.time}
@@ -310,8 +315,19 @@ export default function ChatbotScreen() {
           )}
 
           {sending && (
-            <div style={{ color: C.sub, fontSize: 13 }}>
-              메시지를 전송하는 중입니다...
+            <div
+              style={{
+                alignSelf: "flex-start",
+                maxWidth: "70%",
+                padding: "12px 14px",
+                border: `1px solid ${C.border}`,
+                borderRadius: 14,
+                color: C.sub,
+                fontSize: 14,
+                background: "#fff",
+              }}
+            >
+              AI가 답변을 생성하는 중입니다...
             </div>
           )}
 
@@ -342,10 +358,17 @@ export default function ChatbotScreen() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                send();
+
+                if (!isInputDisabled) {
+                  send();
+                }
               }
             }}
-            placeholder="질문을 입력하세요..."
+            placeholder={
+              sending
+                ? "AI가 답변을 생성하는 중입니다..."
+                : "질문을 입력하세요..."
+            }
             disabled={isInputDisabled}
             style={{
               flex: 1,
