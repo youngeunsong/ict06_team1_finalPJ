@@ -1,8 +1,21 @@
+/**
+ * @FileName : createTemplate.js
+ * @Description : 동적으로 전자결재 서식의 필드를 추가하는 코드입니다. 전자결재 수정에서도 addField() 메서드 사용 중
+ * @Author : 송영은
+ * @Date : 2026. 04. 29
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.04.29    송영은       최초 생성
+ * @ 2026.05.04    송영은       서식 수정 오류 해결
+*/
 
 let fields = [];
 
 // 1. 필드 동적 추가 로직
-function addField(type, label = '⭐항목 명을 작성해주세요', placeholder = '') {
+// function addField(type, label = '⭐항목 명을 작성해주세요', placeholder = '') {
+function addField(type, label = '', placeholder = '') {
     const container = document.getElementById('dynamicFields');
     const fieldId = 'field_' + Date.now();
     const fieldNameId = fieldId + '_name';
@@ -10,16 +23,30 @@ function addField(type, label = '⭐항목 명을 작성해주세요', placehold
     const now = new Date().toTimeString().slice(0, 5);// 현재 시각
     const today = new Date().toISOString().slice(0, 10);// 현재 날짜
 
-    let fieldName = `<input type="text" class="form-control border-0 shadow-none" placeholder="⭐항목 명을 작성해주세요" id="${fieldNameId}" required value="${label}">`; // 반드시 필드명 작성해야 제출 가능
-    let inputHtml = '';
-    if(type === 'text') inputHtml += `<input type="text" class="form-control" placeholder="${placeholder}">`;
-    if(type === 'number') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
-    if(type === 'date') inputHtml += `<input type="date" class="form-control" value="${today}">`; // 기본값: 오늘
-    if(type === 'time') inputHtml += `<input type="time" value="${now}">`; // 기본값: 현재 시각
-    if(type === 'amount') inputHtml += `<input type="number" class="form-control" placeholder="0">`;
+    // class에 field-label 있어야 editForm.html의 서식 수정 로직 정상 작동 
+    let fieldName = `
+        <input type="text"
+            class="form-control border-0 shadow-none field-label"
+            placeholder="⭐항목 명을 작성해주세요"
+            id="${fieldNameId}"
+            required
+            value="${label}">
+        `;
 
+    // class에 field-placeholder 있어야 editForm.html의 서식 수정 로직 정상 작동 
+    let inputHtml = '';
+    if(type === 'text') inputHtml += `<input type="text" class="form-control field-placeholder" placeholder="${placeholder}">`;
+    if(type === 'number') inputHtml += `<input type="number" class="form-control field-placeholder" placeholder="0">`;
+    if(type === 'date') inputHtml += `<input type="date" class="form-control field-placeholder" value="${today}">`; // 기본값: 오늘
+    if(type === 'time') inputHtml += `<input type="time" class="form-control field-placeholder" value="${now}">`; // 기본값: 현재 시각
+    if(type === 'amount') inputHtml += `<input type="number" class="form-control field-placeholder" placeholder="0">`;
+
+    // class에 field-item 있어야 editForm.html의 서식 수정 로직 정상 작동 
     const fieldHtml = `
-        <div class="input-group mb-3 border-0 p-2 position-relative gap-3" id="${fieldId}">
+        <div class="input-group mb-3 border-0 p-2 position-relative gap-3 field-item" 
+         id="${fieldId}"
+         data-id="${fieldId}"
+         data-type="${type}">
             ${fieldName}
             ${inputHtml}
             <button type="button" class="btn btn-sm btn-danger  top-0 end-0" onclick="removeField('${fieldId}')">X</button>
@@ -48,7 +75,6 @@ function removeField(fieldId) {
     console.log(fields)
 }
 
-// 3. submit 버튼 누르면 DB에 저장할 최종 html 도출 후 컨트롤러에 전달 (기존)
 // 3. submit 버튼 누르면 DB에 저장할 최종 json 도출 후 컨트롤러에 전달
 $('#formEditor').on('submit', function (e) {
     e.preventDefault(); // 🔥 기본 submit 막기

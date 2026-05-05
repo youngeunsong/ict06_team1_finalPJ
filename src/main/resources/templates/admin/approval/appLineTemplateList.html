@@ -1,0 +1,71 @@
+<!--
+ * @author : 송영은
+ * description : 관리자용 전자결재 결재선 템플릿 관리
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-05-04   송영은       최초 생성
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+    <title id="page_title">관리자 템플릿</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+    <!-- 헤더 시작 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <!-- 헤더 끝 -->
+
+    <!-- 사이드바 시작-->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <!-- 사이드바 끝-->
+
+    <!-- 메인 콘텐츠 시작 -->
+    <main class="app-main">
+        <!--전자결재용 서브 헤더 시작-->
+        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <!--전자결재용 서브 헤더 끝-->
+        <!--begin::App Content-->
+        <div class="app-content">
+            <!--begin::Container-->
+            <div class="container-fluid">
+                <br>
+                <!-- begin::Row-->
+                <div class="row">
+                    <h3>결재선 서식 목록</h3>
+                </div>
+                <!-- end::Row-->
+                <!--새 서식 추가 버튼 시작-->
+                <div class="row">
+                    <div class="d-flex flex-row-reverse">
+                        <button type="button" class="btn btn-success" th:onclick="|location.href='@{/admin/approval/createAppLineForm}'|">
+                            (+) 새 결재선 서식 추가
+                        </button>
+                    </div>
+                </div>
+                <!--새 서식 추가 버튼 끝-->
+                <br>
+                <!-- begin::서식 표 시작-->
+                <!-- end::서식 표 시작-->
+            </div>
+            <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+    </main>
+    <!-- 메인 콘텐츠 끝 -->
+    <!-- 푸터 시작 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!--스크립트 시작-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<!--스크립트 끝-->
+</body>
+<!--end::Body-->
+</html>
