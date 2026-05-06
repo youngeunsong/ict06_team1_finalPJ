@@ -36,6 +36,7 @@ public class AdPayrollController {
         model.addAttribute("pageResponse", pageResponse);
 
         // select box 데이터 (부서 / 직급 / 급여등급)
+        model.addAttribute("headDepartmentList", adPayrollService.getHeadDepartmentList());
         model.addAttribute("departmentList", adPayrollService.getDepartmentList());
         model.addAttribute("positionList", adPayrollService.getPositionList());
         model.addAttribute("gradeCodeList", adPayrollService.getGradeCodeList());
@@ -83,6 +84,7 @@ public class AdPayrollController {
     public String registerSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO,
                                        @RequestParam(defaultValue = "1") int searchPage,
                                        @RequestParam(defaultValue = "10") int searchSize,
+                                       @RequestParam(required = false) String searchHeadDeptId,
                                        @RequestParam(required = false) String searchDeptId,
                                        @RequestParam(required = false) String searchPositionId,
                                        @RequestParam(required = false) String searchGradeId,
@@ -96,7 +98,7 @@ public class AdPayrollController {
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 등록되었습니다.");
 
         // 기존 검색 조건 유지
-        addSearchCondition(redirectAttributes, searchPage, searchSize,
+        addSearchCondition(redirectAttributes, searchPage, searchSize, searchHeadDeptId,
                 searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
@@ -125,6 +127,7 @@ public class AdPayrollController {
     public String updateSalaryPolicy(@ModelAttribute SalaryPolicyRequestDTO requestDTO,
                                      @RequestParam(defaultValue = "1") int searchPage,
                                      @RequestParam(defaultValue = "10") int searchSize,
+                                     @RequestParam(required = false) String searchHeadDeptId,
                                      @RequestParam(required = false) String searchDeptId,
                                      @RequestParam(required = false) String searchPositionId,
                                      @RequestParam(required = false) String searchGradeId,
@@ -138,7 +141,7 @@ public class AdPayrollController {
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 수정되었습니다.");
 
         // 검색 조건 유지
-        addSearchCondition(redirectAttributes, searchPage, searchSize,
+        addSearchCondition(redirectAttributes, searchPage, searchSize,  searchHeadDeptId,
                 searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
@@ -149,6 +152,7 @@ public class AdPayrollController {
     public String deleteSalaryPolicy(@RequestParam Long policyId,
                                      @RequestParam(defaultValue = "1") int searchPage,
                                      @RequestParam(defaultValue = "10") int searchSize,
+                                     @RequestParam(required = false) String searchHeadDeptId,
                                      @RequestParam(required = false) String searchDeptId,
                                      @RequestParam(required = false) String searchPositionId,
                                      @RequestParam(required = false) String searchGradeId,
@@ -160,7 +164,7 @@ public class AdPayrollController {
 
         redirectAttributes.addFlashAttribute("successMessage", "기본급 정책이 삭제되었습니다.");
 
-        addSearchCondition(redirectAttributes, searchPage, searchSize,
+        addSearchCondition(redirectAttributes, searchPage, searchSize, searchHeadDeptId,
                 searchDeptId, searchPositionId, searchGradeId, searchKeyword);
 
         return "redirect:/admin/payroll/salary-policy";
@@ -170,6 +174,7 @@ public class AdPayrollController {
     private void addSearchCondition(RedirectAttributes redirectAttributes,
                                     int page,
                                     int size,
+                                    String headDeptId,
                                     String deptId,
                                     String positionId,
                                     String gradeId,
@@ -180,6 +185,10 @@ public class AdPayrollController {
         redirectAttributes.addAttribute("size", size);
 
         // 검색 조건 유지 (null/빈값 제외)
+        if (headDeptId != null && !headDeptId.isBlank()) {
+            redirectAttributes.addAttribute("headDeptId", headDeptId);
+        }
+
         if (deptId != null && !deptId.isBlank()) {
             redirectAttributes.addAttribute("deptId", deptId);
         }
