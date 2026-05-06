@@ -289,7 +289,9 @@ document.addEventListener('DOMContentLoaded', function () {
                .then(function (data) {
                    updatePolicyId.value = data.policyId;
 
-                   updateDeptName.value = data.deptName;
+                   updateDeptName.value = data.parentDeptName
+                       ? data.deptName + " (" + data.parentDeptName + ")"
+                       : data.deptName;
                    updateDeptId.value = data.deptId;
 
                    updatePositionName.value = data.positionName;

@@ -124,7 +124,7 @@
 
                     <option th:each="dept : ${departmentList}"
                             th:value="${dept.id}"
-                            th:text="${dept.name}"
+                            th:text="${dept.description != null ? dept.name + ' (' + dept.description + ')' : dept.name}"
                             th:selected="${searchDTO.deptId == dept.id}">
                     </option>
                   </select>
@@ -223,7 +223,14 @@
                 <!-- begin::Salary Policy Row -->
                 <tr th:each="item, stat : ${salaryPolicyList}">
                   <td th:text="${(pageResponse.page - 1) * pageResponse.size + stat.count}">1</td>
-                  <td th:text="${item.deptName}">개발팀</td>
+                  <td>
+                    <div th:text="${item.deptName}">개발팀</div>
+                    <div class="text-muted small"
+                         th:if="${item.parentDeptName != null}"
+                         th:text="'(' + ${item.parentDeptName} + ')'">
+                      (개발본부)
+                    </div>
+                  </td>
                   <td th:text="${item.positionName}">사원</td>
                   <td th:text="${item.gradeId}">G1</td>
                   <td th:text="${#numbers.formatInteger(item.basicSalary, 3, 'COMMA')}">2,200,000</td>
@@ -320,7 +327,7 @@
                       <option value="">부서를 선택하세요.</option>
                       <option th:each="dept : ${departmentList}"
                               th:value="${dept.id}"
-                              th:text="${dept.name}">
+                              th:text="${dept.description != null ? dept.name + ' (' + dept.description + ')' : dept.name}">
                       </option>
                     </select>
                   </div>
