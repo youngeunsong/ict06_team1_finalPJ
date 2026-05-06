@@ -91,4 +91,53 @@ public class AiLogServiceImpl implements AiLogService {
 
         return errorMessage.substring(0, 1000);
     }
+
+    //
+    @Override
+    @Transactional
+    public void saveAssistantLog(
+            AiChatMessageEntity userMessage,
+            AiChatMessageEntity aiMessage,
+            String feature,
+            boolean providerSuccess,
+            boolean fallback,
+            long durationMs,
+            String errorMessage
+    ) {
+        if (userMessage == null || aiMessage == null) {
+            return;
+        }
+
+        AiChatSessionEntity session = aiMessage.getSession();
+        EmpEntity employee = session != null ? session.getEmployee() : null;
+
+        String queryMeta = "feature=%s, requestMessageId=%d, inputLength=%d"
+                .formatted(
+                        feature,
+                        userMessage.getMessageId(),
+                        userMessage.getContent() == null ? 0 : userMessage.getContent().length()
+                );
+
+        String responseMeta = "responseMessageId=%d, modelName=%s, providerSuccess=%s, fallback=%s"
+                .formatted(
+                        aiMessage.getMessageId(),
+                        aiMessage.getModelName(),
+                        providerSuccess,
+                        fallback
+                );
+
+        AiLogEntity log = AiLogEntity.builder()
+                .employee(employee)
+                .session(session)
+                .message(aiMessage)
+                .type(AiLogType.ASSISTANT)
+                .query(queryMeta)
+                .response(responseMeta)
+                .durationMs((int) durationMs)
+                .success(true)
+                .errorMessage(trimErrorMessage(errorMessage))
+                .build();
+
+        aiLogRepository.save(log);
+    }
 }

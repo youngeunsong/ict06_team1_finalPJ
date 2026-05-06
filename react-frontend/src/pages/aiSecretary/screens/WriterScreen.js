@@ -1,53 +1,172 @@
-/* AiSecretary.js 전용 실질적인 AI 초안 작성/ 수정 작업 화면 */
+/* AiSecretary.js 전용 실질적인 AI 초안 작성/수정 작업 화면 */
 // src/pages/aiSecretary/screens/WriterScreen.js
 
-// WriterScreen: 실질적인 AI 초안 작성/수정 작업 화면
-// 생성된 초안을 확인하고
-// AI와 대화하며 수정 요청을 보내고, 문서 미리보기와 변경 이력을 통해 초안을 점진적으로 다듬는 화면
+/*
+  WriterScreen 역할
+  --------------------------------------------------
+  1. AI가 생성한 초안 문서를 화면에 표시
+  2. 사용자가 추가 수정 요청을 입력하면 /assistant/revise API 호출
+  3. 수정된 문서를 writerState.content에 반영
+  4. 각 수정 결과를 versions에 content와 함께 저장
+  5. 버전 미리보기 / 복원 / 복사 / 다운로드 기능 제공
 
-import React, { useState } from "react";
+*/
+
+import React, { useRef, useState } from "react";
 import AppButton from "../components/AppButton";
 import Bubble from "../components/Bubble";
-import Section from "../components/Section";
 import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
+import { reviseAssistantDraft, unwrapApiData } from "../api/aiSecretaryApi";
+
+/**
+ * 문서 유형별 화면 메타 정보
+ *
+ * 기존 documentMap은 정적 목업 문서 전체를 들고 있었지만,
+ * 실제 Gemini 초안 생성이 연결된 이후에는 chipLabel, fallbackTitle 정도만 필요하다.
+ */
+const DOCUMENT_META_MAP = {
+  report: {
+    chipLabel: "보고서 초안",
+    fallbackTitle: "보고서 초안",
+  },
+  minutes: {
+    chipLabel: "회의록 정리",
+    fallbackTitle: "회의록",
+  },
+  approval: {
+    chipLabel: "결재 사유",
+    fallbackTitle: "결재 사유",
+  },
+};
 
 export default function WriterScreen({
-  writerState,
+  writerState = {},
   setWriterState,
   writerType = "report",
 }) {
+  /**
+   * writerState 안전 처리
+   * --------------------------------------------------
+   * writerState.chat / writerState.versions가 undefined인 경우에도
+   * 화면이 깨지지 않도록 배열 보정
+   */
+  const chatMessages = Array.isArray(writerState?.chat)
+    ? writerState.chat
+    : [];
+
   const versions = Array.isArray(writerState?.versions)
     ? writerState.versions
     : [];
 
+  /**
+   * 현재 미리보기 중인 버전 ID
+   * --------------------------------------------------
+   * - 현재 버전(current)이 있으면 해당 버전을 기본 미리보기 대상으로 설정
+   * - 없으면 마지막 버전
+   * - 아무 버전도 없으면 null
+   */
   const [previewVersionId, setPreviewVersionId] = useState(
-    versions.find((v) => v.current)?.id || versions[versions.length - 1]?.id || null
+    versions.find((v) => v.current)?.id ||
+      versions[versions.length - 1]?.id ||
+      null
   );
-  const [actionMessage, setActionMessage] = useState("");
 
+  const [actionMessage, setActionMessage] = useState("");
+  const [isRevising, setIsRevising] = useState(false);
+
+  /**
+   * 안내 메시지 타이머 관리
+   * --------------------------------------------------
+   * 기존 showActionMessage._timer 방식은 렌더링마다 함수가 새로 생성되어
+   * 타이머 관리가 불안정할 수 있으므로 useRef로 관리한다.
+   */
+  const actionTimerRef = useRef(null);
+
+  const currentDoc = DOCUMENT_META_MAP[writerType] || DOCUMENT_META_MAP.report;
+  const isApprovalDocument = writerType === "approval";
+
+  /**
+   * 실제 문서 표시 데이터 계산
+   * --------------------------------------------------
+   * draftTitle:
+   * - writerState.title이 있으면 실제 문서 제목
+   * - 없으면 문서 유형별 fallbackTitle
+   *
+   * draftContent:
+   * - writerState.content가 있으면 실제 Gemini 생성/수정 문서
+   * - 없으면 안내 문구
+   */
+  const fallbackContent =
+    "아직 생성된 초안이 없습니다. 문서 작성 시작 화면에서 AI 초안을 먼저 생성해 주세요.";
+
+  const draftTitle =
+    writerState?.title || currentDoc.fallbackTitle || "AI 초안";
+
+  const draftContent =
+    writerState?.content || fallbackContent;
+
+  /**
+   * 버전 미리보기 계산
+   * --------------------------------------------------
+   * previewVersionId가 선택되어 있고 해당 버전에 content가 있으면,
+   * 오른쪽 문서 영역에는 해당 버전의 content를 보여준다.
+   *
+   * 없으면 현재 writerState.content를 보여준다.
+   */
+  const previewVersion = versions.find((v) => v.id === previewVersionId);
+
+  const displayContent =
+    previewVersion?.content || draftContent;
+
+  const displayTitle =
+    writerState?.title || draftTitle;
+
+  const displayStats =
+    `글자 수 ${(displayContent || "").length.toLocaleString()}자`;
+
+  /**
+   * 상단/하단 액션 메시지 표시
+   */
   const showActionMessage = (message) => {
     setActionMessage(message);
 
-    if (showActionMessage._timer) {
-      window.clearTimeout(showActionMessage._timer);
+    if (actionTimerRef.current) {
+      window.clearTimeout(actionTimerRef.current);
     }
 
-    showActionMessage._timer = window.setTimeout(() => {
+    actionTimerRef.current = window.setTimeout(() => {
       setActionMessage("");
     }, 2000);
   };
 
+  /**
+   * 버전 미리보기
+   * --------------------------------------------------
+   * 실제 writerState.content를 바꾸지는 않고,
+   * 오른쪽 본문 표시만 해당 버전 content로 변경한다.
+   */
   const handlePreviewVersion = (versionId) => {
     setPreviewVersionId(versionId);
   };
 
+  /**
+   * 버전 복원
+   * --------------------------------------------------
+   * 선택한 버전의 content를 writerState.content에 반영한다.
+   * 즉, 복원은 미리보기와 달리 실제 현재 문서 상태를 바꾼다.
+   */
   const handleRestoreVersion = (versionId) => {
     setWriterState((prev) => {
-      const safeVersions = Array.isArray(prev?.versions) ? prev.versions : [];
+      const safeVersions = Array.isArray(prev?.versions)
+        ? prev.versions
+        : [];
+
+      const selectedVersion = safeVersions.find((v) => v.id === versionId);
 
       return {
         ...prev,
+        content: selectedVersion?.content ?? prev.content,
         versions: safeVersions.map((v) => ({
           ...v,
           current: v.id === versionId,
@@ -59,196 +178,138 @@ export default function WriterScreen({
     showActionMessage(`${versionId} 버전으로 복원했습니다.`);
   };
 
-  const documentMap = {
-    report: {
-      chipLabel: "보고서 초안",
-      title: "3분기 마케팅 성과 보고서 초안",
-      stats: "글자 수 1,248자 | 페이지 수 A4 3페이지(예상)",
-      section1:
-        "본 보고서는 2024년 3분기 마케팅 활동의 성과를 요약하고, 주요 인사이트와 향후 방향성을 제시하기 위해 작성되었습니다.",
-      section2: (
-        <>
-          • 전체 캠페인 성과: 전분기 대비 매출 18% 증가, 신규 리드 24% 증가
-          <br />• 주요 채널 성과: 검색 광고 효율 26% 개선, SNS 도달 32% 증가
-          <br />• 브랜드 지표: 브랜드 인지도 8%p 상승, 고객 선호도 6%p 상승
-        </>
-      ),
-      selectedTitle: "3. 결론",
-      selectedBody: (
-        <>
-          3분기 마케팅 활동은 전반적으로 긍정적인 성과를 달성했습니다.
-          <br />
-          핵심 채널의 효율 개선과 신규 캠페인의 성과가 매출과 리드 성장에 기여했습니다.
-          <br />
-          4분기에는 콘텐츠 고도화와 타겟 세분화를 통해 성과를 더욱 확대하겠습니다.
-        </>
-      ),
-      section4: (
-        <>
-          • 핵심 캠페인 지속 운영 및 예산 효율화
-          <br />• 데이터 기반 타겟 세분화 및 개인화 강화
-          <br />• 크로스 채널 연계 캠페인 확대
-        </>
-      ),
-      documentText: [
-        "1. 개요",
-        "본 보고서는 2024년 3분기 마케팅 활동의 성과를 요약하고, 주요 인사이트와 향후 방향성을 제시하기 위해 작성되었습니다.",
-        "",
-        "2. 주요 성과",
-        "- 전체 캠페인 성과: 전분기 대비 매출 18% 증가, 신규 리드 24% 증가",
-        "- 주요 채널 성과: 검색 광고 효율 26% 개선, SNS 도달 32% 증가",
-        "- 브랜드 지표: 브랜드 인지도 8%p 상승, 고객 선호도 6%p 상승",
-        "",
-        "3. 결론",
-        "3분기 마케팅 활동은 전반적으로 긍정적인 성과를 달성했습니다.",
-        "핵심 채널의 효율 개선과 신규 캠페인의 성과가 매출과 리드 성장에 기여했습니다.",
-        "4분기에는 콘텐츠 고도화와 타겟 세분화를 통해 성과를 더욱 확대하겠습니다.",
-        "",
-        "4. 향후 계획",
-        "- 핵심 캠페인 지속 운영 및 예산 효율화",
-        "- 데이터 기반 타겟 세분화 및 개인화 강화",
-        "- 크로스 채널 연계 캠페인 확대",
-      ].join("\n"),
-    },
+  /**
+   * AI 추가 수정 요청
+   * --------------------------------------------------
+   * 사용자가 "더 간결하게", "표로 정리해줘" 등을 입력하면
+   * 현재 화면에 표시 중인 문서(displayContent)를 기준으로 /assistant/revise API 호출.
+   *
+   * 성공 시:
+   * - writerState.content를 수정된 문서로 교체
+   * - versions에 새 버전 content 저장
+   * - 채팅 영역에 사용자 요청/AI 응답 표시
+   */
+  const addMessage = async () => {
+    const instruction = (writerState?.prompt || "").trim();
 
-    minutes: {
-      chipLabel: "회의록 정리",
-      title: "4월 주간 운영회의 회의록",
-      stats: "글자 수 986자 | 페이지 수 A4 2페이지(예상)",
-      section1:
-        "본 회의록은 4월 주간 운영회의에서 논의된 진행 현황, 주요 이슈, 의사결정 사항을 정리한 문서입니다.",
-      section2: (
-        <>
-          • 참석 부서: 전략기획팀, 디자인팀, 개발팀
-          <br />• 핵심 안건: 프로젝트 일정 점검, 기능 우선순위 조정, 리소스 배분 검토
-          <br />• 주요 논의: 일정 지연 리스크와 대응 방안 공유
-        </>
-      ),
-      selectedTitle: "3. 결정 사항",
-      selectedBody: (
-        <>
-          디자인 시안 확정은 이번 주 금요일까지 마무리하고, 개발 우선순위는
-          로그인/권한/대시보드 순으로 진행하기로 결정했습니다.
-          <br />
-          추가 인력 요청은 다음 주 운영회의에서 다시 검토합니다.
-        </>
-      ),
-      section4: (
-        <>
-          • 디자인팀: 메인 시안 최종본 공유
-          <br />• 개발팀: API 명세 정리 및 일정 재산정
-          <br />• 기획팀: 관리자 요구사항 정리본 배포
-        </>
-      ),
-      documentText: [
-        "1. 회의 개요",
-        "본 회의록은 4월 주간 운영회의에서 논의된 진행 현황, 주요 이슈, 의사결정 사항을 정리한 문서입니다.",
-        "",
-        "2. 주요 논의 내용",
-        "- 참석 부서: 전략기획팀, 디자인팀, 개발팀",
-        "- 핵심 안건: 프로젝트 일정 점검, 기능 우선순위 조정, 리소스 배분 검토",
-        "- 주요 논의: 일정 지연 리스크와 대응 방안 공유",
-        "",
-        "3. 결정 사항",
-        "디자인 시안 확정은 이번 주 금요일까지 마무리하고, 개발 우선순위는 로그인/권한/대시보드 순으로 진행하기로 결정했습니다.",
-        "추가 인력 요청은 다음 주 운영회의에서 다시 검토합니다.",
-        "",
-        "4. 액션 아이템",
-        "- 디자인팀: 메인 시안 최종본 공유",
-        "- 개발팀: API 명세 정리 및 일정 재산정",
-        "- 기획팀: 관리자 요구사항 정리본 배포",
-      ].join("\n"),
-    },
+    if (!instruction) return;
+    if (isRevising) return;
 
-    approval: {
-      chipLabel: "결재 사유",
-      title: "외부 교육 참가 결재 요청",
-      stats: "글자 수 742자 | 페이지 수 A4 1페이지(예상)",
-      section1:
-        "본 문서는 프로젝트 수행 역량 강화를 위해 외부 교육 참가 승인을 요청하기 위한 결재 사유서입니다.",
-      section2: (
-        <>
-          • 교육명: React 기반 업무용 프론트엔드 설계 실무
-          <br />• 일정: 2024.06.05 ~ 2024.06.06
-          <br />• 비용: 교육비 250,000원 / 총 1인
-        </>
-      ),
-      selectedTitle: "3. 요청 사유",
-      selectedBody: (
-        <>
-          본 교육은 현재 진행 중인 사내 AI 포털 구축 프로젝트의 프론트엔드 품질 향상에
-          직접적으로 기여할 수 있습니다.
-          <br />
-          특히 컴포넌트 구조화, 상태 관리, 화면 전환 설계 역량을 강화하여 프로젝트
-          생산성과 유지보수성을 높일 수 있습니다.
-        </>
-      ),
-      section4: (
-        <>
-          • 교육 이수 후 팀 내 공유 세션 진행
-          <br />• AI 비서 / 챗봇 프론트 화면 고도화에 즉시 적용
-          <br />• 반복 UI 구조 정리 및 컴포넌트 재사용성 개선
-        </>
-      ),
-      documentText: [
-        "1. 결재 개요",
-        "본 문서는 프로젝트 수행 역량 강화를 위해 외부 교육 참가 승인을 요청하기 위한 결재 사유서입니다.",
-        "",
-        "2. 교육 정보",
-        "- 교육명: React 기반 업무용 프론트엔드 설계 실무",
-        "- 일정: 2024.06.05 ~ 2024.06.06",
-        "- 비용: 교육비 250,000원 / 총 1인",
-        "",
-        "3. 요청 사유",
-        "본 교육은 현재 진행 중인 사내 AI 포털 구축 프로젝트의 프론트엔드 품질 향상에 직접적으로 기여할 수 있습니다.",
-        "특히 컴포넌트 구조화, 상태 관리, 화면 전환 설계 역량을 강화하여 프로젝트 생산성과 유지보수성을 높일 수 있습니다.",
-        "",
-        "4. 기대 효과",
-        "- 교육 이수 후 팀 내 공유 세션 진행",
-        "- AI 비서 / 챗봇 프론트 화면 고도화에 즉시 적용",
-        "- 반복 UI 구조 정리 및 컴포넌트 재사용성 개선",
-      ].join("\n"),
-    },
-  };
+    if (!writerState?.sessionId) {
+      showActionMessage("수정할 문서 세션 정보가 없습니다.");
+      return;
+    }
 
-  const currentDoc = documentMap[writerType] || documentMap.report;
-  const isApprovalDocument = writerType === "approval";
+    if (!writerState?.content) {
+      showActionMessage("먼저 AI 초안을 생성해 주세요.");
+      return;
+    }
 
-  const addMessage = () => {
-    if (!writerState.prompt.trim()) return;
-
-    const nextMessage = {
+    const userMessage = {
       role: "user",
-      text: writerState.prompt,
-      time: "10:16 AM",
+      text: instruction,
+      time: "방금",
     };
 
-    const aiMessage = {
-      role: "ai",
-      text: "요청하신 내용에 맞게 문서를 업데이트했습니다.",
-      time: "10:17 AM",
-    };
+    setIsRevising(true);
 
-    const nextVersion = {
-      id: `v${versions.length + 1}`,
-      title: "추가 수정",
-      summary: writerState.prompt,
-      current: true,
-    };
+    /**
+     * 사용자 메시지는 먼저 화면에 반영한다.
+     * 실제 AI 응답은 API 성공 후 추가한다.
+     */
+    setWriterState((prev) => {
+      const safeChat = Array.isArray(prev?.chat) ? prev.chat : [];
 
-    setWriterState((prev) => ({
-      ...prev,
-      chat: [...prev.chat, nextMessage, aiMessage],
-      prompt: "",
-      versions: [
-        ...prev.versions.map((v) => ({ ...v, current: false })),
-        nextVersion,
-      ],
-    }));
+      return {
+        ...prev,
+        chat: [...safeChat, userMessage],
+        prompt: "",
+      };
+    });
+
+    try {
+      const response = await reviseAssistantDraft({
+        sessionId: writerState.sessionId,
+        type: writerType,
+        title: displayTitle,
+        currentContent: displayContent,
+        instruction,
+      });
+
+      const data = unwrapApiData(response);
+
+      const revisedContent = data?.content || displayContent;
+
+      const aiMessage = {
+        role: "ai",
+        text: data?.fallback
+          ? "AI 응답 생성이 원활하지 않아 기본 안내 응답을 반영했습니다."
+          : "요청하신 내용에 맞게 문서를 업데이트했습니다.",
+        time: "방금",
+      };
+
+      /**
+       * 새 버전 ID는 현재 versions 기준으로 생성한다.
+       * isRevising으로 중복 클릭을 막고 있으므로 일반 사용 흐름에서는 안정적이다.
+       */
+      const nextVersion = {
+        id: `v${versions.length + 1}`,
+        title: "추가 수정",
+        summary: instruction,
+        content: revisedContent,
+        current: true,
+      };
+
+      setWriterState((prev) => {
+        const safeChat = Array.isArray(prev?.chat) ? prev.chat : [];
+        const safeVersions = Array.isArray(prev?.versions)
+          ? prev.versions
+          : [];
+
+        return {
+          ...prev,
+          content: revisedContent,
+          aiMessageId: data?.aiMessageId ?? prev.aiMessageId,
+          modelName: data?.modelName ?? prev.modelName,
+          fallback: data?.fallback ?? prev.fallback,
+          chat: [...safeChat, aiMessage],
+          versions: [
+            ...safeVersions.map((v) => ({ ...v, current: false })),
+            nextVersion,
+          ],
+        };
+      });
+
+      setPreviewVersionId(nextVersion.id);
+    } catch (error) {
+      console.error("AI 문서 수정 실패", error);
+
+      const aiMessage = {
+        role: "ai",
+        text: "문서 수정 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        time: "방금",
+      };
+
+      setWriterState((prev) => {
+        const safeChat = Array.isArray(prev?.chat) ? prev.chat : [];
+
+        return {
+          ...prev,
+          chat: [...safeChat, aiMessage],
+        };
+      });
+    } finally {
+      setIsRevising(false);
+    }
   };
 
+  /**
+   * 현재 표시 중인 문서 복사
+   * --------------------------------------------------
+   * 미리보기 중인 버전이 있으면 해당 버전 content를 복사한다.
+   */
   const handleCopy = async () => {
-    const textToCopy = `${currentDoc.title}\n\n${currentDoc.documentText}`;
+    const textToCopy = `${displayTitle}\n\n${displayContent}`;
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -262,6 +323,7 @@ export default function WriterScreen({
       textarea.style.position = "fixed";
       textarea.style.top = "-9999px";
       textarea.style.left = "-9999px";
+
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
@@ -275,37 +337,56 @@ export default function WriterScreen({
     }
   };
 
+  /**
+   * 현재 표시 중인 문서 다운로드
+   */
   const handleDownload = () => {
-    const blob = new Blob([`${currentDoc.title}\n\n${currentDoc.documentText}`], {
+    const blob = new Blob([`${displayTitle}\n\n${displayContent}`], {
       type: "text/plain;charset=utf-8",
     });
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${currentDoc.title}.txt`;
+    a.download = `${displayTitle || "AI_초안"}.txt`;
     a.click();
     URL.revokeObjectURL(url);
 
     showActionMessage("문서 다운로드가 시작되었습니다.");
   };
 
+  /**
+   * 전자결재 내보내기
+   * --------------------------------------------------
+   * 아직 실제 전자결재 API와 연결하지 않았으므로,
+   * 현재는 버전 기록에 내보내기 기록만 남긴다.
+   */
   const handleExportToApproval = () => {
     const nextVersion = {
       id: `v${versions.length + 1}`,
       title: "전자결재 내보내기",
       summary: "문서를 전자결재 > 임시보관함으로 내보냈습니다.",
+      content: displayContent,
       current: true,
     };
 
-    setWriterState((prev) => ({
-      ...prev,
-      showHistory: true,
-      versions: [
-        ...prev.versions.map((v) => ({ ...v, current: false })),
-        nextVersion,
-      ],
-    }));
+    setWriterState((prev) => {
+      const safeVersions = Array.isArray(prev?.versions)
+        ? prev.versions
+        : [];
 
+      return {
+        ...prev,
+        content: displayContent,
+        showHistory: true,
+        versions: [
+          ...safeVersions.map((v) => ({ ...v, current: false })),
+          nextVersion,
+        ],
+      };
+    });
+
+    setPreviewVersionId(nextVersion.id);
     showActionMessage("전자결재 > 임시보관함에 문서가 저장되었습니다.");
   };
 
@@ -313,9 +394,10 @@ export default function WriterScreen({
     <div
       style={{
         ...styles.page,
-        paddingRight: writerState.showHistory ? 12 : 28,
+        paddingRight: writerState?.showHistory ? 12 : 28,
       }}
     >
+      {/* 상단 제목 영역 */}
       <div style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1
@@ -328,6 +410,7 @@ export default function WriterScreen({
           >
             AI 비서 · 문서 작성
           </h1>
+
           <div
             style={{
               height: 34,
@@ -352,12 +435,13 @@ export default function WriterScreen({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: writerState.showHistory
+          gridTemplateColumns: writerState?.showHistory
             ? "300px 1fr 280px"
             : "300px 1fr",
           gap: 16,
         }}
       >
+        {/* 좌측: AI와 대화 영역 */}
         <div
           style={{
             ...styles.card,
@@ -386,7 +470,7 @@ export default function WriterScreen({
               alignContent: "start",
             }}
           >
-            {writerState.chat.map((msg, idx) => (
+            {chatMessages.map((msg, idx) => (
               <Bubble
                 key={`${msg.time}-${idx}`}
                 role={msg.role}
@@ -397,10 +481,10 @@ export default function WriterScreen({
 
             <div style={{ ...styles.card, padding: 14, borderRadius: 14 }}>
               <div style={{ fontSize: 14, fontWeight: 800 }}>
-                {currentDoc.title}
+                {displayTitle}
               </div>
               <div style={{ marginTop: 8, fontSize: 12, color: C.sub }}>
-                최근 수정 · 10:17 AM
+                최근 수정 · 방금
               </div>
               <div
                 style={{
@@ -415,6 +499,7 @@ export default function WriterScreen({
             </div>
           </div>
 
+          {/* 수정 요청 입력 영역 */}
           <div>
             <div
               style={{
@@ -427,24 +512,38 @@ export default function WriterScreen({
               }}
             >
               <input
-                value={writerState.prompt}
+                value={writerState?.prompt || ""}
                 onChange={(e) =>
                   setWriterState((prev) => ({
                     ...prev,
                     prompt: e.target.value,
                   }))
                 }
-                placeholder="수정 요청을 입력하세요..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addMessage();
+                  }
+                }}
+                disabled={isRevising}
+                placeholder={
+                  isRevising
+                    ? "AI가 문서를 수정하는 중입니다..."
+                    : "수정 요청을 입력하세요..."
+                }
                 style={{
                   flex: 1,
                   border: "none",
                   outline: "none",
                   fontSize: 14,
+                  background: "transparent",
                 }}
               />
+
               <button
                 type="button"
                 onClick={addMessage}
+                disabled={isRevising}
                 style={{
                   width: 36,
                   height: 36,
@@ -452,7 +551,8 @@ export default function WriterScreen({
                   border: "none",
                   background: C.accent,
                   color: "#fff",
-                  cursor: "pointer",
+                  cursor: isRevising ? "default" : "pointer",
+                  opacity: isRevising ? 0.6 : 1,
                 }}
               >
                 <Icon color="#fff">{I.send}</Icon>
@@ -465,6 +565,7 @@ export default function WriterScreen({
           </div>
         </div>
 
+        {/* 중앙: 문서 미리보기 영역 */}
         <div style={{ ...styles.card, overflow: "hidden" }}>
           <div style={{ padding: 18, borderBottom: `1px solid ${C.border}` }}>
             <div
@@ -551,35 +652,20 @@ export default function WriterScreen({
 
           <div style={{ padding: 22 }}>
             <div style={{ fontSize: 18, fontWeight: 900 }}>
-              {currentDoc.title}
+              {displayTitle}
             </div>
 
             <div style={{ marginTop: 24, lineHeight: 1.85, fontSize: 15 }}>
-              <Section title="1. 개요">{currentDoc.section1}</Section>
-              <Section title="2. 주요 내용">{currentDoc.section2}</Section>
-
               <div
                 style={{
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 14,
-                  padding: 18,
-                  marginBottom: 24,
-                  background: "#FCFDFF",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.85,
+                  fontSize: 15,
+                  color: writerState?.content ? C.text : C.sub,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 900,
-                    marginBottom: 12,
-                  }}
-                >
-                  {currentDoc.selectedTitle}
-                </div>
-                {currentDoc.selectedBody}
+                {displayContent}
               </div>
-
-              <Section title="4. 후속 계획">{currentDoc.section4}</Section>
             </div>
           </div>
 
@@ -594,11 +680,12 @@ export default function WriterScreen({
               fontSize: 13,
             }}
           >
-            <div>{currentDoc.stats}</div>
+            <div>{displayStats}</div>
           </div>
         </div>
 
-        {writerState.showHistory && (
+        {/* 우측: 버전 기록 영역 */}
+        {writerState?.showHistory && (
           <div style={{ ...styles.card, padding: 20, minHeight: 760 }}>
             <div
               style={{

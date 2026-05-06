@@ -14,12 +14,14 @@ import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
 
 export default function StartFormScreen({
-  formType,
-  formData,
-  onChangeFormType,
-  onChangeFormData,
-  onGenerateDraft,
-  onOpenTemplate,
+  formType,        // → 현재 문서 유형: report / minutes / approval
+  formData,         // → 입력값
+  onChangeFormType, // → 탭 변경
+  onChangeFormData, // → 입력값 변경
+  onGenerateDraft,  // → AI 초안 생성 버튼 클릭 시 실행
+  onOpenTemplate,   // → 템플릿 탭 클릭 시 실행
+  generating = false,
+  error = "",
 }) {
   const tabs = ["report", "minutes", "approval", "template"];
 
@@ -318,9 +320,23 @@ export default function StartFormScreen({
             초기화
           </AppButton>
 
-          <AppButton onClick={onGenerateDraft}>
+          {error && (
+            <div
+              style={{
+                marginTop: 12,
+                color: "#d32f2f",
+                fontSize: 13,
+                fontWeight: 700,
+                textAlign: "right",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <AppButton onClick={onGenerateDraft} disabled={generating}>
             <Icon>{I.spark}</Icon>
-            AI 초안 생성
+            {generating ? "AI 초안 생성 중..." : "AI 초안 생성"}
           </AppButton>
         </div>
       </div>

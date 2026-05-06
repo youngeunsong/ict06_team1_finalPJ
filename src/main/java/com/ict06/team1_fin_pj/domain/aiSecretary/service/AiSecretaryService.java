@@ -1,6 +1,6 @@
 package com.ict06.team1_fin_pj.domain.aiSecretary.service;
 
-/* [] */
+/* [세션/메시지 저장 담당] */
 
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatMessageEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatSessionEntity;

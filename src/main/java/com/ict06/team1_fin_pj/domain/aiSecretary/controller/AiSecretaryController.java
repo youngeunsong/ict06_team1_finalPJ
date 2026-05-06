@@ -5,13 +5,18 @@ import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatMessageEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.AiChatSessionEntity;
 import com.ict06.team1_fin_pj.domain.aiSecretary.entity.SessionType;
 import com.ict06.team1_fin_pj.domain.aiSecretary.response.ApiResponse;
+import com.ict06.team1_fin_pj.common.dto.aiSecretary.AssistantDraftRequestDto;
+import com.ict06.team1_fin_pj.common.dto.aiSecretary.AssistantDraftResponseDto;
+import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiAssistantDraftService;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiChatbotService;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiCorrectionService;
 import com.ict06.team1_fin_pj.domain.aiSecretary.service.AiSecretaryService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+
+
 
 import java.util.List;
 
@@ -28,6 +33,9 @@ public class AiSecretaryController {
 
     @Autowired
     private AiCorrectionService aiCorrectionService;
+
+    @Autowired
+    private AiAssistantDraftService aiAssistantDraftService;
 
     // 챗봇 최근 세션 조회 또는 생성
     // POST /api/ai-secretary/chatbot/session?empNo=20209999
@@ -155,5 +163,33 @@ public class AiSecretaryController {
         );
 
         return ApiResponse.ok("문장 다듬기 성공", response);
+    }
+
+    // AI 문서 초안 생성
+    @PostMapping("/assistant/draft")
+    public ApiResponse<AssistantDraftResponseDto> createAssistantDraft(
+            @Valid @RequestBody AssistantDraftRequestDto requestDto
+    ) {
+        System.out.println("<<< POST /api/ai-secretary/assistant/draft 진입 >>>");
+        System.out.println("type = " + requestDto.getType());
+        System.out.println("title = " + requestDto.getTitle());
+        System.out.println("empNo = " + requestDto.getEmpNo());
+
+        AssistantDraftResponseDto response =
+                aiAssistantDraftService.createDraft(requestDto);
+
+        return ApiResponse.ok("AI 초안 생성 성공", response);
+    }
+
+    // AI 문서 추가 수정
+    // POST) /api/ai-secretary/assistant/revise
+    @PostMapping("/assistant/revise")
+    public ApiResponse<AssistantReviseResponseDto> reviseAssistantDraft(
+            @Valid @RequestBody AssistantReviseRequestDto requestDto
+    ) {
+        AssistantReviseResponseDto response =
+                aiAssistantDraftService.reviseDraft(requestDto);
+
+        return ApiResponse.ok("AI 문서 수정 성공", response);
     }
 }

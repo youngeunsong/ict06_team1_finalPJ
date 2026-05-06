@@ -1,4 +1,5 @@
 package com.ict06.team1_fin_pj.domain.aiSecretary.llm;
+/* [ Gemini 호출 담당 ] */
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

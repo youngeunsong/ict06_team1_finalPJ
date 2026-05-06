@@ -69,3 +69,11 @@ export const correctText = (payload) =>
 // 제미나이 연결
 export const askChatbot = (payload) =>
   api.post("/api/ai-secretary/chatbot/ask", payload);
+
+// AI 문서 초안 생성
+export const createAssistantDraft = (payload) =>
+  api.post("/api/ai-secretary/assistant/draft", payload);
+
+// AI 문서 추가 수정
+export const reviseAssistantDraft = (payload) =>
+  api.post("/api/ai-secretary/assistant/revise", payload);

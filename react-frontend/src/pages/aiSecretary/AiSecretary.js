@@ -19,7 +19,7 @@ import {
   useLocation,
   useNavigate,
   useParams,
-  useSearchParams,
+  useSearchParams
 } from "react-router-dom";
 import { PATH } from "../../constants/path";
 
@@ -54,14 +54,15 @@ import Sidebar from "./components/Sidebar";                             // 사�
 // constants 임포트
 import { recentDocsSeed } from "./constants/aiSecretaryData";
 
+// API 임포트
+import { createAssistantDraft, unwrapApiData } from "./api/aiSecretaryApi";
+
 // styles 임포트
 import { styles } from "./styles/aiSecretaryTheme";
 
 
 // 흐름제어 컴포넌트 (화면X) ---------------------------------------------
 export default function AiSecretary({ userInfo }) {
-  // 테스트 **********************
-  console.log("AiSecretary userInfo =", userInfo);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,6 +74,109 @@ export default function AiSecretary({ userInfo }) {
   const [writerState, setWriterState] = useState(initialWriterState);
 
   const [recents] = useState(recentDocsSeed);
+
+  // ------------------------------------------------
+  // 0) 현재 URL에서 화면 상태를 파생
+  // ------------------------------------------------
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [draftError, setDraftError] = useState("");
+
+  const handleGenerateDraft = async () => {
+    // 테스트 ***
+    console.log("[DRAFT] 버튼 클릭됨", {
+      userInfo,
+      empNo: userInfo?.empNo ?? userInfo?.emp_no,
+      currentFormType,
+      formData,
+      generatingDraft,
+    });
+
+    if (generatingDraft) {
+      console.warn("[DRAFT] 이미 생성 중이라 중복 요청 차단");
+      return;
+    }
+
+    const empNo = userInfo?.empNo ?? userInfo?.emp_no;
+
+    if (!empNo) {
+      console.warn("[DRAFT] empNo 없음");
+      setDraftError("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
+      return;
+    }
+
+    if (!formData.title?.trim()) {
+      console.warn("[DRAFT] title 없음");
+      setDraftError("문서 제목을 입력해 주세요.");
+      return;
+    }
+
+    if (!formData.detail?.trim()) {
+      console.warn("[DRAFT] detail 없음");
+      setDraftError("핵심 내용을 입력해 주세요.");
+      return;
+    }
+
+    setGeneratingDraft(true);
+    setDraftError("");
+
+    try {
+      const response = await createAssistantDraft({
+        empNo: String(empNo),
+        type: currentFormType,
+        title: formData.title,
+        purpose: formData.purpose,
+        audience: formData.audience,
+        targets: formData.targets,
+        detail: formData.detail,
+        amount: formData.amount,
+        tone: "BUSINESS",
+      });
+
+      const data = unwrapApiData(response);
+
+      setWriterState((prev) => ({
+        ...prev,
+        sessionId: data.sessionId,
+        userMessageId: data.userMessageId,
+        aiMessageId: data.aiMessageId,
+        type: data.type,
+        title: data.title,
+        content: data.content,
+        modelName: data.modelName,
+        fallback: data.fallback,
+        chat: [
+          {
+            role: "user",
+            text: "초안 생성을 요청했습니다.",
+            time: "방금",
+          },
+          {
+            role: "ai",
+            text: "요청하신 내용을 바탕으로 초안을 생성했습니다.",
+            time: "방금",
+          },
+        ],
+        versions: [
+          {
+            id: "v1",
+            title: "초안 생성",
+            summary: "AI가 최초 초안을 생성했습니다.",
+            content: data.content,
+            current: true,
+          },
+        ],
+        prompt: "",
+        showHistory: false,
+      }));
+
+      goAssistantDoc(data.sessionId, currentFormType);
+    } catch (err) {
+      console.error("AI 초안 생성 실패", err);
+      setDraftError("AI 초안 생성 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setGeneratingDraft(false);
+    }
+  };
 
   // ------------------------------------------------
   // 1) 현재 URL에서 화면 상태를 파생
@@ -212,10 +316,10 @@ export default function AiSecretary({ userInfo }) {
           onChangeFormData={(key, value) =>
             setFormData((prev) => ({ ...prev, [key]: value }))
           }
-          onGenerateDraft={() =>
-            goAssistantDoc(`draft-${currentFormType}`, currentFormType)
-          }
+          onGenerateDraft={handleGenerateDraft}
           onOpenTemplate={goAssistantTemplate}
+          generating={generatingDraft}
+          error={draftError}
         />
       );
     }
@@ -273,6 +377,8 @@ export default function AiSecretary({ userInfo }) {
   recents,
   formData,
   userInfo,
+  generatingDraft,
+  draftError,
 ]);
 
   return (

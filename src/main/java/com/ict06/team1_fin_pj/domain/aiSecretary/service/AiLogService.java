@@ -12,4 +12,14 @@ public interface AiLogService {
             long durationMs,
             String errorMessage
     );
+
+    void saveAssistantLog(
+            AiChatMessageEntity userMessage,
+            AiChatMessageEntity aiMessage,
+            String feature,
+            boolean providerSuccess,
+            boolean fallback,
+            long durationMs,
+            String errorMessage
+    );
 }
