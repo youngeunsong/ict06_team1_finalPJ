@@ -537,6 +537,9 @@ export default function WriterScreen({
                   outline: "none",
                   fontSize: 14,
                   background: "transparent",
+                  color: "#111827",
+                  caretColor: "#111827",
+                  WebkitTextFillColor: "#111827",
                 }}
               />
 

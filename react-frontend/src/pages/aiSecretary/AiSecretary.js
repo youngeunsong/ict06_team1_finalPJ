@@ -612,12 +612,62 @@ export default function AiSecretary({ userInfo }) {
         <TemplateScreen
           onOpenForm={goAssistantForm}
           onStartTemplate={(card) => {
+            // 선택한 템플릿의 title / desc / preview를 기반으로 AI 초안 생성에 필요한 입력값을 미리 구성
+            const previewText = Array.isArray(card.preview)
+              ? card.preview.join("\n")
+              : "";
+
+            const inferredType =
+              card.type === "minutes" || card.type === "approval" || card.type === "report"
+                ? card.type
+                : card.tag?.includes("회의") || card.title?.includes("회의")
+                ? "minutes"
+                : card.tag?.includes("결재") || card.title?.includes("결재")
+                ? "approval"
+                : "report";
+
             setFormData((prev) => ({
               ...prev,
-              title: card.title,
+
+              // 문서 제목
+              title: card.title || "",
+
+              // 작성 목적
+              purpose:
+                card.desc ||
+                "선택한 템플릿을 바탕으로 업무 문서 초안을 작성하기 위함",
+
+              // 대상 독자
+              audience:
+                inferredType === "approval"
+                  ? "팀장 및 결재권자"
+                  : inferredType === "minutes"
+                  ? "회의 참석자 및 공유 대상자"
+                  : "팀장 및 유관 부서 담당자",
+
+              // 정리 대상/보고 대상
+              targets:
+                inferredType === "minutes"
+                  ? ["참석자 공유", "액션아이템 중심"]
+                  : inferredType === "approval"
+                  ? ["팀장", "부서장"]
+                  : ["팀장", "전사 공유"],
+
+              // 핵심 내용
+              detail:
+                previewText ||
+                "선택한 템플릿의 구조를 바탕으로 문서 초안을 작성해 주세요.",
+
+              // 원하는 분량/방식
+              amount:
+                inferredType === "minutes"
+                  ? "결정사항 및 액션아이템 중심"
+                  : inferredType === "approval"
+                  ? "승인자가 이해하기 쉬운 간결한 결재 사유"
+                  : "A4 1페이지 내외",
             }));
 
-            goAssistantForm("report");
+            goAssistantForm(inferredType);
           }}
         />
       );

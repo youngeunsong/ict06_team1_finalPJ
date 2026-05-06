@@ -7,15 +7,15 @@ export const C = {
   bg: "#F4F7FB",
   sidebar: "#FFFFFF",
   card: "#FFFFFF",
-  border: "#D9E2EC",
+  border: "#DDE3EA",
   text: "#111827",
   sub: "#6B7280",
   muted: "#94A3B8",
   accent: "#2563EB",
-  accentBg: "#EAF2FF",
-  success: "#16A34A",
-  softBlue: "#F1F6FF",
-  softGreen: "#ECFDF3",
+  accentBg: "#EEF2FF",
+  success: "#059669",
+  softBlue: "#EFF6FF",
+  softGreen: "#ECFDF5",
 };
 
 export const styles = {

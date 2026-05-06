@@ -65,7 +65,7 @@ export default function AssistantHome({
 
   return (
     <div style={styles.page}>
-      <div style={{ ...styles.card, padding: 28 }}>
+      <div style={{ ...styles.card, color: C.text, background: "#fff", padding: 28 }}>
         <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: -1 }}>
           AI 비서
         </div>
@@ -91,6 +91,8 @@ export default function AssistantHome({
               }}
               style={{
                 ...styles.card,
+                color: C.text,
+                background: "#fff",
                 padding: 18,
                 textAlign: "left",
                 cursor: "pointer",
@@ -131,7 +133,7 @@ export default function AssistantHome({
         </div>
       </div>
 
-      <div style={{ ...styles.card, marginTop: 18, padding: 22 }}>
+      <div style={{ ...styles.card, color: C.text, background: "#fff", marginTop: 18, padding: 22 }}>
         <div
           style={{
             display: "flex",

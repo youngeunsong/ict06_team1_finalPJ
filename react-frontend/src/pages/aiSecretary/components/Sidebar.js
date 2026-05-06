@@ -163,6 +163,7 @@ export default function Sidebar({
               onClick={() => onRecentClick(doc)}
               style={{
                 ...styles.card,
+                color: C.text,
                 textAlign: "left",
                 padding: 14,
                 cursor: "pointer",
