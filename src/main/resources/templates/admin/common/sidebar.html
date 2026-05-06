@@ -63,7 +63,7 @@
 
                 <!-- 시작: 홈피드 -->
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/home}" class="nav-link">
                         <i class="nav-icon fa-regular fa-house"></i>
                         <p>홈 피드</p>
                     </a>
@@ -72,7 +72,7 @@
 
                 <!-- 시작: 일정 관리 -->
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/calendar/main}" class="nav-link">
                         <i class="nav-icon fa-regular fa-calendar-days"></i>
                         <p>일정 관리</p>
                     </a>
@@ -81,7 +81,7 @@
 
                 <!-- 시작: 전자결재 -->
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/approval/templateList}" class="nav-link">
                         <i class="nav-icon fa-regular fa-file-lines"></i>
                         <p>전자결재</p>
                     </a>
@@ -94,9 +94,9 @@
                     인사 관리
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/employees}" class="nav-link">
                         <i class="nav-icon fa-regular fa-user"></i>
-                        <p>내 정보 및 조직도</p>
+                        <p>사원 정보 및 조직도</p>
                     </a>
                 </li>
                 <!-- 끝: 인사 관리-->
@@ -107,16 +107,18 @@
                     인사 평가
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/onboarding/main}" class="nav-link">
                         <i class="nav-icon fa-solid fa-user-group"></i>
                         <p>AI 온보딩 로드맵</p>
+                        <span class="badge text-bg-primary">AI</span>
                     </a>
                 </li>
 
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/evaluation/main}" class="nav-link">
                         <i class="nav-icon fa-solid fa-user-group"></i>
                         <p>AI 퀴즈 및 평가</p>
+                        <span class="badge text-bg-primary">AI</span>
                     </a>
                 </li>
                 <!-- 끝: 인사 평가 -->
@@ -127,13 +129,13 @@
                     업무 지원
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/attendance/main}" class="nav-link">
                         <i class="nav-icon fa-regular fa-clock"></i>
                         <p>근태 관리</p>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a th:href="@{/admin/payroll/salary-policy}" class="nav-link">
                         <i class="nav-icon fa-solid fa-won-sign"></i>
                         <p>급여 관리</p>
                     </a>

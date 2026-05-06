@@ -1,19 +1,25 @@
-  /**
+/**
  * @FileName : LoginPage.js
- * @Description : 로그인 화면
+ * @Description : 로그인 페이지
+ *                - 사번/비밀번호 입력 및 인증 처리
+ *                - 로그인 성공 시 사용자 정보 Context 저장 후 웰컴 페이지 이동
  * @Author : 김다솜
- * @Date : 2026. 04. 20
+ * @Date : 2026. 04. 16
  * @Modification_History
  * @
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
- * @ 2026.04.20    김다솜        최초 생성/화면 구성
+ * @ 2026.04.16    김다솜        최초 생성
+ * @ 2026.04.30    김다솜        스타일 코드 분리(LoginStyle.js) 및 버튼 상태 처리 개선
  */
 
   import { useEffect, useState } from 'react';
   import axios from 'axios';
   import { useNavigate } from 'react-router-dom';
   import { useUser } from '../../api/UserContext';
+import { cardStyle, containerStyle, inputStyle, loginButton } from 'src/styles/js/auth/LoginStyle';
+import { PATH } from 'src/constants/path';
+import axiosInstance from 'src/api/axiosInstance';
 
   function LoginPage() {
     const navigate = useNavigate();
@@ -52,7 +58,7 @@
         //백엔드 API 호출
         //요청URL과 포트번호가 백엔드(8081)와 일치하는지 확인
         //전달하는 객체의 key값을 백엔드 DTO와 일치시킴(@Data static class LoginRequest)
-        const response = await axios.post('http://localhost:8081/api/auth/login', {
+        const response = await axios.post(`${PATH.API.BASE}/auth/login`, {
           empNo: loginData.empNo,
           password: loginData.password
         });
@@ -64,9 +70,7 @@
         console.log('로그인 성공: ', userName, role);
 
         //2. 토큰으로 상세정보 조회
-        const empResponse = await axios.get('http://localhost:8081/api/user/welcome', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const empResponse = await axiosInstance.get('/user/welcome');
 
         //3. Context에 상세정보 업데이트
         updateUserInfo(empResponse.data);
@@ -89,51 +93,6 @@
     //사번+비밀번호 찾기 핸들러
     const handleFindCredentials = () => {
       alert('임시메시지: 사번과 비밀번호 찾기 기능은 관리자에게 문의해주세요.');
-    };
-
-    //배경 및 레이아웃 스타일
-    const containerStyle = {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      backgroundColor: '#f0f2f5',
-      margin: 0,
-      fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'
-    };
-
-    const cardStyle = {
-      width: '100%',
-      maxWidth: '400px',
-      padding: '40px',
-      backgroundColor: '#ffffff',
-      borderRadius: '12px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-      textAlign: 'center'
-    }
-
-      const inputStyle = {
-      width: '100%',
-      padding: '12px',
-      marginBottom: '16px',
-      border: '1px solid #ddd',
-      borderRadius: '6px',
-      fontSize: '16px',
-      boxSizing: 'border-box',
-      outline: 'none'
-    };
-
-    const buttonStyle = {
-      width: '100%',
-      padding: '14px',
-      backgroundColor: isLoading ? '#a5c9e1' : '#1877f2',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      fontSize: '16px',
-      fontWeight: 'bold',
-      cursor: isLoading ? 'not-allowed' : 'pointer',
-      transition: 'background-color 0.3s'
     };
 
     return (
@@ -165,7 +124,7 @@
               autoComplete="new-password"
             />
             {error && <p style={{ color: 'red', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
-            <button type="submit" style={buttonStyle} disabled={isLoading}>
+            <button type="submit" style={loginButton(isLoading)} disabled={isLoading}>
               {isLoading ? '로그인 중...' : '로그인'}
             </button>
           </form>

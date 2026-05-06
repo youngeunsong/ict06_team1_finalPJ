@@ -1,0 +1,379 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    사원 등록 화면(create.html)
+
+    역할:
+    - 신규 사원 정보를 입력받는 화면
+    - 입력된 값은 POST /admin/employees 로 전송된다.
+    - 프로필 사진 / 서명 이미지를 같이 업로드하므로 enctype="multipart/form-data"가 필요하다.
+    - 화면 동작 JS는 /static/js/employee/create.js 로 분리했다.
+
+    변경 사항:
+    - 기존 부서 select 1개를 본부 select + 팀 select 2개로 분리했다.
+    - 본부를 선택하면 JS에서 해당 본부의 하위 팀 목록을 불러온다.
+    - 실제 employee.dept_id에는 팀 ID가 저장된다.
+-->
+<head th:include="/admin/common/head.html :: common_header">
+    <title id="page_title">사원 등록</title>
+</head>
+
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+
+    <!-- 공통 상단 헤더 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+
+    <!-- 공통 사이드바 -->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid">
+                <br>
+
+                <!-- 페이지 제목 영역 -->
+                <div class="row mb-3">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-1">사원 등록</h3>
+                            <p class="text-muted mb-0">신규 사원의 기본 정보를 등록합니다.</p>
+                        </div>
+
+                        <!-- 사원 목록 화면으로 이동 -->
+                        <a href="/admin/employees" class="btn btn-secondary">
+                            목록으로
+                        </a>
+                    </div>
+                </div>
+
+                <!--
+                    사원 등록 form
+
+                    th:object="${employeeCreateRequestDto}"
+                    - Controller에서 model에 담아준 EmployeeCreateRequestDto와 연결된다.
+
+                    enctype="multipart/form-data"
+                    - 파일 업로드가 포함된 form에는 반드시 필요하다.
+                -->
+                <form id="employeeCreateForm"
+                      method="post"
+                      action="/admin/employees"
+                      enctype="multipart/form-data"
+                      th:object="${employeeCreateRequestDto}">
+
+                    <!--
+                        Controller에서 전달한 에러 정보를 JS에서 읽기 위한 hidden 값
+
+                        예:
+                        errorMessage = 이미 사용 중인 이메일입니다.
+                        errorField = emailId
+                    -->
+                    <input type="hidden" id="errorMessage" th:value="${errorMessage}">
+                    <input type="hidden" id="errorField" th:value="${errorField}">
+
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>기본 정보</strong>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="row g-3">
+
+                                <!-- 사번 입력 영역 -->
+                                <!-- readonly라서 직접 수정하지 못하고 자동생성으로만 값이 들어간다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">사번 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               th:field="*{empNo}"
+                                               id="empNo"
+                                               class="form-control required-input bg-light"
+                                               placeholder="입사일 선택 시 자동 생성"
+                                               readonly>
+                                        <button type="button"
+                                                id="generateEmpNoBtn"
+                                                class="btn btn-outline-secondary">
+                                            자동생성
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">입사년도 + 4자리 순번으로 자동 생성됩니다.</small>
+                                </div>
+
+                                <!-- 입사일 -->
+                                <!-- 사번 자동 생성의 기준이 된다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">입사일 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="date"
+                                               th:field="*{hireDate}"
+                                               id="hireDate"
+                                               class="form-control required-input">
+                                        <button type="button"
+                                                id="hireDateBtn"
+                                                class="btn btn-outline-secondary">
+                                            📅
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 이름 -->
+                                <!-- 로그인 아이디 자동 생성의 기준이 된다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">이름 <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                           th:field="*{name}"
+                                           id="name"
+                                           class="form-control required-input"
+                                           placeholder="예: 홍길동">
+                                </div>
+
+                                <!-- 로그인 아이디 -->
+                                <!-- 이름 기준으로 자동 생성 가능하다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">로그인 아이디 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               th:field="*{empId}"
+                                               id="empId"
+                                               class="form-control required-input"
+                                               placeholder="이름 입력 시 자동 생성">
+                                        <button type="button"
+                                                id="generateEmpIdBtn"
+                                                class="btn btn-outline-secondary">
+                                            자동생성
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">예: 홍길동01, 홍길동02</small>
+                                </div>
+
+                                <!-- 초기 비밀번호 -->
+                                <!-- Service에서 passwordEncoder로 암호화 후 DB에 저장된다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">초기 비밀번호 <span class="text-danger">*</span></label>
+                                    <input type="password"
+                                           th:field="*{password}"
+                                           id="password"
+                                           class="form-control required-input"
+                                           minlength="4"
+                                           placeholder="4자 이상">
+                                </div>
+
+                                <!-- 이메일 -->
+                                <!-- emailId + emailDomain을 Service에서 하나의 이메일로 합친다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">이메일 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text"
+                                               th:field="*{emailId}"
+                                               id="emailId"
+                                               class="form-control required-input"
+                                               placeholder="이메일 아이디">
+                                        <span class="input-group-text">@</span>
+                                        <select th:field="*{emailDomain}"
+                                                id="emailDomain"
+                                                class="form-select required-input">
+                                            <option value="">선택</option>
+                                            <option value="gmail.com">gmail.com</option>
+                                            <option value="naver.com">naver.com</option>
+                                            <option value="daum.net">daum.net</option>
+                                            <option value="kakao.com">kakao.com</option>
+                                            <option value="nate.com">nate.com</option>
+                                            <option value="custom">직접입력</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- 이메일 도메인을 직접 입력할 때만 JS에서 보이게 한다. -->
+                                    <input type="text"
+                                           id="customEmailDomain"
+                                           class="form-control mt-2 d-none"
+                                           placeholder="도메인 직접 입력 예: company.com">
+                                </div>
+
+                                <!-- 연락처 -->
+                                <!-- JS에서 010-0000-0000 형태로 자동 하이픈 처리한다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">연락처 <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                           th:field="*{phone}"
+                                           id="phone"
+                                           class="form-control required-input"
+                                           placeholder="010-0000-0000"
+                                           maxlength="13">
+                                </div>
+
+                                <!-- 본부 -->
+                                <!--
+                                    parentDepartments는 Controller에서 model로 전달한 본부 목록이다.
+
+                                    본부 기준:
+                                    - DEPARTMENT.parent_dept_id가 null인 데이터
+                                    - 예: 경영본부, 개발본부
+
+                                    이 값은 실제 employee 테이블에 저장하기 위한 값이 아니라,
+                                    아래 팀 select 목록을 불러오기 위한 기준값이다.
+                                -->
+                                <div class="col-md-4">
+                                    <label class="form-label">본부 <span class="text-danger">*</span></label>
+                                    <select th:field="*{parentDeptId}"
+                                            id="parentDeptId"
+                                            class="form-select required-input">
+                                        <option value="">본부 선택</option>
+                                        <option th:each="dept : ${parentDepartments}"
+                                                th:value="${dept.id}"
+                                                th:text="${dept.name}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 팀 -->
+                                <!--
+                                    본부 선택 후 JS가 해당 본부의 하위 팀 목록을 가져와 option을 채운다.
+
+                                    최종적으로 employee.dept_id에 저장되는 값은 이 팀의 deptId이다.
+                                    예:
+                                    본부 = 경영본부
+                                    팀 = 인사팀
+                                    저장 = 인사팀 dept_id
+                                -->
+                                <div class="col-md-4">
+                                    <label class="form-label">팀 <span class="text-danger">*</span></label>
+                                    <select th:field="*{deptId}"
+                                            id="deptId"
+                                            class="form-select required-input"
+                                            th:attr="data-selected-dept-id=*{deptId}">
+                                        <option value="">팀 선택</option>
+
+                                        <!--
+                                            등록 실패 후 다시 돌아온 경우를 위한 팀 목록 유지용
+
+                                            예:
+                                            이메일 중복 오류 발생
+                                            → 다시 등록 화면으로 돌아옴
+                                            → 사용자가 선택했던 본부/팀을 유지하기 위해 사용
+                                        -->
+                                        <option th:each="team : ${teams}"
+                                                th:value="${team.id}"
+                                                th:text="${team.name}"
+                                                th:selected="${employeeCreateRequestDto.deptId != null and employeeCreateRequestDto.deptId == team.id}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 직급 -->
+                                <!-- positions는 Controller에서 model로 전달한 직급 목록이다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">직급 <span class="text-danger">*</span></label>
+                                    <select th:field="*{positionId}" id="positionId" class="form-select required-input">
+                                        <option value="">직급 선택</option>
+                                        <option th:each="position : ${positions}"
+                                                th:value="${position.id}"
+                                                th:text="${position.name}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 권한 -->
+                                <!-- roles는 Controller에서 model로 전달한 권한 목록이다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">권한 <span class="text-danger">*</span></label>
+                                    <select th:field="*{roleId}" id="roleId" class="form-select required-input">
+                                        <option value="">권한 선택</option>
+                                        <option th:each="role : ${roles}"
+                                                th:value="${role.id}"
+                                                th:text="${role.name}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 은행명 -->
+                                <div class="col-md-4">
+                                    <label class="form-label">은행명 <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                           th:field="*{bank}"
+                                           id="bank"
+                                           class="form-control required-input"
+                                           placeholder="예: 국민은행">
+                                </div>
+
+                                <!-- 계좌번호 -->
+                                <!-- JS에서 숫자와 하이픈만 입력 가능하게 제한한다. -->
+                                <div class="col-md-4">
+                                    <label class="form-label">계좌번호 <span class="text-danger">*</span></label>
+                                    <input type="text"
+                                           th:field="*{accountNo}"
+                                           id="accountNo"
+                                           class="form-control required-input"
+                                           placeholder="숫자와 - 만 입력">
+                                </div>
+
+                                <!-- 프로필 사진 업로드 -->
+                                <!-- 선택한 이미지는 JS에서 미리보기로 보여준다. -->
+                                <div class="col-md-6">
+                                    <label class="form-label">프로필 사진</label>
+                                    <input type="file"
+                                           th:field="*{profileImgFile}"
+                                           id="profileImgFile"
+                                           class="form-control"
+                                           accept="image/png, image/jpeg">
+
+                                    <div class="mt-2">
+                                        <img id="profilePreview"
+                                             alt="프로필 미리보기"
+                                             style="display: none; width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;">
+                                    </div>
+
+                                    <small class="text-muted">jpg, jpeg, png 파일만 업로드 가능합니다.</small>
+                                </div>
+
+                                <!-- 서명 이미지 업로드 -->
+                                <!-- 선택한 이미지는 JS에서 미리보기로 보여준다. -->
+                                <div class="col-md-6">
+                                    <label class="form-label">서명 이미지</label>
+                                    <input type="file"
+                                           th:field="*{signImgFile}"
+                                           id="signImgFile"
+                                           class="form-control"
+                                           accept="image/png, image/jpeg">
+
+                                    <div class="mt-2">
+                                        <img id="signPreview"
+                                             alt="서명 미리보기"
+                                             style="display: none; width: 180px; height: 80px; object-fit: contain; border-radius: 8px; border: 1px solid #ddd; background: #fff;">
+                                    </div>
+
+                                    <small class="text-muted">전자결재용 서명 이미지를 등록할 수 있습니다.</small>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- 하단 버튼 영역 -->
+                        <div class="card-footer text-end">
+                            <a href="/admin/employees" class="btn btn-outline-secondary">
+                                취소
+                            </a>
+
+                            <button type="submit" class="btn btn-primary">
+                                등록
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- 공통 푸터 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+
+<!-- 공통 JS -->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+
+<!-- 사원 등록 화면 전용 JS -->
+<script th:src="@{/js/employee/create.js}"></script>
+
+</body>
+</html>

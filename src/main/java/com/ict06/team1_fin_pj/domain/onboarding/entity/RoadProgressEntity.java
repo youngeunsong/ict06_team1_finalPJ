@@ -1,6 +1,5 @@
 package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
-import com.ict06.team1_fin_pj.domain.aiSecretary.entity.ProgressStatus;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -15,7 +14,7 @@ import java.math.BigDecimal;
        uniqueConstraints = {
             @UniqueConstraint(
                 name = "uk_emp_item",
-                columnNames = {"emp_id", "item_id"}
+                columnNames = {"emp_no", "item_id"}
             )
        }
 )
@@ -44,4 +43,10 @@ public class RoadProgressEntity {
 
     @Column(precision = 5, scale = 2)
     private BigDecimal rate;
+
+    //학습 진행 상태 업데이트
+    public void updateProgress(ProgressStatus status, BigDecimal rate) {
+        this.status = status;
+        this.rate = rate;
+    }
 }
