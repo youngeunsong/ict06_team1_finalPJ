@@ -46,6 +46,10 @@ public class DocumentEntity extends BaseTimeEntity {
     @Builder.Default
     private DocumentStage currentStage = DocumentStage.UPLOADED; // 현재 처리 단계
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private EmpEntity createdBy;
+
     // 문서 → 청크들
     @OneToMany(mappedBy = "document", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -2,7 +2,7 @@ import React from 'react'
 import { AppSidebar, AppFooter, AppHeader } from '../components/index'
 import { Outlet } from 'react-router-dom'
 
-const DefaultLayout = ({ userInfo }) => {
+const DefaultLayout = ({userInfo}) => {
   return (
     <div className="wrapper d-flex flex-column min-vh-100">
       {/* 사이드바에 userInfo 전달 */}
