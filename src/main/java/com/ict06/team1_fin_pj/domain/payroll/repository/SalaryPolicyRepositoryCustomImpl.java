@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,11 +38,23 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
         // 동적 WHERE 조건 생성
         BooleanBuilder builder = new BooleanBuilder();
 
+        // 기본급 정책은 "본부"가 아니라 "하위 부서(팀)" 기준으로만 관리 - parent_dept_id가 있는 것만 조회
+        builder.and(salaryPolicyEntity.department.parentDept.deptId.isNotNull());
+
         // 기본 조건: 활성 데이터만 조회
         builder.and(salaryPolicyEntity.isActive.isTrue());
 
         // 검색 조건이 있을 경우에만 추가
         if (searchDTO != null) {
+
+            // 본부 필터 (추가)
+            if (StringUtils.hasText(searchDTO.getHeadDeptId())) {
+                builder.and(
+                        salaryPolicyEntity.department.parentDept.deptId.eq(
+                                Integer.valueOf(searchDTO.getHeadDeptId())
+                        )
+                );
+            }
 
             // 부서 필터
             if (StringUtils.hasText(searchDTO.getDeptId())) {
@@ -62,6 +75,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
             if (StringUtils.hasText(searchDTO.getKeyword())) {
                 builder.and(
                         salaryPolicyEntity.department.deptName.containsIgnoreCase(searchDTO.getKeyword())
+                                .or(salaryPolicyEntity.department.parentDept.deptName.containsIgnoreCase(searchDTO.getKeyword()))
                                 .or(salaryPolicyEntity.position.positionName.containsIgnoreCase(searchDTO.getKeyword()))
                                 .or(salaryPolicyEntity.grade.gradeId.containsIgnoreCase(searchDTO.getKeyword()))
                 );
@@ -102,6 +116,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                         // 부서
                         salaryPolicyEntity.department.deptId.stringValue().as("deptId"),
                         salaryPolicyEntity.department.deptName.as("deptName"),
+                        salaryPolicyEntity.department.parentDept.deptName.as("parentDeptName"),
 
                         // 직급
                         salaryPolicyEntity.position.positionId.stringValue().as("positionId"),
@@ -139,9 +154,11 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                 .select(Projections.constructor(
                         PayrollSelectOptionDTO.class,
                         departmentEntity.deptId.stringValue(),
-                        departmentEntity.deptName
+                        departmentEntity.deptName,
+                        departmentEntity.parentDept.deptName
                 ))
                 .from(departmentEntity)
+                .where(departmentEntity.parentDept.deptId.isNotNull())
                 .fetch();
     }
 
@@ -238,6 +255,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
                         // 직급 정보
                         salaryPolicyEntity.position.positionId.stringValue().as("positionId"),
                         salaryPolicyEntity.position.positionName.as("positionName"),
+                        salaryPolicyEntity.department.parentDept.deptName.as("parentDeptName"),
 
                         // 급여등급
                         salaryPolicyEntity.grade.gradeId.as("gradeId"),
@@ -281,6 +299,7 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
         queryFactory
                 .update(salaryPolicyEntity)
                 .set(salaryPolicyEntity.basicSalary, basicSalary)
+                .set(salaryPolicyEntity.updatedAt, LocalDateTime.now())
                 .where(salaryPolicyEntity.policyId.eq(policyId))
                 .execute();
     }
@@ -301,6 +320,25 @@ public class SalaryPolicyRepositoryCustomImpl implements SalaryPolicyRepositoryC
 
                 // DB 반영
                 .execute();
+    }
+
+
+    // 본부 select box용 조회
+    // - parent_dept_id가 null인 데이터 = 본부
+    @Override
+    public List<PayrollSelectOptionDTO> selectHeadDepartmentList() {
+        return queryFactory
+                .select(Projections.constructor(
+                        PayrollSelectOptionDTO.class,
+                        departmentEntity.deptId.stringValue(),
+                        departmentEntity.deptName
+                ))
+                .from(departmentEntity)
+
+                // 본부만 조회
+                .where(departmentEntity.parentDept.deptId.isNull())
+
+                .fetch();
     }
 }
 
