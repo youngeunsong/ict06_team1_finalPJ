@@ -78,6 +78,9 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능한 API
                         .requestMatchers("/api/auth/login").permitAll()
 
+                        // 조직도 API도 JWT 없이 허용
+                        .requestMatchers("/api/organization/**").permitAll()
+
                         // 나머지 API는 JWT 인증 필요
                         .anyRequest().authenticated()
                 )

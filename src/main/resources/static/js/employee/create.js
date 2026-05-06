@@ -1,25 +1,27 @@
 /*
- * 사원 등록 화면 JS
+ * create.js
+ *
+ * 사원 등록 화면 전용 JavaScript
  *
  * 담당 기능:
- * 1. 서버에서 넘어온 에러 메시지 alert 표시
- * 2. 프로필 / 서명 이미지 미리보기
- * 3. 입사일 기준 사번 자동 생성
- * 4. 이름 기준 로그인 아이디 자동 생성
- * 5. 이메일 직접 입력 처리
- * 6. 연락처 자동 하이픈 처리
- * 7. 계좌번호 입력 제한
- * 8. 등록 전 필수값 / 형식 검사
+ * 1. 서버에서 전달된 에러 메시지 출력
+ * 2. 본부 선택 시 팀 목록 동적 조회
+ * 3. 프로필 / 서명 이미지 미리보기
+ * 4. 입사일 기준 사번 자동 생성
+ * 5. 이름 기준 로그인 아이디 자동 생성
+ * 6. 이메일 직접 입력 처리
+ * 7. 연락처 자동 하이픈 처리
+ * 8. 계좌번호 입력 제한
+ * 9. 등록 전 필수값 / 형식 검사
  */
 document.addEventListener("DOMContentLoaded", function () {
 
     /*
-     * Controller에서 model로 넘긴 에러 메시지
+     * 서버에서 전달한 에러 메시지 처리
      *
-     * create.html에서 아래 hidden input을 추가해서 쓰는 방식이 가장 안전하다.
-     *
-     * <input type="hidden" id="errorMessage" th:value="${errorMessage}">
-     * <input type="hidden" id="errorField" th:value="${errorField}">
+     * Controller에서 model.addAttribute("errorMessage", ...)
+     * model.addAttribute("errorField", ...)로 넘긴 값을
+     * create.html의 hidden input에서 읽는다.
      */
     const errorMessageInput = document.getElementById("errorMessage");
     const errorFieldInput = document.getElementById("errorField");
@@ -53,7 +55,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const empIdInput = document.getElementById("empId");
     const generateEmpIdBtn = document.getElementById("generateEmpIdBtn");
 
-    // 이메일 도메인 직접 입력 관련 요소
+    // 이메일 관련 요소
     const emailDomainSelect = document.getElementById("emailDomain");
     const customEmailDomainInput = document.getElementById("customEmailDomain");
 
@@ -65,19 +67,76 @@ document.addEventListener("DOMContentLoaded", function () {
     const hireDateInput = document.getElementById("hireDate");
     const hireDateBtn = document.getElementById("hireDateBtn");
 
-    // 프로필 이미지
+    // 이미지 관련 요소
     const profileImgFile = document.getElementById("profileImgFile");
     const profilePreview = document.getElementById("profilePreview");
 
-    // 서명 이미지
     const signImgFile = document.getElementById("signImgFile");
     const signPreview = document.getElementById("signPreview");
 
     /*
-     * 이미지 미리보기 함수
+     * 본부 / 팀 select 요소
      *
-     * 파일을 선택하면 브라우저에서 임시 URL을 만들어
-     * img 태그에 미리 보여준다.
+     * parentDeptId = 본부
+     * deptId = 팀
+     *
+     * 실제 EMPLOYEE 테이블에 저장되는 값은 팀 ID인 deptId이다.
+     */
+    const parentDeptSelect = document.getElementById("parentDeptId");
+    const deptSelect = document.getElementById("deptId");
+
+    /*
+     * 본부 선택 시 하위 팀 목록 불러오기
+     *
+     * 요청 주소:
+     * /admin/employees/departments/{parentDeptId}/teams
+     */
+    async function loadTeams(parentDeptId, selectedDeptId) {
+        deptSelect.innerHTML = '<option value="">팀 선택</option>';
+
+        if (!parentDeptId) {
+            return;
+        }
+
+        const response = await fetch(`/admin/employees/departments/${parentDeptId}/teams`);
+
+        if (!response.ok) {
+            alert("팀 목록을 불러오지 못했습니다.");
+            return;
+        }
+
+        const teams = await response.json();
+
+        teams.forEach(function (team) {
+            const option = document.createElement("option");
+            option.value = team.id;
+            option.textContent = team.name;
+
+            if (selectedDeptId && String(selectedDeptId) === String(team.id)) {
+                option.selected = true;
+            }
+
+            deptSelect.appendChild(option);
+        });
+    }
+
+    // 본부 변경 시 팀 목록 갱신
+    if (parentDeptSelect && deptSelect) {
+        parentDeptSelect.addEventListener("change", function () {
+            loadTeams(parentDeptSelect.value, null);
+        });
+
+        /*
+         * 등록 실패 후 다시 create.html로 돌아온 경우
+         * 기존 선택 팀을 유지하기 위한 처리
+         */
+        if (parentDeptSelect.value) {
+            loadTeams(parentDeptSelect.value, deptSelect.dataset.selectedDeptId);
+        }
+    }
+
+    /*
+     * 이미지 미리보기 함수
      */
     function previewImage(fileInput, previewImg) {
         const file = fileInput.files[0];
@@ -100,12 +159,12 @@ document.addEventListener("DOMContentLoaded", function () {
         previewImg.style.display = "block";
     }
 
-    // 프로필 사진 선택 시 미리보기
+    // 프로필 이미지 미리보기
     profileImgFile.addEventListener("change", function () {
         previewImage(profileImgFile, profilePreview);
     });
 
-    // 서명 이미지 선택 시 미리보기
+    // 서명 이미지 미리보기
     signImgFile.addEventListener("change", function () {
         previewImage(signImgFile, signPreview);
     });
@@ -113,14 +172,13 @@ document.addEventListener("DOMContentLoaded", function () {
     /*
      * 입사일 기본값 설정
      *
-     * 입사일이 비어 있으면 오늘 날짜를 자동 입력한다.
+     * 비어 있으면 오늘 날짜를 기본값으로 넣는다.
      */
     if (!hireDateInput.value) {
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, "0");
         const dd = String(today.getDate()).padStart(2, "0");
-
         hireDateInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
@@ -136,8 +194,7 @@ document.addEventListener("DOMContentLoaded", function () {
     /*
      * 사번 자동 생성
      *
-     * /admin/employees/generate-emp-no 로 요청을 보내서
-     * 서버에서 생성한 사번을 받아온다.
+     * 입사일을 기준으로 서버에서 사번을 생성한다.
      */
     async function generateEmpNo() {
         const hireDate = hireDateInput.value;
@@ -158,15 +215,13 @@ document.addEventListener("DOMContentLoaded", function () {
         empNoInput.value = await response.text();
     }
 
-    // 자동생성 버튼 클릭 시 사번 생성
+    // 사번 자동 생성 버튼
     generateEmpNoBtn.addEventListener("click", generateEmpNo);
 
-    // 입사일 변경 시 사번 다시 생성
-    hireDateInput.addEventListener("change", function () {
-        generateEmpNo();
-    });
+    // 입사일 변경 시 사번도 다시 생성
+    hireDateInput.addEventListener("change", generateEmpNo);
 
-    // 처음 화면 진입 시 사번이 비어 있으면 자동 생성
+    // 화면 처음 진입 시 사번이 비어 있으면 자동 생성
     if (!empNoInput.value) {
         generateEmpNo();
     }
@@ -195,10 +250,10 @@ document.addEventListener("DOMContentLoaded", function () {
         empIdInput.value = await response.text();
     }
 
-    // 아이디 자동생성 버튼
+    // 아이디 자동 생성 버튼
     generateEmpIdBtn.addEventListener("click", generateEmpId);
 
-    // 이름 입력 후 포커스가 빠졌을 때 아이디가 비어 있으면 자동 생성
+    // 이름 입력 후 아이디가 비어 있으면 자동 생성
     nameInput.addEventListener("blur", function () {
         if (nameInput.value.trim() && !empIdInput.value.trim()) {
             generateEmpId();
@@ -207,8 +262,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /*
      * 이메일 도메인 직접 입력 처리
-     *
-     * custom 선택 시 직접 입력 input을 보여준다.
      */
     emailDomainSelect.addEventListener("change", function () {
         if (emailDomainSelect.value === "custom") {
@@ -222,8 +275,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /*
      * 연락처 자동 하이픈 처리
-     *
-     * 숫자만 입력받고 010-0000-0000 형태로 바꾼다.
      */
     phoneInput.addEventListener("input", function () {
         let value = phoneInput.value.replace(/[^0-9]/g, "");
@@ -237,19 +288,19 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // 계좌번호는 숫자와 하이픈만 입력 가능
+    /*
+     * 계좌번호는 숫자와 하이픈만 입력 가능
+     */
     accountNoInput.addEventListener("input", function () {
         accountNoInput.value = accountNoInput.value.replace(/[^0-9-]/g, "");
     });
 
     /*
-     * 등록 버튼 클릭 시 최종 검증
-     *
-     * 문제가 있으면 submit을 막는다.
+     * 등록 전 최종 검증
      */
     form.addEventListener("submit", function (event) {
 
-        // 이메일 직접 입력 처리
+        // 이메일 직접 입력 선택 시 직접 입력한 도메인을 select 값으로 바꾼다.
         if (emailDomainSelect.value === "custom") {
             const customDomain = customEmailDomainInput.value.trim();
 

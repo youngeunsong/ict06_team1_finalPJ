@@ -20,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -40,6 +43,7 @@ import java.util.UUID;
  * - 아이디 자동 생성
  * - 이미지 저장
  * - 상태 변경 이력 저장
+ * - 본부/팀 목록 조회
  */
 @Service
 @RequiredArgsConstructor
@@ -78,13 +82,25 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
     /*
      * 사원 목록 조회
      *
-     * 검색 조건을 받아서 사원 목록을 조회한다.
+     * 검색 조건과 페이징 정보를 받아서 사원 목록을 조회한다.
      * status가 비어 있으면 기본값을 "기본"으로 설정한다.
      *
      * "기본"은 퇴사자를 제외하고 조회하는 용도로 사용된다.
+     *
+     * Pageable:
+     * - 현재 페이지 번호
+     * - 한 페이지에 보여줄 개수
+     * - 정렬 정보
+     *
+     * 반환 타입:
+     * - Page<EmployeeListDto>
+     * - 목록 데이터뿐 아니라 전체 개수, 전체 페이지 수, 현재 페이지 번호도 함께 가진다.
      */
     @Override
-    public List<EmployeeListDto> findEmployees(EmployeeSearchConditionDto conditionDto) {
+    public Page<EmployeeListDto> findEmployees(
+            EmployeeSearchConditionDto conditionDto,
+            Pageable pageable
+    ) {
         String status = conditionDto.getStatus();
 
         // 상태 검색 조건이 없으면 기본값 설정
@@ -93,13 +109,14 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
             conditionDto.setStatus("기본");
         }
 
-        // Repository의 검색 쿼리 호출
+        // Repository의 검색 + 페이징 쿼리 호출
         return adEmployeeRepository.searchEmployees(
                 conditionDto.getKeyword(),
                 conditionDto.getDeptId(),
                 conditionDto.getPositionId(),
                 conditionDto.getRoleId(),
-                status
+                status,
+                pageable
         );
     }
 
@@ -116,14 +133,52 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
     }
 
     /*
-     * 부서 목록 조회
+     * 전체 부서 목록 조회
      *
-     * 등록/수정/검색 화면의 select 박스에 사용된다.
-     * DepartmentEntity를 HrSelectOptionDto로 변환해서 반환한다.
+     * 기존 목록 검색 화면에서 사용할 수 있다.
+     * 본부/팀을 구분하지 않고 모든 부서를 가져온다.
      */
     @Override
     public List<HrSelectOptionDto> findDepartments() {
         return adDepartmentRepository.findAll()
+                .stream()
+                .map(dept -> new HrSelectOptionDto(dept.getDeptId(), dept.getDeptName()))
+                .toList();
+    }
+
+    /*
+     * 본부 목록 조회
+     *
+     * 사원 등록/수정 화면의 첫 번째 select 박스에 사용된다.
+     *
+     * 기준:
+     * - parentDept가 null인 부서
+     * - 예: 경영본부, 개발본부
+     */
+    @Override
+    public List<HrSelectOptionDto> findParentDepartments() {
+        return adDepartmentRepository.findByParentDeptIsNull()
+                .stream()
+                .map(dept -> new HrSelectOptionDto(dept.getDeptId(), dept.getDeptName()))
+                .toList();
+    }
+
+    /*
+     * 선택한 본부에 속한 팀 목록 조회
+     *
+     * 사원 등록/수정 화면의 두 번째 select 박스에 사용된다.
+     *
+     * 예:
+     * parentDeptId = 1
+     * → parentDept.deptId가 1인 경영지원팀, 인사팀 조회
+     */
+    @Override
+    public List<HrSelectOptionDto> findTeamsByParentDeptId(Integer parentDeptId) {
+        if (parentDeptId == null) {
+            return List.of();
+        }
+
+        return adDepartmentRepository.findByParentDept_DeptId(parentDeptId)
                 .stream()
                 .map(dept -> new HrSelectOptionDto(dept.getDeptId(), dept.getDeptName()))
                 .toList();
@@ -159,16 +214,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
      * 사번 자동 생성
      *
      * 입사일의 연도 부분을 기준으로 사번을 생성한다.
-     *
-     * 예:
-     * hireDate = "2026-05-01"
-     * yearPrefix = "2026"
-     *
-     * 기존 사번:
-     * 20260001, 20260002
-     *
-     * 새 사번:
-     * 20260003
      */
     @Override
     public String generateEmpNo(String hireDate) {
@@ -188,8 +233,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
          * 예:
          * 20260001 -> 0001
          * 20260002 -> 0002
-         *
-         * 그중 가장 큰 번호를 찾는다.
          */
         int maxNumber = empNos.stream()
                 .map(empNo -> empNo.replace(yearPrefix, ""))
@@ -206,15 +249,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
      * 로그인 아이디 자동 생성
      *
      * 이름을 기준으로 아이디를 생성한다.
-     *
-     * 예:
-     * name = "홍길동"
-     *
-     * 기존 아이디:
-     * 홍길동01, 홍길동02
-     *
-     * 새 아이디:
-     * 홍길동03
      */
     @Override
     public String generateEmpId(String name) {
@@ -249,12 +283,10 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
     /*
      * 사원 등록 처리
      *
-     * DB에 값을 저장하므로 @Transactional이 필요하다.
-     *
      * 처리 순서:
      * 1. 이메일 조합
      * 2. 중복 체크
-     * 3. 부서/직급/권한 조회
+     * 3. 팀/직급/권한 조회
      * 4. 이미지 저장
      * 5. 비밀번호 암호화
      * 6. EmpEntity 생성
@@ -291,9 +323,17 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
             throw new IllegalArgumentException("이미 사용 중인 계좌번호입니다.|accountNo");
         }
 
-        // 선택한 부서 ID로 부서 엔티티 조회
+        /*
+         * 선택한 팀 ID로 부서 엔티티 조회
+         *
+         * 본부/팀 2단계 선택 구조에서는
+         * parentDeptId = 본부 ID
+         * deptId = 팀 ID
+         *
+         * 실제 EMPLOYEE.dept_id에 저장되는 값은 팀 ID이다.
+         */
         DepartmentEntity department = adDepartmentRepository.findById(requestDto.getDeptId())
-                .orElseThrow(() -> new IllegalArgumentException("부서를 찾을 수 없습니다.|deptId"));
+                .orElseThrow(() -> new IllegalArgumentException("팀을 선택해주세요.|deptId"));
 
         // 선택한 직급 ID로 직급 엔티티 조회
         PositionEntity position = adPositionRepository.findById(requestDto.getPositionId())
@@ -319,10 +359,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 사원 엔티티 생성
-         *
-         * 비밀번호는 반드시 암호화해서 저장한다.
-         * 상태는 신규 등록이므로 "재직"으로 저장한다.
-         * isDeleted는 삭제되지 않은 상태인 "N"으로 저장한다.
          */
         EmpEntity employee = EmpEntity.builder()
                 .empNo(requestDto.getEmpNo())
@@ -351,7 +387,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
      * 사원 수정 화면용 데이터 조회
      *
      * 수정 화면에 기존 정보를 보여주기 위해 사용한다.
-     * Entity를 EmployeeUpdateRequestDto로 옮겨 담는다.
      */
     @Override
     public EmployeeUpdateRequestDto findEmployeeForUpdate(String empNo) {
@@ -369,11 +404,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
         /*
          * 이메일을 화면에서 emailId / emailDomain으로 나눠 쓰기 때문에
          * @ 기준으로 분리한다.
-         *
-         * 예:
-         * test@gmail.com
-         * emailId = test
-         * emailDomain = gmail.com
          */
         if (employee.getEmail() != null && employee.getEmail().contains("@")) {
             String[] emailParts = employee.getEmail().split("@", 2);
@@ -382,7 +412,37 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
         }
 
         dto.setPhone(employee.getPhone());
-        dto.setDeptId(employee.getDepartment().getDeptId());
+
+        /*
+         * 현재 사원이 속한 부서 정보를 수정 DTO에 넣는다.
+         *
+         * 현재 DepartmentEntity 구조:
+         * - parentDept가 null이면 본부
+         * - parentDept가 있으면 팀
+         *
+         * 일반적으로 employee.department에는 팀이 들어간다.
+         */
+        DepartmentEntity department = employee.getDepartment();
+
+        // 팀 ID 세팅
+        dto.setDeptId(department.getDeptId());
+
+        /*
+         * 본부 ID 세팅
+         *
+         * 팀에 소속된 사원이라면:
+         * - department = 팀
+         * - department.getParentDept() = 본부
+         *
+         * 혹시 기존 데이터가 본부를 직접 저장하고 있다면:
+         * - parentDept가 null이므로 현재 deptId를 parentDeptId로 사용한다.
+         */
+        if (department.getParentDept() != null) {
+            dto.setParentDeptId(department.getParentDept().getDeptId());
+        } else {
+            dto.setParentDeptId(department.getDeptId());
+        }
+
         dto.setPositionId(employee.getPosition().getPositionId());
         dto.setRoleId(employee.getRole().getRoleId());
         dto.setBank(employee.getBank());
@@ -397,18 +457,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
     /*
      * 사원 수정 처리
-     *
-     * 처리 순서:
-     * 1. 기존 사원 조회
-     * 2. 기존 부서/직급/상태 저장
-     * 3. 새 부서/직급/권한 조회
-     * 4. 이메일 조합
-     * 5. 중복 체크
-     * 6. 기본 정보 수정
-     * 7. 이미지 수정
-     * 8. 상태 변경 처리
-     * 9. 상태 변경 이력 저장
-     * 10. 비밀번호 변경
      */
     @Override
     @Transactional
@@ -419,17 +467,19 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 변경 전 정보를 저장해둔다.
-         *
-         * 상태 변경 이력 저장할 때
-         * 이전 부서, 이전 직급, 이전 상태가 필요하다.
          */
         DepartmentEntity oldDepartment = employee.getDepartment();
         PositionEntity oldPosition = employee.getPosition();
         String oldStatus = employee.getStatus();
 
-        // 새로 선택한 부서 조회
+        /*
+         * 새로 선택한 팀 조회
+         *
+         * 본부/팀 2단계 선택 구조에서는
+         * requestDto.getDeptId()가 팀 ID이다.
+         */
         DepartmentEntity newDepartment = adDepartmentRepository.findById(requestDto.getDeptId())
-                .orElseThrow(() -> new IllegalArgumentException("부서를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("팀을 선택해주세요.|deptId"));
 
         // 새로 선택한 직급 조회
         PositionEntity newPosition = adPositionRepository.findById(requestDto.getPositionId())
@@ -444,9 +494,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 이메일 중복 체크
-         *
-         * 자기 자신의 empNo는 제외하고 검사한다.
-         * 그래야 기존 이메일을 그대로 저장할 때 중복 오류가 나지 않는다.
          */
         if (adEmployeeRepository.existsByEmailAndEmpNoNot(email, empNo)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.|emailId");
@@ -464,9 +511,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 사원 기본 정보 수정
-         *
-         * JPA 영속성 컨텍스트 안에서 Entity 값을 변경하면
-         * 트랜잭션이 끝날 때 자동으로 update 쿼리가 실행된다.
          */
         employee.updateEmployeeInfo(
                 requestDto.getName(),
@@ -506,11 +550,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 상태가 변경되었을 때만 상태 변경 처리와 이력 저장을 한다.
-         *
-         * 예:
-         * 재직 -> 휴직
-         * 휴직 -> 재직
-         * 재직 -> 퇴사
          */
         if (!oldStatus.equals(newStatus)) {
 
@@ -532,8 +571,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
             /*
              * 사원 변경 이력 저장
-             *
-             * 누가, 언제, 어떤 사원의 상태를 어떻게 변경했는지 기록한다.
              */
             adEmpHistoryRepository.save(
                     EmpHistoryEntity.builder()
@@ -552,9 +589,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 비밀번호 변경
-         *
-         * 비밀번호 입력칸이 비어 있으면 기존 비밀번호를 유지한다.
-         * 값이 들어온 경우에만 새 비밀번호로 변경한다.
          */
         if (requestDto.getPassword() != null && !requestDto.getPassword().trim().isEmpty()) {
             employee.changePassword(passwordEncoder.encode(requestDto.getPassword()));
@@ -563,11 +597,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
     /*
      * 현재 로그인한 사원 정보 조회
-     *
-     * Spring SecurityContextHolder에서 현재 인증 정보를 꺼낸다.
-     * PrincipalDetails 안에 들어 있는 EmpEntity를 반환한다.
-     *
-     * 상태 변경 이력에서 changedBy에 사용된다.
      */
     private EmpEntity getLoginEmployee() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -582,18 +611,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
     /*
      * 사원 이미지 저장 메서드
-     *
-     * 프로필 이미지와 서명 이미지를 저장할 때 공통으로 사용한다.
-     *
-     * file: 업로드된 파일
-     * folderName: profile 또는 sign
-     * empNo: 파일명 앞에 붙일 사번
-     *
-     * 반환값:
-     * DB에 저장할 이미지 접근 경로
-     *
-     * 예:
-     * /employee/uploads/profile/20260001_UUID.png
      */
     private String saveEmployeeImage(MultipartFile file, String folderName, String empNo) {
         // 파일이 없으면 저장하지 않고 null 반환
@@ -614,9 +631,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 이미지 확장자 검사
-         *
-         * jpg, jpeg, png 파일만 허용한다.
-         * 그 외 파일이면 예외를 발생시킨다.
          */
         if (!(lowerName.endsWith(".jpg")
                 || lowerName.endsWith(".jpeg")
@@ -629,9 +643,6 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
 
         /*
          * 저장할 파일명 생성
-         *
-         * 사번 + UUID + 확장자 형태로 저장한다.
-         * UUID를 붙이는 이유는 파일명 중복을 막기 위해서다.
          */
         String savedFileName = empNo + "_" + UUID.randomUUID() + extension;
 

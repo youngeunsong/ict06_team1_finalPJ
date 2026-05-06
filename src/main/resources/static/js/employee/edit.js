@@ -5,6 +5,8 @@
  *
  * 담당 기능:
  * - 서버에서 전달한 에러 메시지 alert 출력
+ * - 본부 선택 시 팀 목록 동적 조회
+ * - 기존 선택된 팀 유지
  * - 프로필 / 서명 이미지 미리보기
  * - 이메일 도메인 직접 입력 처리
  * - 연락처 자동 하이픈 처리
@@ -53,6 +55,71 @@ document.addEventListener("DOMContentLoaded", function () {
     const profilePreview = document.getElementById("profilePreview");
     const signImgFile = document.getElementById("signImgFile");
     const signPreview = document.getElementById("signPreview");
+
+    /*
+     * 본부 / 팀 select 요소
+     *
+     * parentDeptId = 본부
+     * deptId = 팀
+     *
+     * 실제 EMPLOYEE 테이블에 저장되는 값은 팀 ID인 deptId이다.
+     */
+    const parentDeptSelect = document.getElementById("parentDeptId");
+    const deptSelect = document.getElementById("deptId");
+
+    /*
+     * 본부 선택 시 하위 팀 목록 불러오기
+     *
+     * 요청 주소:
+     * /admin/employees/departments/{parentDeptId}/teams
+     */
+    async function loadTeams(parentDeptId, selectedDeptId) {
+        deptSelect.innerHTML = '<option value="">팀 선택</option>';
+
+        if (!parentDeptId) {
+            return;
+        }
+
+        const response = await fetch(`/admin/employees/departments/${parentDeptId}/teams`);
+
+        if (!response.ok) {
+            alert("팀 목록을 불러오지 못했습니다.");
+            return;
+        }
+
+        const teams = await response.json();
+
+        teams.forEach(function (team) {
+            const option = document.createElement("option");
+            option.value = team.id;
+            option.textContent = team.name;
+
+            // 기존 선택된 팀이 있으면 다시 선택 상태로 만든다.
+            if (selectedDeptId && String(selectedDeptId) === String(team.id)) {
+                option.selected = true;
+            }
+
+            deptSelect.appendChild(option);
+        });
+    }
+
+    // 본부 변경 시 팀 목록 갱신
+    if (parentDeptSelect && deptSelect) {
+        parentDeptSelect.addEventListener("change", function () {
+            loadTeams(parentDeptSelect.value, null);
+        });
+
+        /*
+         * 수정 화면 최초 진입 시
+         * 기존 사원이 속한 팀을 선택 상태로 유지한다.
+         *
+         * deptSelect.dataset.selectedDeptId 값은
+         * edit.html의 data-selected-dept-id에서 온다.
+         */
+        if (parentDeptSelect.value) {
+            loadTeams(parentDeptSelect.value, deptSelect.dataset.selectedDeptId);
+        }
+    }
 
     /*
      * 이미지 미리보기 함수

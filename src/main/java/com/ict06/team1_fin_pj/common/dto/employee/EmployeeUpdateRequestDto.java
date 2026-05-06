@@ -42,7 +42,22 @@ public class EmployeeUpdateRequestDto {
     // 연락처
     private String phone;
 
-    // 부서 ID
+    /*
+     * 본부 ID
+     *
+     * 수정 화면에서 기존 사원이 속한 팀의 상위 본부를
+     * 선택 상태로 보여주기 위해 사용한다.
+     *
+     * 실제 EMPLOYEE 테이블에 저장되는 값은 아니다.
+     */
+    private Integer parentDeptId;
+
+    /*
+     * 팀 ID
+     *
+     * 실제 EMPLOYEE.dept_id에 저장되는 값이다.
+     * 수정 화면에서는 두 번째 select 박스 값으로 사용한다.
+     */
     private Integer deptId;
 
     // 직급 ID

@@ -2,6 +2,8 @@ package com.ict06.team1_fin_pj.domain.employee.service;
 
 import com.ict06.team1_fin_pj.common.dto.employee.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 /*
@@ -14,10 +16,40 @@ public interface AdEmployeeService {
 
     // 사원 목록 조회
     // 검색 조건 DTO를 받아 조건에 맞는 사원 목록을 반환한다.
-    List<EmployeeListDto> findEmployees(EmployeeSearchConditionDto conditionDto);
+    Page<EmployeeListDto> findEmployees(
+            EmployeeSearchConditionDto conditionDto,
+            Pageable pageable
+    );
 
-    // 부서 select 박스에 사용할 부서 목록 조회
+    /*
+     * 전체 부서 목록 조회
+     *
+     * 사원 목록 검색 필터에서 사용할 수 있다.
+     * 현재 목록 화면은 본부/팀 분리 전 방식처럼 전체 부서를 보여준다.
+     */
     List<HrSelectOptionDto> findDepartments();
+
+    /*
+     * 본부 목록 조회
+     *
+     * 사원 등록/수정 화면의 첫 번째 select 박스에 사용한다.
+     *
+     * 기준:
+     * - DEPARTMENT.parent_dept_id가 null인 데이터
+     * - 예: 경영본부, 개발본부
+     */
+    List<HrSelectOptionDto> findParentDepartments();
+
+    /*
+     * 선택한 본부에 속한 팀 목록 조회
+     *
+     * 사원 등록/수정 화면의 두 번째 select 박스에 사용한다.
+     *
+     * 예:
+     * parentDeptId = 1
+     * → 경영본부 아래의 경영지원팀, 인사팀 조회
+     */
+    List<HrSelectOptionDto> findTeamsByParentDeptId(Integer parentDeptId);
 
     // 직급 select 박스에 사용할 직급 목록 조회
     List<HrSelectOptionDto> findPositions();
