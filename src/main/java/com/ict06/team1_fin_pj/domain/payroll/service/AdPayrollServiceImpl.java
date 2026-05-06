@@ -260,14 +260,23 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         // 4. 기본급 유효성 검증
         validateRequiredForGradeCheck(requestDTO);
 
-        // 5. 서열 검증 (같은 부서 기준)
+        // 5. 기존 기본급과 요청 기본급이 같으면 수정하지 않음
+        BigDecimal oldBasicSalary = oldPolicy.getBasicSalary();
+        BigDecimal newBasicSalary = requestDTO.getBasicSalary();
+
+        if (oldBasicSalary != null && newBasicSalary != null
+                && oldBasicSalary.compareTo(newBasicSalary) == 0) {
+            return;
+        }
+
+        // 6. 서열 검증 (같은 부서 기준)
         boolean valid = isValidGradeOrderForUpdate(requestDTO, oldPolicy.getPolicyId());
 
         if (!valid) {
             throw new IllegalArgumentException("기본급은 G1 < G2 < G3 < G4 < G5 순서를 유지해야 합니다.");
         }
 
-        // 6. 기본급 정책 직접 수정
+        // 7. 기본급 정책 직접 수정
         adSalaryPolicyRepository.updateSalaryPolicy(
                 oldPolicy.getPolicyId(),
                 requestDTO.getBasicSalary()
