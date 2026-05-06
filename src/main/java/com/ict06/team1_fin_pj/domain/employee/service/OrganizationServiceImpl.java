@@ -96,6 +96,13 @@ public class OrganizationServiceImpl implements OrganizationService {
      *
      * 조직도에서 부서를 클릭했을 때 오른쪽 영역에 표시할 데이터이다.
      *
+     * 조회 기준:
+     * - 본부를 클릭한 경우:
+     *   해당 본부 아래의 모든 팀 사원을 조회한다.
+     *
+     * - 팀을 클릭한 경우:
+     *   해당 팀에 소속된 사원만 조회한다.
+     *
      * 그룹핑은 여기서 하지 않는다.
      * 백엔드는 단순한 리스트만 내려주고,
      * 화면의 JavaScript에서 직급별 그룹핑을 처리한다.
@@ -103,8 +110,26 @@ public class OrganizationServiceImpl implements OrganizationService {
     @Override
     public List<OrgEmployeeDto> getEmployeesByDepartment(Integer deptId) {
 
-        List<EmpEntity> employees =
-                employeeRepository.findOrgEmployeesByDepartmentId(deptId);
+        /*
+         * 선택한 부서가 하위 부서를 가지고 있는지 확인한다.
+         *
+         * true:
+         * - 본부
+         * - 하위 팀 전체 조회
+         *
+         * false:
+         * - 팀
+         * - 해당 팀만 조회
+         */
+        boolean hasChildren = departmentRepository.existsByParentDept_DeptId(deptId);
+
+        List<EmpEntity> employees;
+
+        if (hasChildren) {
+            employees = employeeRepository.findOrgEmployeesByParentDepartmentId(deptId);
+        } else {
+            employees = employeeRepository.findOrgEmployeesByDepartmentId(deptId);
+        }
 
         return employees.stream()
                 .map(emp -> OrgEmployeeDto.builder()

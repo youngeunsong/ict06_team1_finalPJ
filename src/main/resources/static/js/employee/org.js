@@ -68,13 +68,16 @@ let selectedDeptName = "";
 let currentOrgEmployees = [];
 
 /*
- * 펼쳐진 부서 ID 저장
+ * 현재 열려 있는 최상위 본부 ID
  *
- * 예:
- * openedDeptIds.add(1)
- * openedDeptIds.has(1)
+ * 조직도 왼쪽은 아코디언 방식으로 동작한다.
+ *
+ * - 처음에는 모든 본부가 접혀 있다.
+ * - 본부를 클릭하면 해당 본부만 열린다.
+ * - 다른 본부를 클릭하면 기존 본부는 자동으로 닫힌다.
+ * - 같은 본부를 다시 클릭해도 접히지 않는다.
  */
-const openedDeptIds = new Set();
+let openedRootDeptId = null;
 
 /*
  * 직급 출력 순서
@@ -158,9 +161,10 @@ function loadDepartmentTree() {
  * - 1 이상이면 하위 부서
  *
  * 변경 사항:
- * - 처음에는 하위 부서를 접은 상태로 표시한다.
- * - 하위 부서가 있는 부서를 클릭하면 펼치기/접기를 토글한다.
- * - 동시에 해당 부서의 사원 목록도 오른쪽에 조회한다.
+ * - 처음에는 모든 본부가 접힌 상태로 표시된다.
+ * - 최상위 본부는 아코디언 방식으로 동작한다.
+ * - 본부 클릭 시 해당 본부만 열리고 다른 본부는 닫힌다.
+ * - 팀 클릭 시 해당 팀 사원 목록만 조회한다.
  */
 function createDepartmentTree(departments, depth) {
     const wrapper = document.createElement("div");
@@ -170,7 +174,8 @@ function createDepartmentTree(departments, depth) {
         item.className = "dept-tree-item";
 
         const hasChildren = dept.children && dept.children.length > 0;
-        const isOpened = openedDeptIds.has(dept.deptId);
+        const isRoot = depth === 0;
+        const isOpened = isRoot && openedRootDeptId === dept.deptId;
 
         const button = document.createElement("button");
         button.type = "button";
@@ -179,12 +184,13 @@ function createDepartmentTree(departments, depth) {
          * 최상위 부서와 하위 부서의 스타일을 다르게 주기 위해
          * depth 값에 따라 클래스를 나눠준다.
          */
-        button.className = depth === 0
+        button.className = isRoot
             ? "dept-node root-dept"
             : "dept-node child-dept";
 
         button.dataset.deptId = dept.deptId;
         button.dataset.deptName = dept.deptName;
+        button.dataset.depth = depth;
 
         /*
          * 아이콘/UI
@@ -210,15 +216,23 @@ function createDepartmentTree(departments, depth) {
         let childrenWrapper = null;
 
         /*
-         * 하위 부서가 있으면 childrenWrapper를 만들되,
-         * 처음에는 접힌 상태로 둔다.
+         * 하위 부서가 있으면 childrenWrapper를 만든다.
          *
-         * openedDeptIds에 해당 부서 ID가 있으면 열린 상태로 복원한다.
+         * 최상위 본부:
+         * - openedRootDeptId와 일치할 때만 열린 상태
+         *
+         * 하위 단계:
+         * - 현재 구조에서는 본부 아래 팀까지만 사용하지만,
+         *   추후 3단계 부서가 생길 경우를 위해 하위 단계는 기본 열린 구조로 둔다.
          */
         if (hasChildren) {
             childrenWrapper = document.createElement("div");
 
-            childrenWrapper.className = isOpened
+            const shouldOpen = isRoot
+                ? openedRootDeptId === dept.deptId
+                : true;
+
+            childrenWrapper.className = shouldOpen
                 ? "dept-tree-children open"
                 : "dept-tree-children closed";
 
@@ -231,13 +245,13 @@ function createDepartmentTree(departments, depth) {
          * 부서 클릭 시:
          * 1. 선택 표시 변경
          * 2. 오른쪽 사원 목록 조회
-         * 3. 하위 부서가 있으면 펼치기/접기 토글
+         * 3. 최상위 본부면 아코디언 방식으로 열기
          */
         button.addEventListener("click", function () {
             selectDepartment(button, dept.deptId, dept.deptName);
 
-            if (hasChildren && childrenWrapper) {
-                toggleDepartment(dept.deptId, button, childrenWrapper);
+            if (hasChildren && childrenWrapper && isRoot) {
+                openRootDepartment(dept.deptId);
             }
         });
 
@@ -248,31 +262,24 @@ function createDepartmentTree(departments, depth) {
 }
 
 /*
- * 부서 열기/닫기
+ * 최상위 본부 열기
  *
- * openedDeptIds Set에 열린 부서 ID를 저장해두면,
- * 트리를 다시 그리더라도 열림 상태를 복원할 수 있다.
+ * 아코디언 방식:
+ * - 새 본부를 클릭하면 기존에 열려 있던 본부를 닫고 새 본부만 연다.
+ * - 같은 본부를 다시 클릭해도 닫히지 않는다.
+ *
+ * 구현 방식:
+ * - openedRootDeptId 값을 변경한 뒤
+ * - 조직도 트리만 다시 렌더링한다.
  */
-function toggleDepartment(deptId, button, childrenWrapper) {
-    const icon = button.querySelector(".dept-toggle-icon");
-
-    if (openedDeptIds.has(deptId)) {
-        openedDeptIds.delete(deptId);
-        childrenWrapper.classList.remove("open");
-        childrenWrapper.classList.add("closed");
-
-        if (icon) {
-            icon.textContent = "▶";
-        }
-    } else {
-        openedDeptIds.add(deptId);
-        childrenWrapper.classList.remove("closed");
-        childrenWrapper.classList.add("open");
-
-        if (icon) {
-            icon.textContent = "▼";
-        }
+function openRootDepartment(deptId) {
+    if (openedRootDeptId === deptId) {
+        return;
     }
+
+    openedRootDeptId = deptId;
+
+    loadDepartmentTree();
 }
 
 /*
@@ -334,6 +341,10 @@ function restoreSelectedDepartment() {
  *
  * 호출 API:
  * GET /api/organization/employees?deptId=1
+ *
+ * 백엔드 조회 기준:
+ * - 본부를 클릭하면 해당 본부 아래 팀들의 사원 전체 조회
+ * - 팀을 클릭하면 해당 팀 사원만 조회
  */
 function loadEmployeesByDepartment(deptId, deptName) {
     fetch("/api/organization/employees?deptId=" + encodeURIComponent(deptId))
