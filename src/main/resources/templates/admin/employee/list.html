@@ -8,10 +8,196 @@
     - 검색 조건을 입력해서 GET /admin/employees 로 다시 요청한다.
     - 사원 이름을 클릭하면 상세 화면으로 이동한다.
     - 화면 동작 JS는 /static/js/employee/list.js 로 분리했다.
+    - 조직도 탭 동작 JS는 /static/js/employee/org.js 로 분리했다.
 -->
 <head th:include="/admin/common/head.html :: common_header">
     <title id="page_title">사원 관리</title>
 </head>
+
+<!--
+    조직도 탭 전용 스타일
+
+    기존 사원 목록 화면은 Bootstrap/AdminLTE 스타일을 그대로 사용하고,
+    조직도 탭에 필요한 트리 UI와 그룹핑 사원 목록 UI만 여기서 추가한다.
+-->
+<style>
+    /* 조직도 전체 영역 */
+    .org-wrapper {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 16px;
+    }
+
+    /* 화면이 좁아졌을 때 조직도와 사원 목록을 세로로 배치 */
+    @media (max-width: 992px) {
+        .org-wrapper {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* 왼쪽 조직도 트리 영역 */
+    .org-tree-area {
+        min-height: 420px;
+    }
+
+    /* 트리의 한 부서 묶음 */
+    .dept-tree-item {
+        position: relative;
+        margin: 4px 0;
+    }
+
+    /* 하위 부서 영역 */
+    .dept-tree-children {
+        margin-left: 18px;
+        padding-left: 14px;
+        border-left: 1px solid #dee2e6;
+    }
+
+    /* 접힌 하위 부서 */
+    .dept-tree-children.closed {
+        display: none;
+    }
+
+    /* 열린 하위 부서 */
+    .dept-tree-children.open {
+        display: block;
+    }
+
+    /* 부서 버튼 */
+    .dept-node {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: left;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #343a40;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+    /* 최상위 부서 */
+    .dept-node.root-dept {
+        font-weight: 700;
+    }
+
+    /* 하위 팀 */
+    .dept-node.child-dept {
+        font-size: 13px;
+        color: #495057;
+    }
+
+    /* 부서 버튼 hover */
+    .dept-node:hover {
+        background-color: #eef4ff;
+        color: #0d6efd;
+    }
+
+    /* 선택된 부서 */
+    .dept-node.active {
+        background-color: #0d6efd;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    /* 펼침 아이콘 */
+    .dept-toggle-icon {
+        width: 16px;
+        display: inline-block;
+        color: inherit;
+    }
+
+    /* 하위 부서가 없는 경우 아이콘 자리 맞춤 */
+    .dept-toggle-empty {
+        width: 16px;
+        display: inline-block;
+        color: inherit;
+    }
+
+    /* 조직도 부서명 */
+    .dept-label {
+        flex: 1;
+    }
+
+    /* 조직도 검색 영역 */
+    .org-search-box {
+        margin-bottom: 14px;
+    }
+
+    /* 조직도 검색 input */
+    .org-search-input {
+        max-width: 360px;
+    }
+
+    /* 조직도 안내 문구 */
+    .org-help-text {
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    /* 조직도 오른쪽 사원 목록 스크롤 영역 */
+    .org-employee-scroll {
+        max-height: 560px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    /* 오른쪽 사원 목록 상단 요약 */
+    .org-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    /* 선택 부서명 */
+    .org-summary-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    /* 총 인원 뱃지 */
+    .org-total-badge {
+        font-size: 13px;
+    }
+
+    /* 직급 그룹 박스 */
+    .position-group-card {
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 16px;
+        background: #ffffff;
+    }
+
+    /* 직급 그룹 제목 */
+    .position-group-header {
+        background: #f8f9fa;
+        padding: 12px 14px;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    /* 그룹 안 테이블 */
+    .position-group-card table {
+        margin-bottom: 0;
+    }
+
+    /* 빈 데이터 안내 */
+    .org-empty-message {
+        color: #6c757d;
+        padding: 24px 0;
+        text-align: center;
+    }
+</style>
 
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
@@ -43,191 +229,458 @@
                     </div>
                 </div>
 
-                <!-- 검색 조건 영역 -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-body">
+                <!--
+                    사원 관리 탭 영역
 
-                                <!--
-                                    검색 form
+                    사원 목록 탭:
+                    - 기존 검색 조건과 사원 목록 테이블을 보여준다.
 
-                                    method="get"
-                                    - 검색 조건을 URL 파라미터로 보낸다.
+                    조직도 탭:
+                    - 왼쪽에는 부서 트리를 보여준다.
+                    - 오른쪽에는 선택한 부서의 사원 목록을 직급별로 그룹핑해서 보여준다.
+                -->
+                <ul class="nav nav-tabs mb-3" id="employeeManageTabs" role="tablist">
 
-                                    예:
-                                    /admin/employees?keyword=홍길동&deptId=1&status=재직
-                                -->
-                                <form id="employeeSearchForm"
-                                      method="get"
-                                      action="/admin/employees"
-                                      class="row g-2">
+                    <!-- 사원 목록 탭 버튼 -->
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active"
+                                id="employee-list-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#employee-list-pane"
+                                type="button"
+                                role="tab"
+                                aria-controls="employee-list-pane"
+                                aria-selected="true">
+                            사원 목록
+                        </button>
+                    </li>
 
-                                    <!-- 키워드 검색 -->
-                                    <!-- 사번, 아이디, 이름, 이메일, 연락처를 대상으로 검색한다. -->
-                                    <div class="col-md-3">
+                    <!-- 조직도 탭 버튼 -->
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link"
+                                id="employee-org-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#employee-org-pane"
+                                type="button"
+                                role="tab"
+                                aria-controls="employee-org-pane"
+                                aria-selected="false">
+                            조직도
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- 탭 내용 영역 -->
+                <div class="tab-content" id="employeeManageTabContent">
+
+                    <!--
+                        사원 목록 탭 내용
+
+                        기존 list.html에 있던 검색 조건 영역과
+                        사원 목록 테이블 영역을 이 탭 안으로 이동했다.
+                    -->
+                    <div class="tab-pane fade show active"
+                         id="employee-list-pane"
+                         role="tabpanel"
+                         aria-labelledby="employee-list-tab">
+
+                        <!-- 검색 조건 영역 -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-body">
+
+                                        <!--
+                                            검색 form
+
+                                            method="get"
+                                            - 검색 조건을 URL 파라미터로 보낸다.
+
+                                            예:
+                                            /admin/employees?keyword=홍길동&deptId=1&status=재직
+                                        -->
+                                        <form id="employeeSearchForm"
+                                              method="get"
+                                              action="/admin/employees"
+                                              class="row g-2">
+
+                                            <!-- 키워드 검색 -->
+                                            <!-- 사번, 아이디, 이름, 이메일, 연락처를 대상으로 검색한다. -->
+                                            <div class="col-md-3">
+                                                <input type="text"
+                                                       name="keyword"
+                                                       class="form-control"
+                                                       placeholder="사번, 아이디, 이름, 이메일, 연락처 검색"
+                                                       th:value="${condition.keyword}">
+                                            </div>
+
+                                            <!-- 부서 검색 조건 -->
+                                            <div class="col-md-2">
+                                                <select name="deptId" class="form-select">
+                                                    <option value="">전체 부서</option>
+                                                    <option th:each="dept : ${departments}"
+                                                            th:value="${dept.id}"
+                                                            th:text="${dept.name}"
+                                                            th:selected="${condition.deptId != null and condition.deptId == dept.id}">
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <!-- 직급 검색 조건 -->
+                                            <div class="col-md-2">
+                                                <select name="positionId" class="form-select">
+                                                    <option value="">전체 직급</option>
+                                                    <option th:each="position : ${positions}"
+                                                            th:value="${position.id}"
+                                                            th:text="${position.name}"
+                                                            th:selected="${condition.positionId != null and condition.positionId == position.id}">
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <!-- 권한 검색 조건 -->
+                                            <div class="col-md-2">
+                                                <select name="roleId" class="form-select">
+                                                    <option value="">전체 권한</option>
+                                                    <option th:each="role : ${roles}"
+                                                            th:value="${role.id}"
+                                                            th:text="${role.name}"
+                                                            th:selected="${condition.roleId != null and condition.roleId == role.id}">
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <!-- 상태 검색 조건 -->
+                                            <div class="col-md-2">
+                                                <select name="status" class="form-select">
+                                                    <option value="기본"
+                                                            th:selected="${condition.status == null or condition.status == '기본'}">
+                                                        재직/휴직
+                                                    </option>
+                                                    <option value="전체"
+                                                            th:selected="${condition.status == '전체'}">
+                                                        전체
+                                                    </option>
+                                                    <option value="재직"
+                                                            th:selected="${condition.status == '재직'}">
+                                                        재직
+                                                    </option>
+                                                    <option value="휴직"
+                                                            th:selected="${condition.status == '휴직'}">
+                                                        휴직
+                                                    </option>
+                                                    <option value="퇴사"
+                                                            th:selected="${condition.status == '퇴사'}">
+                                                        퇴사
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <!-- 검색 버튼 -->
+                                            <div class="col-md-1 d-grid">
+                                                <button type="submit" class="btn btn-dark">
+                                                    검색
+                                                </button>
+                                            </div>
+
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 사원 목록 테이블 영역 -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <strong>사원 목록</strong>
+
+                                        <!-- 현재 조회된 사원 수 표시 -->
+                                        <span class="text-muted ms-2" th:text="'총 ' + ${employeePage.totalElements} + '명'"></span>
+                                    </div>
+
+                                    <div class="card-body table-responsive p-0">
+                                        <table class="table table-hover text-nowrap mb-0 align-middle">
+                                            <thead class="table-light">
+                                            <tr>
+                                                <th>사번</th>
+                                                <th>아이디</th>
+                                                <th>이름</th>
+                                                <th>부서</th>
+                                                <th>직급</th>
+                                                <th>권한</th>
+                                                <th>상태</th>
+                                                <th>이메일</th>
+                                                <th>연락처</th>
+                                                <th>입사일</th>
+                                            </tr>
+                                            </thead>
+
+                                            <tbody>
+                                            <!-- employees 목록을 반복해서 테이블 행 생성 -->
+                                            <tr th:each="emp : ${employees}">
+                                                <td th:text="${emp.empNo}"></td>
+                                                <td th:text="${emp.empId}"></td>
+
+                                                <!-- 이름 클릭 시 해당 사원의 상세 화면으로 이동 -->
+                                                <td>
+                                                    <a th:href="@{/admin/employees/{empNo}(empNo=${emp.empNo})}"
+                                                       th:text="${emp.name}"
+                                                       class="text-decoration-none fw-semibold">
+                                                    </a>
+                                                </td>
+
+                                                <td th:text="${emp.deptName}"></td>
+                                                <td th:text="${emp.positionName}"></td>
+                                                <td th:text="${emp.roleName}"></td>
+
+                                                <!-- 상태값에 따라 badge 색상 다르게 표시 -->
+                                                <td>
+                                                    <span th:if="${emp.status == '재직'}"
+                                                          class="badge bg-success"
+                                                          th:text="${emp.status}">
+                                                    </span>
+
+                                                    <span th:if="${emp.status == '휴직'}"
+                                                          class="badge bg-warning text-dark"
+                                                          th:text="${emp.status}">
+                                                    </span>
+
+                                                    <span th:if="${emp.status == '퇴사'}"
+                                                          class="badge bg-secondary"
+                                                          th:text="${emp.status}">
+                                                    </span>
+                                                </td>
+
+                                                <td th:text="${emp.email}"></td>
+                                                <td th:text="${emp.phone}"></td>
+                                                <td th:text="${emp.hireDate}"></td>
+                                            </tr>
+
+                                            <!-- 조회 결과가 없을 때 보여줄 문구 -->
+                                            <tr th:if="${#lists.isEmpty(employees)}">
+                                                <td colspan="10" class="text-center text-muted py-4">
+                                                    조회된 사원이 없습니다.
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!--
+                                        페이징 영역
+
+                                        현재 페이지 기준으로 앞뒤 2개 페이지만 보여준다.
+
+                                        예:
+                                        현재 5페이지라면
+                                        이전 3 4 5 6 7 다음
+
+                                        page:
+                                        - 현재 페이지 번호
+                                        - 0부터 시작
+
+                                        employeePage.totalPages:
+                                        - 전체 페이지 수
+                                    -->
+                                    <div class="card-footer clearfix"
+                                         th:if="${employeePage != null and employeePage.totalPages > 0}"
+                                         th:with="
+                                            startPage=${page - 2 < 0 ? 0 : page - 2},
+                                            endPage=${page + 2 >= employeePage.totalPages ? employeePage.totalPages - 1 : page + 2}
+                                         ">
+
+                                        <!-- 현재 페이지 정보 -->
+                                        <div class="float-start text-muted small">
+                                            <span th:text="'전체 ' + ${employeePage.totalElements} + '명'"></span>
+                                            <span th:text="' / ' + (${page} + 1) + ' / ' + ${employeePage.totalPages} + ' 페이지'"></span>
+                                        </div>
+
+                                        <!-- 페이지 번호 -->
+                                        <ul class="pagination pagination-sm m-0 float-end">
+
+                                            <!-- 처음 버튼 -->
+                                            <li class="page-item"
+                                                th:classappend="${employeePage.first} ? 'disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/employees(
+                                                    page=0,
+                                                    size=${size},
+                                                    keyword=${condition.keyword},
+                                                    deptId=${condition.deptId},
+                                                    positionId=${condition.positionId},
+                                                    roleId=${condition.roleId},
+                                                    status=${condition.status}
+                                               )}">
+                                                    처음
+                                                </a>
+                                            </li>
+
+                                            <!-- 이전 버튼 -->
+                                            <li class="page-item"
+                                                th:classappend="${employeePage.first} ? 'disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/employees(
+                                                page=${page - 1},
+                                                size=${size},
+                                                keyword=${condition.keyword},
+                                                deptId=${condition.deptId},
+                                                positionId=${condition.positionId},
+                                                roleId=${condition.roleId},
+                                                status=${condition.status}
+                                           )}">
+                                                    이전
+                                                </a>
+                                            </li>
+
+                                            <!-- 페이지 번호 반복 -->
+                                            <li class="page-item"
+                                                th:each="pageNum : ${#numbers.sequence(startPage, endPage)}"
+                                                th:classappend="${pageNum == page} ? 'active'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/employees(
+                                                page=${pageNum},
+                                                size=${size},
+                                                keyword=${condition.keyword},
+                                                deptId=${condition.deptId},
+                                                positionId=${condition.positionId},
+                                                roleId=${condition.roleId},
+                                                status=${condition.status}
+                                           )}"
+                                                   th:text="${pageNum + 1}">
+                                                </a>
+                                            </li>
+
+                                            <!-- 다음 버튼 -->
+                                            <li class="page-item"
+                                                th:classappend="${employeePage.last} ? 'disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/employees(
+                                                page=${page + 1},
+                                                size=${size},
+                                                keyword=${condition.keyword},
+                                                deptId=${condition.deptId},
+                                                positionId=${condition.positionId},
+                                                roleId=${condition.roleId},
+                                                status=${condition.status}
+                                           )}">
+                                                    다음
+                                                </a>
+                                            </li>
+
+                                            <!-- 마지막 버튼 -->
+                                            <li class="page-item"
+                                                th:classappend="${employeePage.last} ? 'disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/employees(
+                                                    page=${employeePage.totalPages - 1},
+                                                    size=${size},
+                                                    keyword=${condition.keyword},
+                                                    deptId=${condition.deptId},
+                                                    positionId=${condition.positionId},
+                                                    roleId=${condition.roleId},
+                                                    status=${condition.status}
+                                               )}">
+                                                    마지막
+                                                </a>
+                                            </li>
+
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!--
+                        조직도 탭 내용
+
+                        이 영역은 Thymeleaf가 직접 데이터를 반복 출력하지 않는다.
+                        org.js에서 공통 API를 호출해서 동적으로 화면을 채운다.
+
+                        사용 API:
+                        - GET /api/organization/departments/tree
+                        - GET /api/organization/employees?deptId=1
+                    -->
+                    <div class="tab-pane fade"
+                         id="employee-org-pane"
+                         role="tabpanel"
+                         aria-labelledby="employee-org-tab">
+
+                        <div class="org-wrapper">
+
+                            <!-- 왼쪽: 부서 조직도 트리 영역 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <strong>조직도</strong>
+                                    <span class="text-muted ms-2">부서를 선택하세요</span>
+                                </div>
+
+                                <div class="card-body org-tree-area">
+                                    <!--
+                                        부서 트리가 출력될 영역
+
+                                        org.js가 /api/organization/departments/tree API를 호출한 뒤
+                                        이 영역에 계층형 부서 트리를 그린다.
+                                    -->
+                                    <div id="departmentTree">
+                                        조직도 정보를 불러오는 중입니다.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 오른쪽: 선택한 부서의 사원 목록 영역 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <!--
+                                        선택한 부서명이 표시될 영역
+
+                                        예:
+                                        개발1팀(BE) 사원 목록
+                                    -->
+                                    <strong id="orgEmployeeTitle">부서를 선택해주세요</strong>
+                                </div>
+
+                                <div class="card-body">
+
+                                    <!--
+                                        조직도 사원 검색 영역
+
+                                        부서를 선택한 뒤 오른쪽에 표시된 사원 목록에서
+                                        이름 또는 사번으로 빠르게 필터링할 때 사용한다.
+
+                                        실제 검색은 org.js에서 처리한다.
+                                    -->
+                                    <div class="org-search-box">
                                         <input type="text"
-                                               name="keyword"
-                                               class="form-control"
-                                               placeholder="사번, 아이디, 이름, 이메일, 연락처 검색"
-                                               th:value="${condition.keyword}">
+                                               id="orgEmployeeSearchInput"
+                                               class="form-control org-search-input"
+                                               placeholder="이름 또는 사번 검색"
+                                               disabled>
+
+                                        <div class="org-help-text mt-1">
+                                            부서를 선택하면 해당 부서 사원 중에서 검색할 수 있습니다.
+                                        </div>
                                     </div>
 
-                                    <!-- 부서 검색 조건 -->
-                                    <div class="col-md-2">
-                                        <select name="deptId" class="form-select">
-                                            <option value="">전체 부서</option>
-                                            <option th:each="dept : ${departments}"
-                                                    th:value="${dept.id}"
-                                                    th:text="${dept.name}"
-                                                    th:selected="${condition.deptId != null and condition.deptId == dept.id}">
-                                            </option>
-                                        </select>
-                                    </div>
+                                    <!--
+                                        선택한 부서의 사원 목록이 출력될 영역
 
-                                    <!-- 직급 검색 조건 -->
-                                    <div class="col-md-2">
-                                        <select name="positionId" class="form-select">
-                                            <option value="">전체 직급</option>
-                                            <option th:each="position : ${positions}"
-                                                    th:value="${position.id}"
-                                                    th:text="${position.name}"
-                                                    th:selected="${condition.positionId != null and condition.positionId == position.id}">
-                                            </option>
-                                        </select>
+                                        org.js가 /api/organization/employees?deptId=1 API를 호출한 뒤
+                                        이 영역에 직급별 그룹핑 결과를 그린다.
+                                    -->
+                                    <div id="orgEmployeeArea" class="org-employee-scroll">
+                                        <div class="org-empty-message">
+                                            왼쪽 조직도에서 부서를 클릭하면 사원 목록이 표시됩니다.
+                                        </div>
                                     </div>
-
-                                    <!-- 권한 검색 조건 -->
-                                    <div class="col-md-2">
-                                        <select name="roleId" class="form-select">
-                                            <option value="">전체 권한</option>
-                                            <option th:each="role : ${roles}"
-                                                    th:value="${role.id}"
-                                                    th:text="${role.name}"
-                                                    th:selected="${condition.roleId != null and condition.roleId == role.id}">
-                                            </option>
-                                        </select>
-                                    </div>
-
-                                    <!-- 상태 검색 조건 -->
-                                    <div class="col-md-2">
-                                        <select name="status" class="form-select">
-                                            <option value="기본"
-                                                    th:selected="${condition.status == null or condition.status == '기본'}">
-                                                재직/휴직
-                                            </option>
-                                            <option value="전체"
-                                                    th:selected="${condition.status == '전체'}">
-                                                전체
-                                            </option>
-                                            <option value="재직"
-                                                    th:selected="${condition.status == '재직'}">
-                                                재직
-                                            </option>
-                                            <option value="휴직"
-                                                    th:selected="${condition.status == '휴직'}">
-                                                휴직
-                                            </option>
-                                            <option value="퇴사"
-                                                    th:selected="${condition.status == '퇴사'}">
-                                                퇴사
-                                            </option>
-                                        </select>
-                                    </div>
-
-                                    <!-- 검색 버튼 -->
-                                    <div class="col-md-1 d-grid">
-                                        <button type="submit" class="btn btn-dark">
-                                            검색
-                                        </button>
-                                    </div>
-
-                                </form>
+                                </div>
                             </div>
+
                         </div>
                     </div>
-                </div>
 
-                <!-- 사원 목록 테이블 영역 -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <strong>사원 목록</strong>
-
-                                <!-- 현재 조회된 사원 수 표시 -->
-                                <span class="text-muted ms-2" th:text="'총 ' + ${employees.size()} + '명'"></span>
-                            </div>
-
-                            <div class="card-body table-responsive p-0">
-                                <table class="table table-hover text-nowrap mb-0 align-middle">
-                                    <thead class="table-light">
-                                    <tr>
-                                        <th>사번</th>
-                                        <th>아이디</th>
-                                        <th>이름</th>
-                                        <th>부서</th>
-                                        <th>직급</th>
-                                        <th>권한</th>
-                                        <th>상태</th>
-                                        <th>이메일</th>
-                                        <th>연락처</th>
-                                        <th>입사일</th>
-                                    </tr>
-                                    </thead>
-
-                                    <tbody>
-                                    <!-- employees 목록을 반복해서 테이블 행 생성 -->
-                                    <tr th:each="emp : ${employees}">
-                                        <td th:text="${emp.empNo}"></td>
-                                        <td th:text="${emp.empId}"></td>
-
-                                        <!-- 이름 클릭 시 해당 사원의 상세 화면으로 이동 -->
-                                        <td>
-                                            <a th:href="@{/admin/employees/{empNo}(empNo=${emp.empNo})}"
-                                               th:text="${emp.name}"
-                                               class="text-decoration-none fw-semibold">
-                                            </a>
-                                        </td>
-
-                                        <td th:text="${emp.deptName}"></td>
-                                        <td th:text="${emp.positionName}"></td>
-                                        <td th:text="${emp.roleName}"></td>
-
-                                        <!-- 상태값에 따라 badge 색상 다르게 표시 -->
-                                        <td>
-                                            <span th:if="${emp.status == '재직'}"
-                                                  class="badge bg-success"
-                                                  th:text="${emp.status}">
-                                            </span>
-
-                                            <span th:if="${emp.status == '휴직'}"
-                                                  class="badge bg-warning text-dark"
-                                                  th:text="${emp.status}">
-                                            </span>
-
-                                            <span th:if="${emp.status == '퇴사'}"
-                                                  class="badge bg-secondary"
-                                                  th:text="${emp.status}">
-                                            </span>
-                                        </td>
-
-                                        <td th:text="${emp.email}"></td>
-                                        <td th:text="${emp.phone}"></td>
-                                        <td th:text="${emp.hireDate}"></td>
-                                    </tr>
-
-                                    <!-- 조회 결과가 없을 때 보여줄 문구 -->
-                                    <tr th:if="${#lists.isEmpty(employees)}">
-                                        <td colspan="10" class="text-center text-muted py-4">
-                                            조회된 사원이 없습니다.
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
             </div>
@@ -243,6 +696,9 @@
 
 <!-- 사원 목록 화면 전용 JS -->
 <script th:src="@{/js/employee/list.js}"></script>
+
+<!-- 조직도 탭 화면 전용 JS -->
+<script th:src="@{/js/employee/org.js}"></script>
 
 </body>
 </html>
