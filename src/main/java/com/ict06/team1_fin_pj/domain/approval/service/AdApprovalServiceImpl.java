@@ -1,9 +1,25 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetEmployeeDto;
+import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.ApproverType;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppLineTemplateDetailRepository;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppLineTemplateRepository;
+import com.ict06.team1_fin_pj.domain.employee.entity.DepartmentEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
+import com.ict06.team1_fin_pj.domain.employee.entity.PositionEntity;
+import com.ict06.team1_fin_pj.domain.employee.repository.AdDepartmentRepository;
+import com.ict06.team1_fin_pj.domain.employee.repository.AdEmployeeRepository;
+import com.ict06.team1_fin_pj.domain.employee.repository.AdPositionRepository;
+import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
+import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,8 +41,28 @@ import java.util.List;
 @Service
 public class AdApprovalServiceImpl implements AdApprovalService {
 
+    // 전자결재 직접 관련 리포지토리
     @Autowired
     private AppFormRepository appFormRepository;
+
+    @Autowired
+    private AppLineTemplateRepository appLineTemplateRepository;
+
+    @Autowired
+    private AppLineTemplateDetailRepository appLineTemplateDetailRepository;
+
+    // 필요한 인사 정보 가져오기 위한 서비스 & 리포지토리
+    @Autowired
+    private AdEmployeeService adEmployeeService;
+
+    @Autowired
+    private AdEmployeeRepository adEmployeeRepository;
+
+    @Autowired
+    private AdDepartmentRepository adDepartmentRepository;
+
+    @Autowired
+    private AdPositionRepository adPositionRepository;
 
     // [결재 서식 관리]-----------------------------------------
     // insert
@@ -84,9 +120,100 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
     // [결재선 서식 관리]--------------------------------------------
     // insert
+    @Transactional
     @Override
-    public void saveAppLineTemplate(AppLineTemplateEntity entity) {
+    public void saveAppLineTemplate(ApprovalLineCreateRequestDto dto) {
+        // 1️⃣ 템플릿 생성
+        AppLineTemplateEntity template = AppLineTemplateEntity.builder()
+                .templateName(dto.getFormName())
+                .isDefault(false)
+                .build();
 
+        // TODO: createdBy, form 세팅 필요하면 추가
+
+        // 2️⃣ 참조 대상 (step = 0으로 처리)
+        if (dto.getRefTargets() != null) {
+
+            dto.getRefTargets().forEach(t -> {
+
+                AppLineTemplateDetailEntity detail =
+                        createDetailEntity(template, 0, t);
+
+                template.addDetail(detail);
+            });
+        }
+
+        // 3️⃣ 결재 단계 처리
+        dto.getApprovalSteps().forEach(stepDto -> {
+
+            int step = stepDto.getStep();
+
+            stepDto.getTargets().forEach(t -> {
+
+                AppLineTemplateDetailEntity detail =
+                        createDetailEntity(template, step, t);
+
+                template.addDetail(detail);
+            });
+        });
+
+        // 4️⃣ 저장
+        appLineTemplateRepository.save(template);
+    }
+
+    // Detail 생성 로직
+    private AppLineTemplateDetailEntity createDetailEntity(
+            AppLineTemplateEntity template,
+            int step,
+            ApprovalTargetDto t
+    ) {
+
+        ApproverType type = ApproverType.valueOf(t.getType());
+
+        AppLineTemplateDetailEntity.AppLineTemplateDetailEntityBuilder builder =
+                AppLineTemplateDetailEntity.builder()
+                        .template(template)
+                        .stepOrder(step)
+                        .approverType(type);
+
+        // 타입별 분기 ⭐⭐⭐
+        switch (type) {
+
+            case USER -> {
+                EmpEntity emp = adEmployeeRepository.findById(t.getId())
+                        .orElseThrow(() -> new IllegalArgumentException("사원 없음"));
+                builder.approver(emp);
+            }
+
+            case DEPT -> {
+                DepartmentEntity dept = adDepartmentRepository.findById(Integer.valueOf(t.getId()))
+                        .orElseThrow(() -> new IllegalArgumentException("부서 없음"));
+                builder.department(dept);
+            }
+
+            case POSITION -> {
+                PositionEntity pos = adPositionRepository.findById(Integer.valueOf(t.getId()))
+                        .orElseThrow(() -> new IllegalArgumentException("직급 없음"));
+                builder.minPosition(pos);
+            }
+        }
+
+        return builder.build();
+    }
+
+    // 사원 목록 조회 (페이징 처리 X)
+    @Override
+    public List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto) {
+        return adEmployeeService.findEmployees(conditionDto)
+                .stream()
+                .map(emp -> new ApprovalTargetEmployeeDto(
+                        emp.getEmpNo(),
+                        emp.getName(),
+                        emp.getDeptName(),
+                        emp.getPositionName(),
+                        emp.getRoleName()
+                ))
+                .toList();
     }
 
     // list

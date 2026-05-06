@@ -58,7 +58,7 @@
                                         <hr class="w-100 my-0">
                                     </div>
                                     <div class="col-md-1">
-                                        <button type="button" class="btn btn-secondary btn-sm">+</button>
+                                        <button type="button" id="addRefTarget" class="btn btn-secondary btn-sm">+</button>
                                     </div>
                                 </div>
                                 <!--참조 대상 메뉴바 끝-->
@@ -74,7 +74,7 @@
                                 <!--결재 대상 동적 리스트 끝-->
                                 <!--결재 단계 추가 버튼 시작-->
                                 <div class="d-grid w-100">
-                                    <button type="button" class="btn btn-outline-primary w-100">
+                                    <button type="button" id="addAppSteps"class="btn btn-outline-primary w-100">
                                         결재 단계 추가
                                     </button>
                                 </div>
@@ -113,7 +113,48 @@
                     </div>
                     <!-- 왼쪽: 메인 선택창 끝-->
                     <!-- 오른쪽: 참조/결재 대상 조회 시작-->
-                    <div id="targetSearch"></div>
+                    <!-- 🔹 참조/결재 대상 검색 offcanvas : 기본 = 가려진 상태 -->
+                    <div class="offcanvas offcanvas-end" tabindex="-1" id="targetSearchPanel" style="width: 40%;">
+                        <div class="offcanvas-header">
+                            <h5 id="panelTitle"></h5> <!-- 조회 모드 따라 제목 변경-->
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+                        </div>
+
+                        <div class="offcanvas-body">
+                            <div id="targetSearch" class="row align-items-center">
+                                <!-- 참조/결재 대상 유형 선택 시작-->
+                                <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+                                    <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary" for="btnradio1">개인</label>
+
+                                    <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="btnradio2">부서</label>
+
+                                    <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="btnradio3">직급</label>
+                                </div>
+                                <br>
+                                <!-- 참조/결재 대상 유형 선택 끝-->
+                                <!-- 참조/결재 대상 검색 바 시작-->
+                                <div id="targetList"></div>
+                                <!-- <div class="d-flex justify-content-between">
+                                    <div class="col-md-11">
+                                        <input class="form-control w-100" type="search" placeholder="이름,사번" aria-label="Search"/>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button class="btn btn-outline-success w-100 h-100 d-flex justify-content-center align-items-center" type="button">
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                        </button>
+                                    </div>
+                                </div> -->
+                                <!-- 참조/결재 대상 검색 바 끝-->
+                                <!-- 선택 완료 버튼 시작 -->
+                                <br>
+                                <button id="confirmSelect" class="btn btn-primary">선택 완료</button>
+                                <!-- 선택 완료 버튼 끝 -->
+                            </div>
+                        </div>
+                    </div>
                     <!-- 오른쪽: 참조/결재 대상 조회 끝-->
                 </div>
                 <!-- end::Row-->
@@ -134,6 +175,422 @@
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
 
+<script>
+    // 참조/결재 대상 조회를 위한 상태 정보 저장
+    const state = {
+        searchMode: 'ref',   // 조회 모드: ref(참조) | app(결재)
+        targetType: 'user',  // 대상 유형: user(개인) | dept(부서) | position(직급)
+        approvalStep: 0      // 결재 단계 번호
+    };
+
+    // 선택 상태 저장 구조
+    const selectedState = {
+        ref: new Map(),        // 참조 대상
+        approval: {}           // 단계별 결재 대상
+    };
+
+    // offcanvas 열기 함수 (모드 + 단계 반영)
+    const panel = new bootstrap.Offcanvas(document.getElementById('targetSearchPanel'));
+    // let searchMode='ref'; 
+    
+    // 패널 제목 업데이트 함수
+    function openSearchPanel(mode) {
+        state.searchMode = mode;
+
+        if (mode === 'ref') {
+            $('#panelTitle').text('참조 대상 선택');
+        } else {
+            $('#panelTitle').text(`${state.approvalStep}단계 결재 대상 선택`);
+        }
+        renderTargetUI();
+
+        panel.show();
+    }
+
+    // 결재 단계 UI 생성 (왼쪽)
+    function addApprovalStepUI(step) {
+        const html = `
+            <div class="card p-2 mb-2" id="approval_${step}">
+                <div class="d-flex justify-content-between">
+                    <span>${step}단계</span>
+                    <button type="button" class="btn btn-sm btn-danger  top-0 end-0" onclick="removeStep('${step}')">-</button>
+                </div>
+                <div class="approval-targets"></div>
+            </div>
+        `;
+
+        $('#approvalList').append(html);
+    }
+
+    // 참조 대상 추가 버튼 클릭 시 
+    $('#addRefTarget').on('click', function () {
+        openSearchPanel('ref'); // 참조 대상 조회 모드로 설정
+    });
+
+    // 결재 단계 추가 버튼 클릭 시 
+    $('#addAppSteps').on('click', function () {
+        // TODO: max(position_id) -1 이하여야만 함. 백엔드 통신 후 이 값 수정할 것. 
+        if(state.approvalStep <= 4) {
+            state.approvalStep++; // 결재 단계 증가
+
+            // 왼쪽 UI에도 단계 추가
+            addApprovalStepUI(state.approvalStep);
+
+            openSearchPanel('app'); // 결재 대상 조회 모드로 설정
+        }
+        else{
+            alert("더 결재 단계를 추가할 수 없습니다."); 
+        }
+    });
+
+    // TODO: 결재 단계 삭제 버튼 클릭 시
+    function removeStep(step) {
+
+        delete selectedState.approval[step];
+
+        $(`#approval_${step}`).remove();
+
+        // 필요하면 step 재정렬 로직 추가
+    }
+
+    // 대상 유형 변경 (라디오 버튼)
+    $('input[name="btnradio"]').on('change', function () {
+        const id = $(this).attr('id');
+
+        if (id === 'btnradio1') state.targetType = 'user';
+        if (id === 'btnradio2') state.targetType = 'dept';
+        if (id === 'btnradio3') state.targetType = 'position';
+
+        renderTargetUI();
+    });
+
+    // 검색창의 plcaeholder 내용 업데이트 
+    function renderSearchWindow(placeholder){
+        let html = `
+            <div class="col-md-11">
+                <input class="form-control w-100" type="search" placeholder="${placeholder}" aria-label="Search"/>
+            </div>
+        `
+        return html;
+    }
+
+    // 사원 목록 가져오기
+    function loadEmployees(keyword) {
+        $.get('/admin/approval/targets/employees', { keyword }, function (data) {
+            renderEmployeeList(data);
+        });
+    }
+
+    // 부서 목록 가져오기
+    function loadDepartments() {
+        $.get('/admin/approval/targets/departments', function (data) {
+            renderDeptList(data);
+        });
+    }
+
+    // 직급 목록 가져오기
+    function loadPositions() {
+        $.get('/admin/approval/targets/positions', function (data) {
+            renderPositionList(data);
+        });
+    }
+
+    // 유형별 UI 렌더링: targetList 내용 다르게 렌더링
+    function renderTargetUI() {
+        let html = '';
+
+        // 검색버튼 구현 html
+        const searchButtonHtml = `
+            <div class="col-md-1">
+                <button id="searchBtn" class="btn btn-outline-success w-100 h-100 d-flex justify-content-center align-items-center" type="button">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+        `;
+
+        // 검색 유형 별 렌더링
+        if (state.targetType === 'user') {
+            html = '<div class="d-flex justify-content-between">';
+            html += renderSearchWindow('사원 이름, 사번'); 
+            html += searchButtonHtml; 
+            html += `
+                </div>
+                    <div class="mt-3">
+                        <p>👤 사원 목록</p>
+                        <div id="employeeList" class="list-group"></div>
+                    </div>`;
+        }
+
+        if (state.targetType === 'dept') {
+            html = '<div class="d-flex justify-content-between">';
+            html += `
+                </div>
+                    <div class="mt-3">
+                        <p>🏢 부서 목록</p>
+                        <div id="deptList" class="list-group"></div>
+                    </div>`;
+        }
+
+        if (state.targetType === 'position') {
+            html = `
+                <div class="mt-3">
+                    <p>📌 직급 목록</p>
+                    <div id="positionList" class="list-group"></div>
+                </div>`;
+        }
+
+        $('#targetList').html(html);
+
+        // ⭐ 렌더링 후 데이터 호출
+        if (state.targetType === 'user') loadEmployees('');
+        if (state.targetType === 'dept') loadDepartments();
+        if (state.targetType === 'position') loadPositions();
+    }
+
+    // 사원 목록 렌더링
+    function renderEmployeeList(data) {
+
+        let html = '';
+
+        if (!data || data.length === 0) {
+            html = `<div class="text-muted">조회 결과 없음</div>`;
+        } else {
+            data.forEach(emp => {
+
+                const id = emp.empNo;
+
+                // 이미 선택된 대상인지 확인
+                let isChecked = false;
+
+                if (state.searchMode === 'ref') {
+                    isChecked = selectedState.ref.has(id);
+                } else {
+                    const stepMap = selectedState.approval[state.approvalStep] || new Map();
+                    isChecked = stepMap.has(id);
+                }
+
+                html += `
+                    <label class="list-group-item d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
+                            value="${id}"
+                            data-name="${emp.name}"
+                            data-dept="${emp.deptName}"
+                            data-position="${emp.positionName}"
+                            ${isChecked ? 'checked' : ''}>
+                        
+                        ${emp.deptName} / ${emp.positionName} / 
+                        <strong>${emp.name}</strong> (${emp.empNo})
+                    </label>
+                `;
+            });
+        }
+
+        $('#employeeList').html(html);
+    }
+
+    // 부서 목록 렌더링
+    function renderDeptList(data) {
+
+        let html = '';
+
+        if (!data || data.length === 0) {
+            html = `<div class="text-muted">조회 결과 없음</div>`;
+        } else {
+            data.forEach(dept => {
+                html += `
+                    <label class="list-group-item">
+                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
+                            value="${dept.id}">
+                        ${dept.name}
+                    </label>
+                `;
+            });
+        }
+
+        $('#deptList').html(html);
+    }
+
+    // 직급 목록 렌더링
+    function renderPositionList(data) {
+
+        let html = '';
+
+        if (!data || data.length === 0) {
+            html = `<div class="text-muted">조회 결과 없음</div>`;
+        } else {
+            data.forEach(pos => {
+                html += `
+                    <label class="list-group-item">
+                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
+                            value="${pos.id}">
+                        ${pos.name}
+                    </label>
+                `;
+            });
+        }
+
+        $('#positionList').html(html);
+    }
+
+    // 사원 검색 버튼 클릭 동작
+    $(document).on('click', '#searchBtn', function () {
+        const keyword = $('#targetList input[type="search"]').val();
+
+        if (state.targetType === 'user') {
+            loadEmployees(keyword);
+        }
+        if (state.targetType === 'dept') {
+            loadDepartments(); // 필요하면 keyword 전달
+        }
+    });
+
+    // 사원/부서/권한 다중 선택 -> 상태 저장
+    $(document).on('change', '.target-checkbox', function () {
+
+        const id = $(this).val();
+
+        const data = {
+            id: id,
+            name: $(this).data('name'),
+            dept: $(this).data('dept'),
+            position: $(this).data('position'), 
+
+            type: state.targetType === 'user' ? 'USER'
+            : state.targetType === 'dept' ? 'DEPT'
+            : 'POSITION'
+        };
+
+        if (state.searchMode === 'ref') {
+
+            if ($(this).is(':checked')) {
+                selectedState.ref.set(id, data);
+            } else {
+                selectedState.ref.delete(id);
+            }
+
+        } else {
+
+            if (!selectedState.approval[state.approvalStep]) {
+                selectedState.approval[state.approvalStep] = new Map();
+            }
+
+            const stepMap = selectedState.approval[state.approvalStep];
+
+            if ($(this).is(':checked')) {
+                stepMap.set(id, data);
+            } else {
+                stepMap.delete(id);
+            }
+        }
+    });
+
+    // 선택 완료 버튼 클릭 시 제출
+    $('#confirmSelect').on('click', function () {
+
+        const selected = [];
+
+        // 선택된 참조 대상 추가
+        if (state.searchMode === 'ref') {
+            $('#refList').empty();
+
+            selectedState.ref.forEach(item => {
+                $('#refList').append(renderBadge(item, 'ref'));
+            });
+        } 
+        // 선택된 결재 대상 추가
+        else {
+            const step = state.approvalStep;
+            const stepDiv = $(`#approval_${step} .approval-targets`);
+
+            stepDiv.empty();
+
+            const stepMap = selectedState.approval[step] || new Map();
+
+            stepMap.forEach(item => {
+                stepDiv.append(renderBadge(item, 'app', step));
+            });
+        }
+
+        // 선택 후 패널 가리기
+        panel.hide();
+    });
+
+    // badge 렌더링 + 삭제 버튼
+    function renderBadge(item, type, step = null) {
+
+        return `
+            <span class="badge bg-${type === 'ref' ? 'secondary' : 'primary'} me-1">
+                ${item.name}
+                <button type="button" class="btn-close btn-close-white ms-1"
+                    onclick="removeSelected('${type}', '${item.id}', '${step}')"></button>
+            </span>
+        `;
+    }
+
+    // 삭제 기능
+    function removeSelected(type, id, step) {
+
+        if (type === 'ref') {
+            selectedState.ref.delete(id);
+
+            $('#refList').empty();
+            selectedState.ref.forEach(item => {
+                $('#refList').append(renderBadge(item, 'ref'));
+            });
+
+        } else {
+            selectedState.approval[step]?.delete(id);
+
+            const stepDiv = $(`#approval_${step} .approval-targets`);
+            stepDiv.empty();
+
+            selectedState.approval[step]?.forEach(item => {
+                stepDiv.append(renderBadge(item, 'app', step));
+            });
+        }
+    }
+
+    // 최종 제출: 결재선 추가
+    $('#appFormEditor').on('submit', function (e) {
+
+        // 기본 submit 막기 (선택)
+        e.preventDefault();
+
+        // 결재선 옵션 선택 없을 때 submit 방지
+        if (selectedState.ref.size === 0 && Object.keys(selectedState.approval).length === 0) {
+            alert("결재선 대상을 선택해주세요.");
+            return;
+        }
+
+        const payload = {
+            formName: $('#formName').val(),
+            refTargets: [...selectedState.ref.values()],
+            approvalSteps: Object.entries(selectedState.approval)
+                .filter(([_, map]) => map && map.size > 0)
+                .map(([step, map]) => ({
+                    step: Number(step),
+                    targets: [...map.values()]
+                }))
+        };
+
+        console.log(payload); // 👉 확인용
+
+        // 서버 전송
+        $.ajax({
+            url: '/admin/approval/lines',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function () {
+                alert('저장 완료');
+                window.location.href = '/admin/approval/lines';
+            },
+            error: function () {
+                alert('저장 실패');
+            }
+        });
+    });
+</script>
 
 <!--스크립트 끝-->
 </body>

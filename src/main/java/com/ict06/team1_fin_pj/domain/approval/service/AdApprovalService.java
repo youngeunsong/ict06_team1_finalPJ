@@ -9,6 +9,9 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetEmployeeDto;
+import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
@@ -41,7 +44,11 @@ public interface AdApprovalService {
 
     // [결재선 서식 관리]--------------------------------------------
     // insert
-    public void saveAppLineTemplate(AppLineTemplateEntity entity);
+    public void saveAppLineTemplate(ApprovalLineCreateRequestDto dto);
+//    public void saveAppLineTemplate(AppLineTemplateEntity entity);
+
+    // 사원 목록 조회 (페이징 처리)
+    List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto);
 
     // list
     public List<AppLineTemplateEntity> listAppLineTemplate();

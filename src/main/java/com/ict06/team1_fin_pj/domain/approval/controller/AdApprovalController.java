@@ -10,12 +10,18 @@
 package com.ict06.team1_fin_pj.domain.approval.controller;
 
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetEmployeeDto;
+import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
+import com.ict06.team1_fin_pj.common.dto.employee.HrSelectOptionDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
 import com.ict06.team1_fin_pj.domain.approval.service.AdApprovalServiceImpl;
+import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -29,11 +35,13 @@ import java.util.Map;
 
 // 관리자용 전자결재 컨트롤러
 @RequestMapping("/admin/approval")
+@RequiredArgsConstructor
 @Controller
 public class AdApprovalController {
 
     @Autowired
     private AdApprovalServiceImpl service;
+    private final AdEmployeeService adEmployeeService;
 
     // [[ 전자 결재 서식 관리 ]]
     // [새 전자 결재 서식 만들기] ----------------------------------------------------------------------------
@@ -42,7 +50,7 @@ public class AdApprovalController {
     public String createTemplate(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - createTemplate()");
-        model.addAttribute("activeTab", "appForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
         return "admin/approval/createTemplate";
     }
 
@@ -74,7 +82,7 @@ public class AdApprovalController {
     public String templateList(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - templateList()");
-        model.addAttribute("activeTab", "appForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
         return "admin/approval/templateList";
     }
 
@@ -91,7 +99,7 @@ public class AdApprovalController {
     @GetMapping("/viewForm/{formId}")
     public String viewForm(@PathVariable int formId, Model model) {
         System.out.println("[AdApprovalController] - viewForm()");
-        model.addAttribute("activeTab", "appForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
 
         AppFormEntity form = service.selectAppForm(formId);
         model.addAttribute("form", form);
@@ -113,7 +121,7 @@ public class AdApprovalController {
     @GetMapping("/edit/{formId}")
     public String editForm(@PathVariable int formId, Model model) {
         System.out.println("[AdApprovalController] - editForm()");
-        model.addAttribute("activeTab", "appForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
 
         AppFormEntity form = service.selectAppForm(formId); //
         model.addAttribute("form", form);
@@ -133,12 +141,48 @@ public class AdApprovalController {
     // ---------------------------------------------------------------
     // [[ 전자 결재 결재선 관리 ]]
     // [새 전자 결재선 추가] -------------------------------------
+    // 새 전자 결재선 추가 화면
     @RequestMapping("/createAppLineForm")
     public String createAppLineForm(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - createAppLineForm()");
-        model.addAttribute("activeTab", "appLineForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appLineForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+
         return "admin/approval/createAppLineForm";
+    }
+
+    // 사원 조회 (검색 Ajax)
+    @GetMapping("/targets/employees")
+    @ResponseBody
+    public List<ApprovalTargetEmployeeDto> searchEmployees(
+            @ModelAttribute EmployeeSearchConditionDto conditionDto
+    ) {
+        return service.searchEmployees(conditionDto);
+    }
+
+    // 부서 조회 (검색 Ajax)
+    @GetMapping("/targets/departments")
+    @ResponseBody
+    public List<HrSelectOptionDto> getDepartments() {
+        return adEmployeeService.findDepartments();
+    }
+
+    // 직급 조회 (검색 Ajax)
+    @GetMapping("/targets/positions")
+    @ResponseBody
+    public List<HrSelectOptionDto> getPositions() {
+        return adEmployeeService.findPositions();
+    }
+
+    // 새 전자 결재선 추가 처리 (Ajax)
+    @PostMapping
+    @ResponseBody
+    public String createApprovalLine(
+            @RequestBody ApprovalLineCreateRequestDto requestDto
+    ) {
+//        approvalLineService.createApprovalLine(requestDto);
+        service.saveAppForm(requestDto);
+        return "ok";
     }
 
     // [전자 결재선 조회] ---------------------------------------
@@ -147,7 +191,11 @@ public class AdApprovalController {
     public String appLineList(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
         System.out.println("[AdApprovalController] - appLineList()");
-        model.addAttribute("activeTab", "appLineForm"); // 서브 에더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+        model.addAttribute("activeTab", "appLineForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
+
+
+
+
         return "admin/approval/appLineTemplateList";
     }
 
