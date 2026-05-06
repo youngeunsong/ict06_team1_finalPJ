@@ -20,7 +20,13 @@ public interface SalaryPolicyRepositoryCustom {
     SalaryPolicyPageResponseDTO selectSalaryPolicyList(SalaryPolicySearchDTO searchDTO);
 
     // ================================
-    // 2. 부서 select box용 조회
+    // 2. 본부 select box용 조회
+    // ================================
+    // - DEPARTMENT 중 parent_dept_id가 null인 행만 조회
+    List<PayrollSelectOptionDTO> selectHeadDepartmentList();
+
+    // ================================
+    // 3. 부서 select box용 조회
     // ================================
     // - department 테이블 조회
     // - id / name 형태로 반환
@@ -28,14 +34,14 @@ public interface SalaryPolicyRepositoryCustom {
     List<PayrollSelectOptionDTO> selectDepartmentList();
 
     // ================================
-    // 3. 직급 select box용 조회
+    // 4. 직급 select box용 조회
     // ================================
     // - position 테이블 조회
     // - 직급 선택 UI에 사용
     List<PayrollSelectOptionDTO> selectPositionList();
 
     // ================================
-    // 4. 급여등급 select box용 조회
+    // 5. 급여등급 select box용 조회
     // ================================
     // - grade_code 테이블 조회
     // - G1 ~ G5 목록 반환
@@ -43,7 +49,7 @@ public interface SalaryPolicyRepositoryCustom {
     List<PayrollSelectOptionDTO> selectGradeCodeList();
 
     // ================================
-    // 5. 기본급 정책 중복 체크
+    // 6. 기본급 정책 중복 체크
     // ================================
     // - deptId + positionId + gradeId 기준으로
     // - 이미 활성 정책이 존재하는지 확인
@@ -51,7 +57,7 @@ public interface SalaryPolicyRepositoryCustom {
     boolean existsActiveSalaryPolicy(String deptId, String positionId, String gradeId);
 
     // ================================
-    // 6. 서열 검증용 조회
+    // 7. 서열 검증용 조회
     // ================================
     // - 같은 부서 기준으로 기본급 정책 목록 조회
     // - G1 < G2 < G3 < G4 < G5 서열 검증에 사용
@@ -59,7 +65,7 @@ public interface SalaryPolicyRepositoryCustom {
     List<SalaryPolicyResponseDTO> selectActivePoliciesByDept(String deptId);
 
     // ================================
-    // 7. 수정 모달용 단건 조회
+    // 8. 수정 모달용 단건 조회
     // ================================
     // - 특정 policyId 기준으로 상세 조회
     // - Entity가 아니라 DTO로 바로 반환 (성능 + 구조 분리)
@@ -67,7 +73,7 @@ public interface SalaryPolicyRepositoryCustom {
     Optional<SalaryPolicyResponseDTO> selectSalaryPolicyDetail(Long policyId);
 
     // ================================
-    // 8. 기본급 정책 수정 (핵심)
+    // 9. 기본급 정책 수정 (핵심)
     // ================================
     // - QueryDSL UPDATE 사용
     // - 기존 Entity를 직접 수정하지 않고
@@ -77,13 +83,12 @@ public interface SalaryPolicyRepositoryCustom {
     void updateSalaryPolicy(Integer policyId, BigDecimal basicSalary);
 
     // ================================
-    // 9. 정책 비활성화 (Soft Delete용)
+    // 10. 정책 비활성화 (Soft Delete용)
     // ================================
     // - isActive = false 처리
     // - 실제 삭제가 아닌 논리 삭제 방식
     // - 과거 급여 데이터 보호 목적
     // ※ 현재 네 코드에서는 물리 삭제(delete)도 같이 존재
     void deactivateSalaryPolicy(Integer policyId);
-
 
 }

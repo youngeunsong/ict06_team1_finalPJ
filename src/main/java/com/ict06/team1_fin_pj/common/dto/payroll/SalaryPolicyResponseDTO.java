@@ -20,6 +20,7 @@ public class SalaryPolicyResponseDTO {
     // 부서
     private String deptId;
     private String deptName;
+    private String parentDeptName;
 
     // 직급
     private String positionId;
