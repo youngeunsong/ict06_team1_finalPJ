@@ -48,7 +48,7 @@ public interface AdApprovalService {
 //    public void saveAppLineTemplate(AppLineTemplateEntity entity);
 
     // 사원 목록 조회 (페이징 처리)
-    List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto);
+//    List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto);
 
     // list
     public List<AppLineTemplateEntity> listAppLineTemplate();

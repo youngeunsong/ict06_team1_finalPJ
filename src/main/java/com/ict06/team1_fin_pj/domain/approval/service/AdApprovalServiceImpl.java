@@ -3,14 +3,11 @@ package com.ict06.team1_fin_pj.domain.approval.service;
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetDto;
-import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetEmployeeDto;
-import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApproverType;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
-import com.ict06.team1_fin_pj.domain.approval.repository.AppLineTemplateDetailRepository;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppLineTemplateRepository;
 import com.ict06.team1_fin_pj.domain.employee.entity.DepartmentEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
@@ -19,7 +16,6 @@ import com.ict06.team1_fin_pj.domain.employee.repository.AdDepartmentRepository;
 import com.ict06.team1_fin_pj.domain.employee.repository.AdEmployeeRepository;
 import com.ict06.team1_fin_pj.domain.employee.repository.AdPositionRepository;
 import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
-import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,9 +43,6 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
     @Autowired
     private AppLineTemplateRepository appLineTemplateRepository;
-
-    @Autowired
-    private AppLineTemplateDetailRepository appLineTemplateDetailRepository;
 
     // 필요한 인사 정보 가져오기 위한 서비스 & 리포지토리
     @Autowired
@@ -202,19 +195,19 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     }
 
     // 사원 목록 조회 (페이징 처리 X)
-    @Override
-    public List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto) {
-        return adEmployeeService.findEmployees(conditionDto)
-                .stream()
-                .map(emp -> new ApprovalTargetEmployeeDto(
-                        emp.getEmpNo(),
-                        emp.getName(),
-                        emp.getDeptName(),
-                        emp.getPositionName(),
-                        emp.getRoleName()
-                ))
-                .toList();
-    }
+//    @Override
+//    public List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto) {
+//        return adEmployeeService.findEmployees(conditionDto)
+//                .stream()
+//                .map(emp -> new ApprovalTargetEmployeeDto(
+//                        emp.getEmpNo(),
+//                        emp.getName(),
+//                        emp.getDeptName(),
+//                        emp.getPositionName(),
+//                        emp.getRoleName()
+//                ))
+//                .toList();
+//    }
 
     // list
     @Override

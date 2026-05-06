@@ -12,6 +12,7 @@ package com.ict06.team1_fin_pj.domain.approval.controller;
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetEmployeeDto;
+import com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.common.dto.employee.HrSelectOptionDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
@@ -24,6 +25,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -154,10 +157,11 @@ public class AdApprovalController {
     // 사원 조회 (검색 Ajax)
     @GetMapping("/targets/employees")
     @ResponseBody
-    public List<ApprovalTargetEmployeeDto> searchEmployees(
-            @ModelAttribute EmployeeSearchConditionDto conditionDto
+    public Page<EmployeeListDto> searchEmployees(
+            @ModelAttribute EmployeeSearchConditionDto conditionDto,
+            @PageableDefault(size = 10) Pageable pageable
     ) {
-        return service.searchEmployees(conditionDto);
+        return adEmployeeService.findEmployees(conditionDto, pageable);
     }
 
     // 부서 조회 (검색 Ajax)
@@ -181,7 +185,7 @@ public class AdApprovalController {
             @RequestBody ApprovalLineCreateRequestDto requestDto
     ) {
 //        approvalLineService.createApprovalLine(requestDto);
-        service.saveAppForm(requestDto);
+        service.saveAppLineTemplate(requestDto);
         return "ok";
     }
 
