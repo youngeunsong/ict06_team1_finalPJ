@@ -8,6 +8,12 @@
     - 수정된 값은 POST /admin/employees/{empNo}/edit 로 전송된다.
     - 사번, 로그인 아이디, 입사일은 수정하지 못하도록 readonly 처리한다.
     - 화면 동작 JS는 /static/js/employee/edit.js 로 분리했다.
+
+    변경 사항:
+    - 기존 부서 select 1개를 본부 select + 팀 select 2개로 분리했다.
+    - 기존 사원이 속한 팀의 상위 본부를 자동 선택한다.
+    - 본부를 변경하면 JS에서 해당 본부의 하위 팀 목록을 다시 불러온다.
+    - 실제 employee.dept_id에는 팀 ID가 저장된다.
 -->
 <head th:include="/admin/common/head.html :: common_header">
     <title id="page_title">사원 수정</title>
@@ -177,14 +183,53 @@
                                            maxlength="13">
                                 </div>
 
-                                <!-- 부서 -->
+                                <!-- 본부 -->
+                                <!--
+                                    parentDepartments는 Controller에서 model로 전달한 본부 목록이다.
+
+                                    본부 기준:
+                                    - DepartmentEntity.parentDept가 null인 데이터
+                                    - 예: 경영본부, 개발본부
+
+                                    이 값은 실제 employee 테이블에 저장되는 값이 아니라,
+                                    팀 목록을 불러오기 위한 기준값이다.
+                                -->
                                 <div class="col-md-4">
-                                    <label class="form-label">부서 <span class="text-danger">*</span></label>
-                                    <select th:field="*{deptId}" class="form-select required-input">
-                                        <option value="">부서 선택</option>
-                                        <option th:each="dept : ${departments}"
+                                    <label class="form-label">본부 <span class="text-danger">*</span></label>
+                                    <select th:field="*{parentDeptId}"
+                                            id="parentDeptId"
+                                            class="form-select required-input">
+                                        <option value="">본부 선택</option>
+                                        <option th:each="dept : ${parentDepartments}"
                                                 th:value="${dept.id}"
                                                 th:text="${dept.name}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 팀 -->
+                                <!--
+                                    본부 선택 후 JS가 해당 본부의 하위 팀 목록을 가져와 option을 채운다.
+
+                                    최종적으로 employee.dept_id에 저장되는 값은 이 팀의 deptId이다.
+                                    수정 화면에서는 기존 사원이 속한 팀이 선택되어 있어야 한다.
+                                -->
+                                <div class="col-md-4">
+                                    <label class="form-label">팀 <span class="text-danger">*</span></label>
+                                    <select th:field="*{deptId}"
+                                            id="deptId"
+                                            class="form-select required-input"
+                                            th:attr="data-selected-dept-id=*{deptId}">
+                                        <option value="">팀 선택</option>
+
+                                        <!--
+                                            수정 화면 최초 진입 또는 수정 실패 후 돌아온 경우
+                                            기존에 선택되어 있던 팀 목록을 유지하기 위한 option
+                                        -->
+                                        <option th:each="team : ${teams}"
+                                                th:value="${team.id}"
+                                                th:text="${team.name}"
+                                                th:selected="${employeeUpdateRequestDto.deptId != null and employeeUpdateRequestDto.deptId == team.id}">
                                         </option>
                                     </select>
                                 </div>

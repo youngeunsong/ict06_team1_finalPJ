@@ -6,6 +6,9 @@ import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -78,12 +81,13 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
           )
         order by e.hireDate desc, e.empNo desc
     """)
-    List<EmployeeListDto> searchEmployees(
+    Page<EmployeeListDto> searchEmployees(
             String keyword,
             Integer deptId,
             Integer positionId,
             Integer roleId,
-            String status
+            String status,
+            Pageable pageable
     );
 
     /*

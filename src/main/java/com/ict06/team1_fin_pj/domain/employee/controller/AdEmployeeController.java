@@ -3,11 +3,19 @@ package com.ict06.team1_fin_pj.domain.employee.controller;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeUpdateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.employee.HrSelectOptionDto;
 import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 /*
  * 관리자 인사관리 컨트롤러
@@ -39,16 +47,72 @@ public class AdEmployeeController {
      *
      * 검색 조건을 받아서 사원 목록을 조회하고,
      * 부서/직급/권한 select 박스 데이터도 함께 화면에 전달한다.
+     *
+     * 페이징:
+     * - page: 현재 페이지 번호, 0부터 시작
+     * - size: 한 페이지에 보여줄 사원 수
+     *
+     * 예:
+     * /admin/employees?page=0&size=10
+     * /admin/employees?keyword=홍길동&page=1&size=10
      */
     @GetMapping
     public String employeeList(
             @ModelAttribute EmployeeSearchConditionDto conditionDto,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model
     ) {
-        // 검색 조건에 맞는 사원 목록
-        model.addAttribute("employees", adEmployeeService.findEmployees(conditionDto));
+        /*
+         * 페이지 번호 보정
+         *
+         * page는 0부터 시작한다.
+         * 혹시 음수 값이 들어오면 0으로 보정한다.
+         */
+        if (page < 0) {
+            page = 0;
+        }
+
+        /*
+         * 한 페이지 표시 개수 보정
+         *
+         * 너무 큰 값이 들어오면 화면이 무거워질 수 있으므로
+         * 10, 20, 50 정도만 허용하는 방식도 가능하다.
+         * 여기서는 기본 10명으로 사용한다.
+         */
+        if (size <= 0) {
+            size = 10;
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 검색 조건과 페이지 정보에 맞는 사원 목록 조회
+        Page<EmployeeListDto> employeePage =
+                adEmployeeService.findEmployees(conditionDto, pageable);
+
+        /*
+         * 테이블에서 사용할 현재 페이지의 사원 목록
+         *
+         * 기존 list.html은 employees라는 이름으로 반복 출력하고 있으므로
+         * 기존 화면 코드를 많이 바꾸지 않기 위해 employees도 유지한다.
+         */
+        model.addAttribute("employees", employeePage.getContent());
+
+        /*
+         * 페이징 UI에서 사용할 Page 객체
+         *
+         * 전체 페이지 수, 현재 페이지 번호, 전체 데이터 수 등을 가진다.
+         */
+        model.addAttribute("employeePage", employeePage);
+
+        // 현재 페이지 번호
+        model.addAttribute("page", page);
+
+        // 현재 페이지 크기
+        model.addAttribute("size", size);
 
         // 검색 필터 select 박스에 사용할 부서 목록
+        // 목록 검색은 아직 전체 부서 목록 방식 유지
         model.addAttribute("departments", adEmployeeService.findDepartments());
 
         // 검색 필터 select 박스에 사용할 직급 목록
@@ -70,14 +134,24 @@ public class AdEmployeeController {
      * GET /admin/employees/new
      *
      * 빈 등록 DTO와 select 박스 데이터를 화면에 전달한다.
+     *
+     * 변경 사항:
+     * - 기존에는 departments 전체 목록을 전달했지만,
+     * - 이제는 본부/팀 2단계 선택 구조이므로 parentDepartments만 먼저 전달한다.
+     * - 팀 목록은 본부 선택 시 JS에서 Ajax로 불러온다.
      */
     @GetMapping("/new")
     public String createForm(Model model) {
         // 등록 화면에서 입력값을 담을 빈 DTO
         model.addAttribute("employeeCreateRequestDto", new EmployeeCreateRequestDto());
 
-        // 등록 화면의 부서 select 박스 데이터
-        model.addAttribute("departments", adEmployeeService.findDepartments());
+        /*
+         * 등록 화면의 본부 select 박스 데이터
+         *
+         * parent_dept_id가 null인 부서만 가져온다.
+         * 예: 경영본부, 개발본부
+         */
+        model.addAttribute("parentDepartments", adEmployeeService.findParentDepartments());
 
         // 등록 화면의 직급 select 박스 데이터
         model.addAttribute("positions", adEmployeeService.findPositions());
@@ -87,6 +161,27 @@ public class AdEmployeeController {
 
         // templates/admin/employee/create.html 화면으로 이동
         return "admin/employee/create";
+    }
+
+    /*
+     * 본부 선택 시 하위 팀 목록 조회
+     *
+     * GET /admin/employees/departments/{parentDeptId}/teams
+     *
+     * 예:
+     * /admin/employees/departments/1/teams
+     *
+     * parentDeptId가 1이면
+     * parent_dept_id = 1인 팀 목록을 JSON으로 반환한다.
+     *
+     * @ResponseBody가 있으므로 HTML 화면이 아니라 JSON 데이터가 응답된다.
+     */
+    @GetMapping("/departments/{parentDeptId}/teams")
+    @ResponseBody
+    public List<HrSelectOptionDto> findTeamsByParentDeptId(
+            @PathVariable Integer parentDeptId
+    ) {
+        return adEmployeeService.findTeamsByParentDeptId(parentDeptId);
     }
 
     /*
@@ -160,8 +255,27 @@ public class AdEmployeeController {
             // 사용자가 입력했던 값을 다시 화면에 유지
             model.addAttribute("employeeCreateRequestDto", requestDto);
 
+            /*
+             * 등록 실패 시에도 본부 select 박스가 다시 보여야 하므로
+             * 본부 목록을 다시 전달한다.
+             */
+            model.addAttribute("parentDepartments", adEmployeeService.findParentDepartments());
+
+            /*
+             * 등록 실패 시 사용자가 이미 본부를 선택했다면,
+             * 해당 본부의 하위 팀 목록도 다시 전달한다.
+             *
+             * 이 처리가 없으면 에러 발생 후 돌아왔을 때
+             * 팀 select가 비어 보일 수 있다.
+             */
+            if (requestDto.getParentDeptId() != null) {
+                model.addAttribute(
+                        "teams",
+                        adEmployeeService.findTeamsByParentDeptId(requestDto.getParentDeptId())
+                );
+            }
+
             // 등록 화면 select 박스 데이터 다시 전달
-            model.addAttribute("departments", adEmployeeService.findDepartments());
             model.addAttribute("positions", adEmployeeService.findPositions());
             model.addAttribute("roles", adEmployeeService.findRoles());
 
@@ -199,6 +313,10 @@ public class AdEmployeeController {
      * GET /admin/employees/{empNo}/edit
      *
      * 기존 사원 정보를 조회해서 수정 화면에 보여준다.
+     *
+     * 변경 사항:
+     * - 수정 화면에서도 본부/팀 2단계 select를 사용한다.
+     * - 기존 사원의 팀이 속한 본부를 선택 상태로 보여줘야 한다.
      */
     @GetMapping("/{empNo}/edit")
     public String editForm(
@@ -206,10 +324,32 @@ public class AdEmployeeController {
             Model model
     ) {
         // 수정 화면에 보여줄 기존 사원 정보
-        model.addAttribute("employeeUpdateRequestDto", adEmployeeService.findEmployeeForUpdate(empNo));
+        EmployeeUpdateRequestDto updateDto = adEmployeeService.findEmployeeForUpdate(empNo);
+
+        model.addAttribute("employeeUpdateRequestDto", updateDto);
+
+        /*
+         * 수정 화면의 본부 select 박스 데이터
+         *
+         * parent_dept_id가 null인 본부 목록을 전달한다.
+         */
+        model.addAttribute("parentDepartments", adEmployeeService.findParentDepartments());
+
+        /*
+         * 기존 사원이 속한 팀의 상위 본부가 있으면,
+         * 그 본부에 속한 팀 목록을 미리 전달한다.
+         *
+         * 그래야 수정 화면 진입 시
+         * 본부와 팀이 기존 값으로 선택되어 보인다.
+         */
+        if (updateDto.getParentDeptId() != null) {
+            model.addAttribute(
+                    "teams",
+                    adEmployeeService.findTeamsByParentDeptId(updateDto.getParentDeptId())
+            );
+        }
 
         // 수정 화면 select 박스 데이터
-        model.addAttribute("departments", adEmployeeService.findDepartments());
         model.addAttribute("positions", adEmployeeService.findPositions());
         model.addAttribute("roles", adEmployeeService.findRoles());
 
@@ -259,8 +399,26 @@ public class AdEmployeeController {
             // 사용자가 입력했던 수정 값을 다시 화면에 유지
             model.addAttribute("employeeUpdateRequestDto", requestDto);
 
+            /*
+             * 수정 실패 시에도 본부 select 박스가 다시 보여야 하므로
+             * 본부 목록을 다시 전달한다.
+             */
+            model.addAttribute("parentDepartments", adEmployeeService.findParentDepartments());
+
+            /*
+             * 수정 실패 시 사용자가 선택했던 본부의 팀 목록도 다시 전달한다.
+             *
+             * 이 처리가 없으면 에러 발생 후 돌아왔을 때
+             * 팀 select가 비어 보일 수 있다.
+             */
+            if (requestDto.getParentDeptId() != null) {
+                model.addAttribute(
+                        "teams",
+                        adEmployeeService.findTeamsByParentDeptId(requestDto.getParentDeptId())
+                );
+            }
+
             // 수정 화면 select 박스 데이터 다시 전달
-            model.addAttribute("departments", adEmployeeService.findDepartments());
             model.addAttribute("positions", adEmployeeService.findPositions());
             model.addAttribute("roles", adEmployeeService.findRoles());
 
