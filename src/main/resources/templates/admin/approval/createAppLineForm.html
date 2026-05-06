@@ -54,8 +54,8 @@
                                     <div class="col-md-auto">
                                         <label class="col-form-label">참조</label>
                                     </div>
-                                    <div class="col-md-8">
-                                        <hr>
+                                    <div class="col">
+                                        <hr class="w-100 my-0">
                                     </div>
                                     <div class="col-md-1">
                                         <button type="button" class="btn btn-secondary btn-sm">+</button>
@@ -64,6 +64,7 @@
                                 <!--참조 대상 메뉴바 끝-->
                                 <!--참조 대상 동적 리스트 시작-->
                                 <div id="refList"></div>
+                                <br>
                                 <!--참조 대상 동적 리스트 끝-->
                                 <!--결재 대상 동적 메뉴바 시작-->
                                 <div id="approvalMenubar"></div>
@@ -72,25 +73,47 @@
                                 <div id="approvalList"></div>
                                 <!--결재 대상 동적 리스트 끝-->
                                 <!--결재 단계 추가 버튼 시작-->
-<!--                                <div class="d-grid w-100">-->
-                                <div class="row g-0">
-                                    <div class="col-12">
-                                        <button type="button" class="btn btn-outline-primary w-100">결재 단계 추가</button>
-                                    </div>
+                                <div class="d-grid w-100">
+                                    <button type="button" class="btn btn-outline-primary w-100">
+                                        결재 단계 추가
+                                    </button>
                                 </div>
-<!--                                </div>-->
+                                <br>
                                 <!--결재 단계 추가 버튼 끝-->
                                 <!--결재선 서식 설명 시작-->
+                                <div class="row align-items-center">
+                                    <div class="col-md-auto">
+                                        <label class="col-form-label" for="appLineDesc">설명</label>
+                                    </div>
+                                    <div class="col">
+                                        <hr class="w-100 my-0">
+                                    </div>
+                                </div>
+                                <textarea id="appLineDesc" class="w-100"
+                                          placeholder=" 결재선 서식에 대한 설명을 작성해주세요."></textarea>
+                                <br>
                                 <!--결재선 서식 설명 끝-->
                                 <!--기본 결재선 설정 여부 시작-->
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="checkDefault">
+                                    <label class="form-check-label" for="checkDefault">
+                                        기본 결재선으로 설정하기
+                                    </label>
+                                </div>
                                 <!--기본 결재선 설정 여부 끝-->
                                 <!--서식 제출 버튼 시작-->
+                                <div class="d-grid w-100">
+                                    <button type="submit" class="btn btn btn-primary w-100">
+                                        서식 추가
+                                    </button>
+                                </div>
                                 <!--서식 제출 버튼 끝-->
                             </div>
                         </form>
                     </div>
                     <!-- 왼쪽: 메인 선택창 끝-->
                     <!-- 오른쪽: 참조/결재 대상 조회 시작-->
+                    <div id="targetSearch"></div>
                     <!-- 오른쪽: 참조/결재 대상 조회 끝-->
                 </div>
                 <!-- end::Row-->
@@ -109,6 +132,9 @@
 <th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
 
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
+
+
 <!--스크립트 끝-->
 </body>
 <!--end::Body-->
