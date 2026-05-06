@@ -1,3 +1,6 @@
+// 4) path.js에서 만든 상수를 불러와서 실제 React 컴포넌트와 매핑 (로직)
+// path.js -> routes/대분류 별 파일 -> routes/index.js -> App.js(여기!)
+
 import { Routes, Route, Navigate, useRoutes } from 'react-router-dom';
 import React, { Suspense } from 'react';
 
