@@ -27,7 +27,7 @@ public class AiLogEntity extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id")
-    private AiChatSessionEntity session;
+    private AiChatSessionEntity session; // 챗봇 세션 ID
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "message_id")
@@ -35,7 +35,7 @@ public class AiLogEntity extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private AiLogType type;
+    private AiLogType type; // CHATBOT / ASSISTANT
 
     @Column(columnDefinition = "TEXT")
     private String query;
