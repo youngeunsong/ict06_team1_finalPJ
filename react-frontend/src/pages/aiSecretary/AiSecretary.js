@@ -1,117 +1,406 @@
-/* aiSecretary 전체 페이지 조립기 + 흐름 제어 역활 */
-// src/pages/aiSecretary/AiSecretary.js
+/**
+ * @FileName : AiSecretary.js
+ * @Description : 사내 AI 포털 하위 화면을 렌더링하는 최상위 컨트롤 컴포넌트
+ *                - 전체 페이지 조립기
+ *                - URL 기반 화면 분기
+ *                - AI 비서/챗봇/문장 다듬기/지식 요청 화면 흐름 제어
+ * @Author : 송혜진
+ * @Date : 2026. 04. 28
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    ----------------------------------------
+ * @ 2026.04.27    송혜진        최초 생성
+ * @ 2026.05.06    송혜진        더미 데이터 삭제 / DB 기반 최근 작성 목록 연결
+ */
 
-/* “현재 상태를 보고 어떤 화면 컴포넌트를 렌더링할지 정한다” */
-/* [역활]
-  - 현재 URL 읽기
-  - 어떤 화면인지 판단
-  - 필요한 state 들고 있기
-  - 적절한 screen에 props 넘기기 */
-
-// 1) 탭 전환, 화면 전환, 문서 유형, 입력 데이터, 교정 옵션, 작성 상태 등을 관리
-// 2) 현재 상태에 맞는 하위 화면을 렌더링하는 최상위 컨트롤 컴포넌트
-// 내부 화면 전환을 state 기반이 아니라 URL 기반으로 동기화
-
-import React, { useMemo, useState } from "react";
-
-//URL(path/query/param)을 기준으로 분기
+import React, { useEffect, useMemo, useState } from "react";
 import {
   useLocation,
   useNavigate,
   useParams,
-  useSearchParams
+  useSearchParams,
 } from "react-router-dom";
+
 import { PATH } from "../../constants/path";
 
-// 규칙, 계산
 import {
   normalizeFormType,
   buildAssistantDocPath,
   ASSISTANT_DOC_PREFIX,
 } from "./utils/aiSecretaryRouteHelpers";
 
-// 초기 데이터 묵음
 import {
   initialFormData,
   initialCorrectionState,
   initialWriterState,
 } from "./constants/aiSecretaryInitialState";
 
-// screens 임포트
-import AssistantHome from "./screens/AssistantHome";                    // AI 비서 진입 화면
-import StartFormScreen from "./screens/StartFormScreen";                // AI 비서 > 문서 작성(보고서 초안 / 회의록 정리 / 결재 사유 유형) 시작 화면
-import TemplateScreen from "./screens/TemplateScreen";                  // AI 비서 > 템플릿 생성 화면
-import WriterScreen from "./screens/WriterScreen";                      // AI 비서 > 실질적인 AI 초안 작성/ 수정 작업 화면
+import AssistantHome from "./screens/AssistantHome";
+import StartFormScreen from "./screens/StartFormScreen";
+import TemplateScreen from "./screens/TemplateScreen";
+import WriterScreen from "./screens/WriterScreen";
+import ChatbotScreen from "./screens/ChatbotScreen";
+import CorrectionScreen from "./screens/CorrectionScreen";
+import KnowledgeRequestScreen from "./screens/KnowledgeRequestScreen";
 
-import ChatbotScreen from "./screens/ChatbotScreen";                    // 챗봇 진입 화면
+import Sidebar from "./components/Sidebar";
 
-import CorrectionScreen from "./screens/CorrectionScreen";              // 문서 수정 화면
-import KnowledgeRequestScreen from "./screens/KnowledgeRequestScreen";  // 문서 삽입 화면(사용자)
+import {
+  createAssistantDraft,
+  getAssistantSessionList,
+  getMessages,
+  unwrapApiData,
+} from "./api/aiSecretaryApi";
 
-// components 임포트
-import Sidebar from "./components/Sidebar";                             // 사이드바
-
-// constants 임포트
-import { recentDocsSeed } from "./constants/aiSecretaryData";
-
-// API 임포트
-import { createAssistantDraft, unwrapApiData } from "./api/aiSecretaryApi";
-
-// styles 임포트
 import { styles } from "./styles/aiSecretaryTheme";
 
+/**
+ * ASSISTANT 세션 응답을 Sidebar / AssistantHome에서 쓰는 recent 문서 형식으로 변환한다.
+ *
+ * 현재 한계:
+ * - AI_CHAT_SESSION에 report/minutes/approval 같은 documentType 컬럼이 아직 없음
+ * - 그래서 우선 type은 report로 기본 처리
+ *
+ * 추후 개선:
+ * - AI_CHAT_SESSION.document_type 컬럼 추가
+ * - 백엔드 AiChatSessionResponseDto에 documentType 추가
+ * - 이 함수에서 session.documentType을 type으로 매핑
+ */
+const mapSessionToRecentDoc = (session) => ({
+  id: String(session.sessionId),
+  sessionId: session.sessionId,
+  title: session.title || "제목 없는 AI 문서",
+  type: "report",
+  screen: "writer",
+  updatedAt: session.lastMessageAt,
+});
 
-// 흐름제어 컴포넌트 (화면X) ---------------------------------------------
 export default function AiSecretary({ userInfo }) {
-
   const location = useLocation();
   const navigate = useNavigate();
   const { docId } = useParams();
   const [searchParams] = useSearchParams();
 
+  /**
+   * 화면 상태
+   */
   const [formData, setFormData] = useState(initialFormData);
   const [correction, setCorrection] = useState(initialCorrectionState);
   const [writerState, setWriterState] = useState(initialWriterState);
 
-  const [recents] = useState(recentDocsSeed);
+  /**
+   * 최근 작성 목록
+   *
+   * 기존:
+   * - recentDocsSeed 기반 정적 목록
+   *
+   * 변경:
+   * - DB의 AI_CHAT_SESSION 중 ASSISTANT 세션만 조회
+   */
+  const [recents, setRecents] = useState([]);
+  const [loadingRecents, setLoadingRecents] = useState(false);
+  const [recentError, setRecentError] = useState("");
 
-  // ------------------------------------------------
-  // 0) 현재 URL에서 화면 상태를 파생
-  // ------------------------------------------------
+  /**
+   * AI 초안 생성 상태
+   *
+   * generatingDraft:
+   * - AI 초안 생성 중 중복 클릭 방지
+   *
+   * draftError:
+   * - 입력값 검증 실패 또는 API 실패 메시지
+   */
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftError, setDraftError] = useState("");
 
+  /**
+   * 로그인 사용자 사번
+   *
+   * 주의:
+   * - userInfo가 null이면 최근 목록 조회/초안 생성은 중단
+   * - 필요하면 추후 /api/user/welcome 재조회 방식 추가 가능
+   */
+  const empNo = userInfo?.empNo ?? userInfo?.emp_no ?? null;
+
+  // ------------------------------------------------
+  // 1) URL 기반 현재 화면 상태 파생
+  // ------------------------------------------------
+
+  /**
+   * query string의 type 값을 문서 유형으로 정규화한다.
+   *
+   * 예:
+   * /ai-portal/assistant/new?type=report
+   * /ai-portal/assistant/new?type=minutes
+   * /ai-portal/assistant/new?type=approval
+   */
+  const queryType = normalizeFormType(searchParams.get("type"));
+
+  /**
+   * 현재 URL의 docId가 최근 작성 목록에 존재하면 해당 문서를 찾는다.
+   *
+   * 현재 recent.id는 sessionId 문자열이다.
+   */
+  const matchedRecentDoc = useMemo(() => {
+    return recents.find((doc) => String(doc.id) === String(docId));
+  }, [recents, docId]);
+
+  /**
+   * 현재 큰 탭 구분
+   *
+   * assistant:
+   * - AI 비서 홈/문서 작성/템플릿/Writer
+   *
+   * chatbot:
+   * - 사내 지식 챗봇
+   *
+   * polish:
+   * - 문장 다듬기
+   *
+   * knowledge-request:
+   * - 지식 추가 요청
+   */
+  const currentTab = useMemo(() => {
+    if (location.pathname.startsWith(PATH.AI.CHATBOT)) return "chatbot";
+    if (location.pathname.startsWith(PATH.AI.CORRECTION)) return "polish";
+
+    if (location.pathname.startsWith(PATH.AI.KNOWLEDGE_REQUEST)) {
+      return "knowledge-request";
+    }
+
+    return "assistant";
+  }, [location.pathname]);
+
+  /**
+   * assistant 탭 내부 화면 구분
+   */
+  const currentScreen = useMemo(() => {
+    if (location.pathname === PATH.AI.ASSISTANT) return "assistant-home";
+    if (location.pathname === PATH.AI.ASSISTANT_NEW) return "form";
+    if (location.pathname === PATH.AI.ASSISTANT_TEMPLATE) return "template";
+
+    if (location.pathname.startsWith(`${ASSISTANT_DOC_PREFIX}/`)) {
+      return "writer";
+    }
+
+    return "assistant-home";
+  }, [location.pathname]);
+
+  /**
+   * 현재 문서 유형
+   *
+   * 우선순위:
+   * 1. 최근 작성 목록에서 찾은 문서 type
+   * 2. query string type
+   * 3. normalizeFormType 내부 기본값
+   */
+  const currentFormType = useMemo(() => {
+    if (matchedRecentDoc?.type) return matchedRecentDoc.type;
+    return queryType;
+  }, [matchedRecentDoc, queryType]);
+
+  // ------------------------------------------------
+  // 2) URL 이동 helper
+  // ------------------------------------------------
+
+  const goAssistantHome = () => navigate(PATH.AI.ASSISTANT);
+
+  const goAssistantForm = (type = "report") => {
+    const normalized = normalizeFormType(type);
+    navigate(`${PATH.AI.ASSISTANT_NEW}?type=${normalized}`);
+  };
+
+  const goAssistantTemplate = () => navigate(PATH.AI.ASSISTANT_TEMPLATE);
+
+  const goAssistantDoc = (targetDocId, type = "report") => {
+    const normalized = normalizeFormType(type);
+    navigate(`${buildAssistantDocPath(targetDocId)}?type=${normalized}`);
+  };
+
+  const goChatbot = () => navigate(PATH.AI.CHATBOT);
+  const goCorrection = () => navigate(PATH.AI.CORRECTION);
+  const goKnowledgeRequest = () => navigate(PATH.AI.KNOWLEDGE_REQUEST);
+
+  // ------------------------------------------------
+  // 3) 최근 작성 목록 DB 조회
+  // ------------------------------------------------
+
+  /**
+   * ASSISTANT 세션만 최근 작성 목록으로 조회한다.
+   *
+   * 정책:
+   * - ASSISTANT 세션은 장기 보관
+   * - 최근 작성 목록에 노출
+   * - CHATBOT 세션은 최근 작성 목록에 노출하지 않음
+   */
+  useEffect(() => {
+    if (!empNo) return;
+
+    const loadAssistantRecents = async () => {
+      setLoadingRecents(true);
+      setRecentError("");
+
+      try {
+        const response = await getAssistantSessionList(empNo);
+        const data = unwrapApiData(response) ?? [];
+
+        const mappedRecents = Array.isArray(data)
+          ? data.map(mapSessionToRecentDoc)
+          : [];
+
+        setRecents(mappedRecents);
+      } catch (error) {
+        console.error("최근 작성 목록 조회 실패", error);
+
+        setRecentError("최근 작성 목록을 불러오지 못했습니다.");
+        setRecents([]);
+      } finally {
+        setLoadingRecents(false);
+      }
+    };
+
+    loadAssistantRecents();
+  }, [empNo]);
+
+  // ------------------------------------------------
+  // 4) WriterScreen 진입 시 DB 메시지 로딩
+  // ------------------------------------------------
+
+  /**
+   * 최근 작성 문서 클릭 또는 URL 직접 진입 시:
+   *
+   * /ai-portal/assistant/docs/{sessionId}?type=report
+   *
+   * 위와 같은 writer 화면으로 들어오면,
+   * sessionId 기준으로 메시지 목록을 불러온다.
+   *
+   * 현재 정책:
+   * - 가장 마지막 ASSISTANT 메시지를 최신 문서 본문으로 사용
+   * - 모든 메시지를 좌측 AI 대화 이력으로 표시
+   */
+  useEffect(() => {
+    if (currentScreen !== "writer") return;
+    if (!docId) return;
+
+    const sessionId = Number(docId);
+
+    if (Number.isNaN(sessionId)) return;
+
+    const loadWriterDocument = async () => {
+      try {
+        const response = await getMessages(sessionId);
+        const messages = unwrapApiData(response) ?? [];
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+          return;
+        }
+
+        const lastAssistantMessage = [...messages]
+          .reverse()
+          .find((message) => message.role === "ASSISTANT");
+
+        const firstUserMessage = messages.find(
+          (message) => message.role === "USER"
+        );
+
+        if (!lastAssistantMessage) {
+          return;
+        }
+
+        const matchedDoc = recents.find(
+          (doc) => Number(doc.sessionId ?? doc.id) === sessionId
+        );
+
+        setWriterState((prev) => ({
+          ...prev,
+          sessionId,
+          title: matchedDoc?.title || prev.title || "AI 문서",
+          content: lastAssistantMessage.content,
+          aiMessageId: lastAssistantMessage.messageId,
+          userMessageId: firstUserMessage?.messageId ?? prev.userMessageId,
+          modelName: lastAssistantMessage.modelName,
+          fallback: lastAssistantMessage.modelName === "gemini-fallback",
+
+          /**
+           * 좌측 AI와 대화 영역에 DB 메시지를 그대로 복원한다.
+           */
+          chat: messages.map((message) => ({
+            role: message.role === "USER" ? "user" : "ai",
+            text: message.content,
+            time: "저장됨",
+          })),
+
+          /**
+           * 현재는 별도 document_version 테이블이 없으므로
+           * 마지막 ASSISTANT 메시지를 v1로 구성한다.
+           *
+           * 추후 개선:
+           * - 메시지 seq_no 또는 별도 버전 테이블 기반으로 v1/v2/v3 복원 가능
+           */
+          versions: [
+            {
+              id: "v1",
+              title: "저장된 문서",
+              summary: "DB에서 불러온 최근 작성 문서입니다.",
+              content: lastAssistantMessage.content,
+              current: true,
+            },
+          ],
+
+          prompt: "",
+          showHistory: false,
+        }));
+      } catch (error) {
+        console.error("AI 문서 메시지 조회 실패", error);
+      }
+    };
+
+    loadWriterDocument();
+  }, [currentScreen, docId, recents]);
+
+  // ------------------------------------------------
+  // 5) AI 초안 생성
+  // ------------------------------------------------
+
+  /**
+   * StartFormScreen의 "AI 초안 생성" 버튼 클릭 시 실행된다.
+   *
+   * 처리 흐름:
+   * 1. 입력값 검증
+   * 2. /assistant/draft API 호출
+   * 3. writerState에 응답 결과 저장
+   * 4. recents에 즉시 반영
+   * 5. WriterScreen으로 이동
+   */
   const handleGenerateDraft = async () => {
-    // 테스트 ***
-    console.log("[DRAFT] 버튼 클릭됨", {
-      userInfo,
-      empNo: userInfo?.empNo ?? userInfo?.emp_no,
-      currentFormType,
-      formData,
-      generatingDraft,
-    });
+    /**
+     * 디버깅이 필요할 때만 주석 해제
+     *
+     * console.log("[DRAFT] 버튼 클릭됨", {
+     *   userInfo,
+     *   empNo,
+     *   currentFormType,
+     *   formData,
+     *   generatingDraft,
+     * });
+     */
 
     if (generatingDraft) {
-      console.warn("[DRAFT] 이미 생성 중이라 중복 요청 차단");
       return;
     }
 
-    const empNo = userInfo?.empNo ?? userInfo?.emp_no;
-
     if (!empNo) {
-      console.warn("[DRAFT] empNo 없음");
       setDraftError("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
       return;
     }
 
     if (!formData.title?.trim()) {
-      console.warn("[DRAFT] title 없음");
       setDraftError("문서 제목을 입력해 주세요.");
       return;
     }
 
     if (!formData.detail?.trim()) {
-      console.warn("[DRAFT] detail 없음");
       setDraftError("핵심 내용을 입력해 주세요.");
       return;
     }
@@ -144,6 +433,10 @@ export default function AiSecretary({ userInfo }) {
         content: data.content,
         modelName: data.modelName,
         fallback: data.fallback,
+
+        /**
+         * WriterScreen 좌측 AI 대화 영역 초기 메시지
+         */
         chat: [
           {
             role: "user",
@@ -152,10 +445,19 @@ export default function AiSecretary({ userInfo }) {
           },
           {
             role: "ai",
-            text: "요청하신 내용을 바탕으로 초안을 생성했습니다.",
+            text: data.fallback
+              ? "AI 응답 생성이 원활하지 않아 기본 안내 응답을 반영했습니다."
+              : "요청하신 내용을 바탕으로 초안을 생성했습니다.",
             time: "방금",
           },
         ],
+
+        /**
+         * 최초 생성 버전
+         *
+         * 중요:
+         * - content를 반드시 넣어야 v1 미리보기/복원이 정상 동작한다.
+         */
         versions: [
           {
             id: "v1",
@@ -165,115 +467,91 @@ export default function AiSecretary({ userInfo }) {
             current: true,
           },
         ],
+
         prompt: "",
         showHistory: false,
       }));
 
+      /**
+       * 새 초안 생성 후 최근 작성 목록에도 즉시 반영한다.
+       * DB 재조회 전에도 Sidebar/AssistantHome에 바로 보이게 하기 위함.
+       */
+      setRecents((prev) => [
+        {
+          id: String(data.sessionId),
+          sessionId: data.sessionId,
+          title: data.title || formData.title || "제목 없는 AI 문서",
+          type: data.type || currentFormType,
+          screen: "writer",
+          updatedAt: new Date().toISOString(),
+        },
+        ...prev.filter(
+          (doc) => String(doc.sessionId) !== String(data.sessionId)
+        ),
+      ]);
+
       goAssistantDoc(data.sessionId, currentFormType);
     } catch (err) {
       console.error("AI 초안 생성 실패", err);
-      setDraftError("AI 초안 생성 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      setDraftError(
+        "AI 초안 생성 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
+      );
     } finally {
       setGeneratingDraft(false);
     }
   };
 
   // ------------------------------------------------
-  // 1) 현재 URL에서 화면 상태를 파생
+  // 6) 사이드바 / 최근 작성 클릭 처리
   // ------------------------------------------------
-  const queryType = normalizeFormType(searchParams.get("type"));
 
-  const matchedRecentDoc = useMemo(() => {
-    return recents.find((doc) => doc.id === docId);
-  }, [recents, docId]);
-
-  const currentTab = useMemo(() => {
-    if (location.pathname.startsWith(PATH.AI.CHATBOT)) return "chatbot";
-    if (location.pathname.startsWith(PATH.AI.CORRECTION)) return "polish";
-    if (location.pathname.startsWith(PATH.AI.KNOWLEDGE_REQUEST)) {
-      return "knowledge-request";
-    }
-    return "assistant";
-  }, [location.pathname]);
-
-  const currentScreen = useMemo(() => {
-    if (location.pathname === PATH.AI.ASSISTANT) return "assistant-home";
-    if (location.pathname === PATH.AI.ASSISTANT_NEW) return "form";
-    if (location.pathname === PATH.AI.ASSISTANT_TEMPLATE) return "template";
-    if (location.pathname.startsWith(`${ASSISTANT_DOC_PREFIX}/`)) return "writer";
-    return "assistant-home";
-  }, [location.pathname]);
-
-  const currentFormType = useMemo(() => {
-    if (matchedRecentDoc?.type) return matchedRecentDoc.type;
-    return queryType;
-  }, [matchedRecentDoc, queryType]);
-
-  // ------------------------------------------------
-  // 2) URL 이동 helper
-  // ------------------------------------------------
-  const goAssistantHome = () => navigate(PATH.AI.ASSISTANT);
-
-  const goAssistantForm = (type = "report") => {
-    const normalized = normalizeFormType(type);
-    navigate(`${PATH.AI.ASSISTANT_NEW}?type=${normalized}`);
-  };
-
-  const goAssistantTemplate = () => navigate(PATH.AI.ASSISTANT_TEMPLATE);
-
-  const goAssistantDoc = (targetDocId, type = "report") => {
-    const normalized = normalizeFormType(type);
-    navigate(`${buildAssistantDocPath(targetDocId)}?type=${normalized}`);
-  };
-
-  const goChatbot = () => navigate(PATH.AI.CHATBOT);
-  const goCorrection = () => navigate(PATH.AI.CORRECTION);
-  const goKnowledgeRequest = () => navigate(PATH.AI.KNOWLEDGE_REQUEST);
-
-  // ------------------------------------------------
-  // 3) 사이드바 / 최근작성 클릭 처리
-  // ------------------------------------------------
   const handleSidebarChange = (next) => {
     if (next === "assistant") {
       goAssistantHome();
       return;
     }
+
     if (next === "chatbot") {
       goChatbot();
       return;
     }
+
     if (next === "polish") {
       goCorrection();
       return;
     }
+
     if (next === "knowledge-request") {
       goKnowledgeRequest();
-      return;
     }
   };
 
+  /**
+   * 최근 작성 클릭 처리
+   *
+   * DB 기반 recent 문서는 screen="writer"로 들어온다.
+   * 이 경우 sessionId 기준으로 writer URL로 이동한다.
+   */
   const handleRecentClick = (doc) => {
     if (doc.screen === "writer") {
-      goAssistantDoc(doc.id, doc.type);
+      goAssistantDoc(doc.sessionId ?? doc.id, doc.type ?? "report");
       return;
     }
 
-    // 최근 작성 문서가 form 진입형이면 기존처럼 제목 정도는 미리 채워주되,
-    // 화면 이동은 URL 기반으로 처리함.
     setFormData((prev) => ({
       ...prev,
       title: doc.title,
     }));
 
-    goAssistantForm(doc.type);
+    goAssistantForm(doc.type ?? "report");
   };
 
   // ------------------------------------------------
-  // 4) URL 기반 화면 렌더링
+  // 7) 독립 기능 화면 렌더링
   // ------------------------------------------------
-  // 독립 기능 분기 : 챗봇/ 문장 다듬기 화면/ 지식 추가 화면
+
   const renderStandalonePage = () => {
-    if(currentTab === "chatbot") {
+    if (currentTab === "chatbot") {
       return <ChatbotScreen userInfo={userInfo} />;
     }
 
@@ -288,13 +566,16 @@ export default function AiSecretary({ userInfo }) {
     }
 
     if (currentTab === "knowledge-request") {
-      return <KnowledgeRequestScreen userInfo={userInfo} />
+      return <KnowledgeRequestScreen userInfo={userInfo} />;
     }
 
     return null;
-  }
+  };
 
-  // AI 비서 내부 분기
+  // ------------------------------------------------
+  // 8) AI 비서 내부 화면 렌더링
+  // ------------------------------------------------
+
   const renderAssistantPage = () => {
     if (currentScreen === "assistant-home") {
       return (
@@ -303,6 +584,8 @@ export default function AiSecretary({ userInfo }) {
           onOpenTemplate={goAssistantTemplate}
           recents={recents}
           onRecentClick={handleRecentClick}
+          loadingRecents={loadingRecents}
+          recentError={recentError}
         />
       );
     }
@@ -333,6 +616,7 @@ export default function AiSecretary({ userInfo }) {
               ...prev,
               title: card.title,
             }));
+
             goAssistantForm("report");
           }}
         />
@@ -350,36 +634,43 @@ export default function AiSecretary({ userInfo }) {
     }
 
     return null;
-  }
+  };
 
-  // 독립 기능 조립 vs AI 비서 내부 조립 둘 중 하나 선택 하여 fallback
+  // ------------------------------------------------
+  // 9) 최종 페이지 선택
+  // ------------------------------------------------
+
   const page = useMemo(() => {
-  const standalonePage = renderStandalonePage();
-  if (standalonePage) return standalonePage;
+    const standalonePage = renderStandalonePage();
+    if (standalonePage) return standalonePage;
 
-  const assistantPage = renderAssistantPage();
-  if (assistantPage) return assistantPage;
+    const assistantPage = renderAssistantPage();
+    if (assistantPage) return assistantPage;
 
-  return (
-    <AssistantHome
-      onOpenForm={goAssistantForm}
-      onOpenTemplate={goAssistantTemplate}
-      recents={recents}
-      onRecentClick={handleRecentClick}
-    />
-  );
-}, [
-  currentTab,
-  currentScreen,
-  currentFormType,
-  correction,
-  writerState,
-  recents,
-  formData,
-  userInfo,
-  generatingDraft,
-  draftError,
-]);
+    return (
+      <AssistantHome
+        onOpenForm={goAssistantForm}
+        onOpenTemplate={goAssistantTemplate}
+        recents={recents}
+        onRecentClick={handleRecentClick}
+        loadingRecents={loadingRecents}
+        recentError={recentError}
+      />
+    );
+  }, [
+    currentTab,
+    currentScreen,
+    currentFormType,
+    correction,
+    writerState,
+    recents,
+    formData,
+    userInfo,
+    generatingDraft,
+    draftError,
+    loadingRecents,
+    recentError,
+  ]);
 
   return (
     <div style={styles.app}>
@@ -389,7 +680,8 @@ export default function AiSecretary({ userInfo }) {
         recents={recents}
         onRecentClick={handleRecentClick}
       />
+
       <main style={styles.main}>{page}</main>
     </div>
   );
-}
+} 

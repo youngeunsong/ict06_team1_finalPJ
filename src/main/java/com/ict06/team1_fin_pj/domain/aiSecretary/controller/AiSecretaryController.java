@@ -15,9 +15,6 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-
-
-
 import java.util.List;
 
 @RestController
@@ -59,7 +56,7 @@ public class AiSecretaryController {
         return ApiResponse.ok("챗봇 세션 조회 성공", response);
     }
 
-    // 채팅 세션 목록 조회
+    // AI 비서 채팅 세션 목록 조회
     @GetMapping("/sessions")
     public ApiResponse<List<AiChatSessionResponseDto>> getSessionList(
             @RequestParam String empNo,
