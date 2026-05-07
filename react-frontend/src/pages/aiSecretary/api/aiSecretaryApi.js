@@ -6,19 +6,22 @@
  * @Modification_History
  * @
  * @ 수정일         수정자        수정내용
- * @ ----------    ---------    -------------------------------
+ * @ ----------    ---------    ----------------------------------------
  * @ 2026.04.28    송혜진        최초 생성 / BACKEND 연결
  * @ 2026.05.05    송혜진        문장 다듬기 API 추가
  * @ 2026.05.06    송혜진        AI 비서 리스트 추가 API 추가
+ * @ 2026.05.07    송혜진        문서 유형 type 값을 REPORT / MINUTES / APPROVAL 기준으로 보정
  */
 
 import axios from "axios";
 
+// AI 비서 전용 axios instance
 const api = axios.create({
   baseURL: "http://localhost:8081",
 });
 
-// JWT 토큰 자동 첨부
+// JWT 토큰 자동 첨부 ()
+// 로그인 성공 후 localStorage에 저장된 token을 꺼내 모든 AI 비서 API 요청에 Authorization Bearer 헤더로 붙임
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
@@ -29,23 +32,56 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 공통 응답 unwrap
-// 백엔드 ApiResponse 구조: { success, message, data }
+
+// 백엔드 ApiResponse 구조 unwrap
+// response.data.data -> unwrapApiData(response)로 실제 data만 사용하기 위해
 export const unwrapApiData = (response) => {
   if (response?.data?.data !== undefined) return response.data.data;
   if (response?.data !== undefined) return response.data;
   return response;
 };
 
+/* 백엔드 응답 구조:
+ * {
+ *   success: true,
+ *   message: "...",
+ *   data: ...
+ * }
+ */
+
+// 문서 유형을 백엔드/DB 기준 대문자로 보정
+export const toApiDocumentType = (type) => {
+  const normalized = String(type || "").trim().toUpperCase();
+
+  if (normalized === "MINUTES") return "MINUTES";
+  if (normalized === "APPROVAL") return "APPROVAL";
+  return "REPORT";
+};
+
+// 문서 유형 type이 들어가는 payload를 API 기준으로 보정
+const normalizeDocumentPayload = (payload = {}) => ({
+  ...payload,
+  type: toApiDocumentType(payload?.type),
+});
+
 // -----------------------------------------------------
 // 세션 관련 API
 // -----------------------------------------------------
 
-// 공통 세션 생성 (현재 CHATBOT은 /chatbot/session을 사용하므로 일반 화면에서는 미사용)
+/**
+ * 공통 세션 생성
+ *
+ * 현재 주요 흐름:
+ * - CHATBOT 세션은 getOrCreateChatbotSession 사용
+ * - ASSISTANT 세션은 /assistant/draft 내부에서 백엔드가 생성
+ *
+ * 따라서 이 함수는 단독 테스트 또는 예비용에 가깝다.
+ */
 export const createSession = (payload) =>
   api.post("/api/ai-secretary/sessions", payload);
 
-// CHATBOT 최근 세션 조회 또는 생성 (목록 없이 최근 48시간 내 단일 세션만 사용)
+
+// CHATBOT 최근 세션 조회 또는 생성
 export const getOrCreateChatbotSession = (empNo) =>
   api.post("/api/ai-secretary/chatbot/session", null, {
     params: {
@@ -53,7 +89,7 @@ export const getOrCreateChatbotSession = (empNo) =>
     },
   });
 
-// AI 비서 최근 작성 목록 조회 (최근 작성 목록에는 ASSISTANT 세션만 노출)
+// AI 비서 최근 작성 목록 조회
 export const getAssistantSessionList = (empNo) =>
   api.get("/api/ai-secretary/sessions", {
     params: {
@@ -62,7 +98,7 @@ export const getAssistantSessionList = (empNo) =>
     },
   });
 
-// 공통 세션 목록 조회 (CHATBOT 목록 조회 미사용)
+// 공통 세션 목록 조회
 export const getSessionList = (empNo, sessionType) =>
   api.get("/api/ai-secretary/sessions", {
     params: {
@@ -71,13 +107,11 @@ export const getSessionList = (empNo, sessionType) =>
     },
   });
 
-// 세션 내 메시지 목록 조회
+// 세션 내 메시지 목록 조회 (챗봇 메시지 재조회/ 최근 작성 문서 클릭 시 ASSISTANT 세션 메시지 로딩)
 export const getMessages = (sessionId) =>
   api.get(`/api/ai-secretary/sessions/${sessionId}/messages`);
 
 // 세션 내 메시지 저장
-// 현재 챗봇/AI비서 주요 흐름에서는 ask/draft/revise API가 저장까지 담당하므로
-// 단독 저장용 또는 테스트용으로 유지
 export const sendMessage = (sessionId, payload) =>
   api.post(`/api/ai-secretary/sessions/${sessionId}/messages`, payload);
 
@@ -85,7 +119,15 @@ export const sendMessage = (sessionId, payload) =>
 // 챗봇 API
 // -----------------------------------------------------
 
-// Gemini 기반 챗봇 질문
+/**
+ * Gemini 기반 챗봇 질문
+ *
+ * 처리 흐름:
+ * - USER 메시지 저장
+ * - Gemini 호출
+ * - ASSISTANT 메시지 저장
+ * - AI_LOG 저장
+ */
 export const askChatbot = (payload) =>
   api.post("/api/ai-secretary/chatbot/ask", payload);
 
@@ -93,7 +135,15 @@ export const askChatbot = (payload) =>
 // 문장 다듬기 API
 // -----------------------------------------------------
 
-// 문장 다듬기 프롬프트 실행
+/**
+ * 문장 다듬기 프롬프트 실행
+ *
+ * 처리 흐름:
+ * - 입력 문장과 mode 전달
+ * - Gemini 문장 다듬기
+ * - fallback 처리
+ * - AI_LOG 저장
+ */
 export const correctText = (payload) =>
   api.post("/api/ai-secretary/correction", payload);
 
@@ -103,8 +153,33 @@ export const correctText = (payload) =>
 
 // AI 비서 문서 초안 생성
 export const createAssistantDraft = (payload) =>
-  api.post("/api/ai-secretary/assistant/draft", payload);
+  api.post(
+    "/api/ai-secretary/assistant/draft",
+    normalizeDocumentPayload(payload)
+  );
 
-// AI 비서 문서 추가 수정
+// AI 비서 문서 추가 수정 (WriterScreen에서 “더 간결하게”, “표로 정리해줘” 등 추가 수정 요청)
 export const reviseAssistantDraft = (payload) =>
-  api.post("/api/ai-secretary/assistant/revise", payload);
+  api.post(
+    "/api/ai-secretary/assistant/revise",
+    normalizeDocumentPayload(payload)
+  );
+
+// -----------------------------------------------------
+// AI 비서 > 템플릿 요청 API
+// -----------------------------------------------------
+
+// 추천 템플릿 목록 추가 요청 저장
+export const createTemplateRequest = (payload) =>
+  api.post(
+    "/api/ai-secretary/template-request",
+    normalizeDocumentPayload(payload)
+  );
+
+// 내 추천 템플릿 추가 요청 목록 조회
+export const getMyTemplateRequests = (empNo) =>
+  api.get("/api/ai-secretary/template-request/my", {
+    params: {
+      empNo: String(empNo),
+    },
+  });

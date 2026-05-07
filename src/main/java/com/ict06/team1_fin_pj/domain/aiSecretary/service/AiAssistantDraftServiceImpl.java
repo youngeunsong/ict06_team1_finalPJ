@@ -239,51 +239,53 @@ public class AiAssistantDraftServiceImpl implements AiAssistantDraftService {
     }
 
     private String buildDraftPrompt(AssistantDraftRequestDto requestDto) {
-        String typeLabel = switch (safe(requestDto.getType())) {
-            case "minutes" -> "회의록";
-            case "approval" -> "결재 사유서";
+        String documentType = normalizeDocumentType(requestDto.getType());
+
+        String typeLabel = switch (documentType) {
+            case "MINUTES" -> "회의록";
+            case "APPROVAL" -> "결재 사유서";
             default -> "보고서";
         };
 
-        String typeInstruction = switch (safe(requestDto.getType())) {
-            case "minutes" -> """
-                    회의 목적, 주요 논의 내용, 결정 사항, 액션 아이템 순서로 정리하세요.
-                    발언록이 부족한 경우 내용을 지어내지 말고 입력된 핵심 내용 중심으로 정리하세요.
-                    """;
-            case "approval" -> """
-                    결재 배경, 필요성, 기대 효과, 요청 사항 순서로 정리하세요.
-                    과장된 표현은 피하고 승인자가 이해하기 쉽게 작성하세요.
-                    """;
+        String typeInstruction = switch (documentType) {
+            case "MINUTES" -> """
+                회의 목적, 주요 논의 내용, 결정 사항, 액션 아이템 순서로 정리하세요.
+                발언록이 부족한 경우 내용을 지어내지 말고 입력된 핵심 내용 중심으로 정리하세요.
+                """;
+            case "APPROVAL" -> """
+                결재 배경, 필요성, 기대 효과, 요청 사항 순서로 정리하세요.
+                과장된 표현은 피하고 승인자가 이해하기 쉽게 작성하세요.
+                """;
             default -> """
-                    개요, 작성 목적, 주요 내용, 시사점, 후속 계획 순서로 정리하세요.
-                    실무 보고서 형식으로 명확하고 간결하게 작성하세요.
-                    """;
+                개요, 작성 목적, 주요 내용, 시사점, 후속 계획 순서로 정리하세요.
+                실무 보고서 형식으로 명확하고 간결하게 작성하세요.
+                """;
         };
 
         return """
-                당신은 사내 그룹웨어의 AI 문서 작성 비서입니다.
+            당신은 사내 그룹웨어의 AI 문서 작성 비서입니다.
 
-                다음 입력값을 바탕으로 %s 초안을 작성하세요.
+            다음 입력값을 바탕으로 %s 초안을 작성하세요.
 
-                작성 규칙:
-                1. 한국어로 작성하세요.
-                2. 업무 문서에 적합한 공손하고 명확한 문체를 사용하세요.
-                3. 입력값에 없는 구체적인 수치, 일정, 정책명은 지어내지 마세요.
-                4. 제목과 소제목을 포함해 읽기 쉽게 구성하세요.
-                5. 불필요한 설명 없이 문서 초안만 출력하세요.
-                6. 마크다운 기호(#, ##, ###, *, -)는 사용하지 말고 일반 문서 형식으로 작성하세요.
+            작성 규칙:
+            1. 한국어로 작성하세요.
+            2. 업무 문서에 적합한 공손하고 명확한 문체를 사용하세요.
+            3. 입력값에 없는 구체적인 수치, 일정, 정책명은 지어내지 마세요.
+            4. 제목과 소제목을 포함해 읽기 쉽게 구성하세요.
+            5. 불필요한 설명 없이 문서 초안만 출력하세요.
+            6. 마크다운 기호(#, ##, ###, *, -)는 사용하지 말고 일반 문서 형식으로 작성하세요.
 
-                유형별 지시:
-                %s
+            유형별 지시:
+            %s
 
-                입력값:
-                - 제목: %s
-                - 작성 목적: %s
-                - 대상 독자: %s
-                - 정리 대상: %s
-                - 핵심 내용: %s
-                - 원하는 분량/방식: %s
-                """.formatted(
+            입력값:
+            - 제목: %s
+            - 작성 목적: %s
+            - 대상 독자: %s
+            - 정리 대상: %s
+            - 핵심 내용: %s
+            - 원하는 분량/방식: %s
+            """.formatted(
                 typeLabel,
                 typeInstruction,
                 safe(requestDto.getTitle()),
@@ -297,8 +299,8 @@ public class AiAssistantDraftServiceImpl implements AiAssistantDraftService {
 
     private String buildFallbackDraft(AssistantDraftRequestDto requestDto) {
         String typeLabel = switch (safe(requestDto.getType())) {
-            case "minutes" -> "회의록";
-            case "approval" -> "결재 사유";
+            case "MINUTES" -> "회의록";
+            case "APPROVAL" -> "결재 사유서";
             default -> "보고서";
         };
 
@@ -350,8 +352,8 @@ public class AiAssistantDraftServiceImpl implements AiAssistantDraftService {
     //
     private String buildRevisePrompt(AssistantReviseRequestDto requestDto) {
         String typeLabel = switch (safe(requestDto.getType())) {
-            case "minutes" -> "회의록";
-            case "approval" -> "결재 사유서";
+            case "MINUTES" -> "회의록";
+            case "APPROVAL" -> "결재 사유서";
             default -> "보고서";
         };
 
@@ -396,5 +398,19 @@ public class AiAssistantDraftServiceImpl implements AiAssistantDraftService {
             """.formatted(
                 safe(requestDto.getCurrentContent())
         );
+    }
+
+    private String normalizeDocumentType(String type) {
+        if (type == null || type.isBlank()) {
+            return "REPORT";
+        }
+
+        String normalized = type.trim().toUpperCase();
+
+        return switch (normalized) {
+            case "MINUTES" -> "MINUTES";
+            case "APPROVAL" -> "APPROVAL";
+            default -> "REPORT";
+        };
     }
 }
