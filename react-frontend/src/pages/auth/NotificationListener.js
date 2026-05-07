@@ -7,12 +7,12 @@ const NotificationListener = ({ children }) => {
     const [toasts, setToasts] = useState([]);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('accessToken');
 
         if(userInfo && userInfo.empNo && token) {
             console.log("알림 구독 시작: ", userInfo.empNo);
             const eventSource = new EventSource(
-                `http://localhost:8081/api/noti/subscribe?empNo=${userInfo.empNo}&token=${token}`
+                `http://localhost:8081/api/noti/subscribe?token=${encodeURIComponent(token)}`
             );
 
             eventSource.onopen = () => console.log("SSE 연결 성공");

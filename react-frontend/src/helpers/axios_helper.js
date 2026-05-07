@@ -9,9 +9,9 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.29    송영은       최초 생성
+ * @ 2026.05.07    김다솜        토큰 키 명칭 변경 (auth_token -> accessToken)
 */
 
-import React from 'react';
 import axios from 'axios'; // npm i axios
 
 axios.defaults.baseURL = 'http://localhost:8081'; // 백엔드 주소 
@@ -22,7 +22,7 @@ axios.defaults.headers.post["content-type"] = 'application/json';
 
 // 한 스크립트에서 여러 개 export하고 싶을 때 아래와 같은 방식으로 작성
 export const getAuthToken = () => {
-    return window.localStorage.getItem("auth_token"); 
+    return window.localStorage.getItem("accessToken"); 
 }
 
 // 로그인 성공 시 넘겨준 토큰을 받는다. 
@@ -30,18 +30,18 @@ export const setAuthToken = (token) => {
     
     // 토큰이 존재하면 localStorage에 저장
     if(token) {
-        window.localStorage.setItem("auth_token", token); 
+        window.localStorage.setItem("accessToken", token); 
     }
     // 토큰이 없으면 (null 또는 undefined) localStorage에서 삭제 
     else{
-        window.localStorage.removeItem("auth_token");
+        window.localStorage.removeItem("accessToken");
     }
 }
 
 // backend와 통신하는 메써드 
 export const request = (method, url, data) => {
 
-    const token = localStorage.getItem('auth_token'); 
+    const token = localStorage.getItem('accessToken'); 
     // const headers = token ? {Authorization: `Bearer ${token}`}: {}; 
     const headers = (token && token !== null && token !== 'undefined')
                     ? {Authorization: `Bearer ${token}`}

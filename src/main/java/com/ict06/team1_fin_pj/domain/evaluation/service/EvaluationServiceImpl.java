@@ -14,6 +14,9 @@
  * @ 2026.04.30    김다솜        최초 생성 및 퀴즈 조회/제출/채점 로직 구현
  * @ 2026.05.01    김다솜        콘텐츠별 평가에서 카테고리별 평가 구조로 수정
  * @ 2026.05.02    김다솜        카테고리별 평가 결과 집계 로직 추가
+ * @ 2026.05.04    김다솜        주관식 AI 채점 점수 totalScore 반영(aiScore → score),
+ *                              RestTemplate Bean 주입으로 변경(매 요청 new 생성 제거)
+ * @ 2026.05.06    김다솜        카테고리별 퀴즈 상세 결과 조회 메서드 추가 (getEvaluationDetail)
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.service;
@@ -48,6 +51,7 @@ public class EvaluationServiceImpl {
     private final EvaluationQuestionRepository questionRepository;
     private final EvaluationResultRepository resultRepository;
     private final EmpRepository empRepository;
+    private final RestTemplate restTemplate;
 
     //학습 카테고리별 퀴즈 문항 조회
     public List<EvaluationQuestionResponse> getQuizQuestionsByCategory(String categoryName) {
@@ -115,7 +119,7 @@ public class EvaluationServiceImpl {
                 result = QuizResultEntity.builder()
                         .employee(emp)
                         .question(question)
-                        .selectedNo(null)
+                        .selectedNo(answer.getSelectedNo())
                         .answerText(null)
                         .isCorrect(isCorrect)
                         .score(score)
@@ -131,8 +135,6 @@ public class EvaluationServiceImpl {
                 score = 0;
 
                 try {
-                    RestTemplate restTemplate = new RestTemplate();
-
                     String url = "http://localhost:8000/api/ai/evaluation/evaluate";
 
                     Map<String, String> body = Map.of(
@@ -158,13 +160,16 @@ public class EvaluationServiceImpl {
                     String aiFeedback = (String) res.get("feedback");
                     Double similarity = ((Number) res.get("similarity")).doubleValue();
 
+                    // ai 점수 할당
+                    score = aiScore.intValue();
+
                     result = QuizResultEntity.builder()
                             .employee(emp)
                             .question(question)
                             .selectedNo(answer.getSelectedNo())
                             .answerText(answer.getAnswerText())
                             .isCorrect(null)
-                            .score(0)
+                            .score(score)
                             .aiScore(BigDecimal.valueOf(aiScore))
                             .aiFeedback(aiFeedback)
                             .similarityScore(BigDecimal.valueOf(similarity))
@@ -200,6 +205,9 @@ public class EvaluationServiceImpl {
                     .isCorrect(isCorrect)
                     .score(score)
                     .explanation(question.getExplanation())
+                    .aiScore(result.getAiScore())
+                    .similarityScore(result.getSimilarityScore())
+                    .aiFeedback(result.getAiFeedback())
                     .build());
 
         }
@@ -243,7 +251,7 @@ public class EvaluationServiceImpl {
                     // 3-1. 총점 계산(사용자 획득 점수)
                     int totalScore = list.stream()
                             .mapToInt(r -> r.getScore() == null ? 0 : r.getScore())
-                                    .sum();
+                            .sum();
 
                     // 3-2. 만점 계산(문항 점수 기준)
                     int maxScore = list.stream()
@@ -263,5 +271,56 @@ public class EvaluationServiceImpl {
                             .build();
                 })
                 .toList();
+    }
+
+    /**
+     * 카테고리별 퀴즈 상세 결과 조회
+     * - 특정 사원이 응시한 카테고리의 모든 문항과 본인의 답변, 정답 여부를 반환
+     * @param empNo 사번
+     * @param categoryName 카테고리명
+     * @return 상세 결과 응답 DTO
+     */
+    public EvaluationDetailResponse getEvaluationDetail(String empNo, String categoryName) {
+        // 1. 해당 사원의 특정 카테고리 퀴즈 응답 결과 리스트 조회
+        List<QuizResultEntity> results = resultRepository.findByEmployee_EmpNoAndQuestion_CategoryName(empNo, categoryName);
+
+        if(results.isEmpty()) {
+            throw new RuntimeException("해당 카테고리의 평가 내역을 찾을 수 없습니다.");
+        }
+
+        // 2. 문항별 상세 정보 매핑
+        List<EvaluationDetailResponse.QuestionDetail> questionDetails = results.stream()
+                .map(result -> {
+                    QuizQuestionEntity question = result.getQuestion();
+
+                    // 답변 형식 처리(객관식: 선택번호 / 주관식: 입력텍스트)
+                    String userAnswer = (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE)
+                            ? (result.getSelectedNo() != null ? String.valueOf(result.getSelectedNo()) : "미선택")
+                            : result.getAnswerText();
+
+                    // 정답 형식 처리(객관식: 정답번호 / 주관식: 예시답안)
+                    String correctAnswer = (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE)
+                            ? String.valueOf(question.getAnswerNo())
+                            : question.getSampleAnswer();
+
+                    return EvaluationDetailResponse.QuestionDetail.builder()
+                            .questionId(question.getQuestionId())
+                            .questionText(question.getQuestionText())
+                            .userAnswer(userAnswer)
+                            .correctAnswer(correctAnswer)
+                            .isCorrect(Boolean.TRUE.equals(result.getIsCorrect()))
+                            .aiScore(result.getAiScore())
+                            .aiFeedback(result.getAiFeedback())
+                            .similarityScore(result.getSimilarityScore())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // 3. 최종 DTO 생성 및 반환
+        return EvaluationDetailResponse.builder()
+                .categoryName(categoryName)
+                .empNo(empNo)
+                .questions(questionDetails)
+                .build();
     }
 }

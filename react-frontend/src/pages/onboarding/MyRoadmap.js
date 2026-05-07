@@ -27,7 +27,7 @@ import { containerStyle } from 'src/styles/js/demoPageStyle';
 import ChecklistPreview from './ChecklistPreview';
 import { previewWrapper } from 'src/styles/js/onboarding/ChecklistStyle';
 import { progressBoxStyle, progressTrackStyle, quizButtonAreaStyle, quizButtonStyle, roadmapHeaderStyle } from 'src/styles/js/onboarding/RoadmapStyle';
-import axios from 'axios';
+import axiosInstance from 'src/api/axiosInstance';
 
 function MyRoadmap({ userInfo }) {
     console.log("🔥 최종 userInfo:", userInfo);
@@ -37,6 +37,7 @@ function MyRoadmap({ userInfo }) {
     const [roadmapGroups, setRoadmapGroups] = useState([]);
     const [openGroup, setOpenGroup] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [evaluationResults, setEvaluationResults] = useState([]); // 카테고리별 평가 결과 저장
 
     //학습하기 클릭 핸들러 -> 학습 콘텐츠 상세 페이지로 이동
     //contentId: 콘텐츠 상세 조회용
@@ -47,7 +48,8 @@ function MyRoadmap({ userInfo }) {
         });
     };
 
-    //컴포넌트 로드 시 AI 서버에서 데이터 가져오기
+    // AI 온보딩 로드맵 조회
+    // 컴포넌트 로드 시 AI 서버에서 데이터 가져오기
     useEffect(() => {
         console.log("로그인 유저 정보: ", userInfo);
 
@@ -64,9 +66,10 @@ function MyRoadmap({ userInfo }) {
                 setLoading(true);
 
                 const url = `${PATH.AI_API.BASE}${PATH.AI_API.ROADMAP(empNo)}`;
-                console.log("[MyRoadmap] AI 로드맵 요청 URL:", url);
+                // const url = PATH.API.ONBOARDING.ROADMAP(empNo);
+                console.log("[MyRoadmap] Spring 로드맵 요청 endpoint:", url);
 
-                const response = await axios.get(url);
+                const response = await axiosInstance.get(url);
 
                 console.log("[MyRoadmap] 응답 전체: ", response);
                 console.log("[MyRoadmap] 응답 data:", response.data);
@@ -94,9 +97,27 @@ function MyRoadmap({ userInfo }) {
         getAiRoadmap();
     }, [userInfo]);
 
+    // 평가 결과 조회
     useEffect(() => {
-        // 학습 상세 페이지에서 완료 처리 후 돌아왔을 때
-        // 전달 받은 updatedItemId에 해당하는 항목을 즉시 '완료' 상태로 변경
+        if(!userInfo?.empNo) return;
+
+        const fetchEvaluationResults = async () => {
+            try {
+                const url = PATH.API.EVALUATION.QUIZ_RESULT(userInfo.empNo);
+                const res = await axiosInstance.get(url);
+                console.log("[MyRoadmap] 평가 결과 요청 endpoint:", url);
+                setEvaluationResults(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("[MyRoadmap] 평가 결과 조회 실패: ", err);
+            }
+        };
+
+        fetchEvaluationResults();
+    }, [userInfo?.empNo]);
+
+    // 학습 상세 페이지에서 완료 처리 후 돌아왔을 때
+    // 전달 받은 updatedItemId에 해당하는 항목을 즉시 '완료' 상태로 변경
+    useEffect(() => {
         const updatedItemId = location.state?.updatedItemId;
 
         console.log("[MyRoadmap] updatedItemId:", location.state?.updatedItemId);
@@ -238,6 +259,14 @@ function MyRoadmap({ userInfo }) {
                         {roadmapGroups.map((group, idx) => {
                             const progress = calculateProgress(group.items);
                             const isCategoryCompleted = progress.completed === progress.total;
+
+                            // 현재 카테고리의 평가 결과 조회
+                            const evaluationResult = evaluationResults.find(
+                                (result) => result.categoryName === group.category_name
+                            );
+
+                            const isSubmitted = evaluationResult?.submitted;
+                            const isPassed = evaluationResult?.passed;
                             
                             return (
                                 <div
@@ -273,20 +302,13 @@ function MyRoadmap({ userInfo }) {
 
                                             <div style={{ marginTop: '6px', fontSize: '13px', color: '#6c757d' }}>
                                                 {(() => {
-                                                    // TODO: 추후 평가 결과 API로 교체
-                                                    const isPassed = false;
-
                                                     if(!isCategoryCompleted) {
                                                         return `학습 진행 중 (${progress.completed}/${progress.total})`;
                                                     }
 
-                                                    if(isCategoryCompleted && !isPassed) {
-                                                        return "학습 완료 / 평가 미응시";
-                                                    }
-
-                                                    if(!isPassed) {
-                                                        return "평가 통과 완료";
-                                                    }
+                                                    if(isPassed) return "평가 통과 완료";
+                                                    if(isSubmitted && !isPassed) return "평가 재응시 필요";
+                                                    if(isCategoryCompleted && !isPassed) return "학습 완료 / 평가 미응시";
                                                     
                                                     return "";
                                                 })()}
@@ -374,12 +396,30 @@ function MyRoadmap({ userInfo }) {
                                             ))}
                                             <div style={quizButtonAreaStyle}>
                                                 <button
-                                                    className={`btn btn-sm ${isCategoryCompleted ? 'btn-success' : 'btn-secondary'}`}
-                                                    style={quizButtonStyle}
-                                                    disabled={!isCategoryCompleted}
+                                                    className={`btn btn-sm ${
+                                                        !isCategoryCompleted
+                                                        ? 'btn-secondary'
+                                                        : isPassed
+                                                            ? 'btn-success'
+                                                            : isSubmitted
+                                                                ? 'btn-warning'
+                                                                : 'btn-primary'
+                                                    }`}
+                                                    style={{
+                                                        ...quizButtonStyle,
+                                                        opacity: isPassed ? 0.85 : 1,
+                                                        cursor: isPassed ? 'default' : 'pointer'
+                                                    }}
+                                                    disabled={!isCategoryCompleted || isPassed}
                                                     onClick={() => handleGoQuiz(group.category_name)}
                                                 >
-                                                    {isCategoryCompleted ? "퀴즈 풀기" : "학습 완료 후 응시 가능"}
+                                                    {!isCategoryCompleted
+                                                        ? "학습 완료 후 응시 가능"
+                                                        : isPassed
+                                                            ? "평가 통과"
+                                                            : isSubmitted
+                                                                ? "재응시 필요"
+                                                                : "퀴즈 풀기"}
                                                 </button>
                                             </div>
                                         </div>
