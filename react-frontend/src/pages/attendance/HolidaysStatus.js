@@ -104,7 +104,7 @@ import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
           empNo: empNo,
         };
 
-        const summaryRes = await request('GET', '/api/leave/summary', summaryParams);
+        const summaryRes = await request('GET', '/leave/summary', summaryParams);
 
         // 3. 연차 사용 내역 API 호출
         // 연차/반차 사용 이력 조회
@@ -112,7 +112,7 @@ import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
           empNo: empNo,
         };
 
-        const historyRes = await request('GET', '/api/leave/history', historyParams);
+        const historyRes = await request('GET', '/leave/history', historyParams);
 
         // 4. 응답 데이터를 화면 상태에 저장
         // summaryRes.data 예시:

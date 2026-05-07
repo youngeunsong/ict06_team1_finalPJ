@@ -12,7 +12,7 @@ import java.util.Map;
 // 연차 현황 API 컨트롤러
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/leave")
+@RequestMapping("/leave")
 public class LeaveController {
 
     // 연차 비즈니스 로직 담당 Service
