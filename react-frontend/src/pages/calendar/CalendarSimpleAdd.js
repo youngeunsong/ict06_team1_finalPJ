@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // CoreUI 
 import { CButton, CForm, CFormInput, CFormSelect, CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter } from '@coreui/react';
@@ -10,8 +10,15 @@ import { PATH } from 'src/constants/path';
 import { request } from 'src/helpers/axios_helper';
 
 // [캘린더] 일정 간단 등록 페이지
-const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPosition, onCreateSuccess }) => {
-
+const CalendarSimpleAdd = ({
+    visible = true,
+    onClose,
+    selectedDateProp,
+    popupPosition,
+    onCreateSuccess,
+    onOpenDetailAdd,
+    onDraftChange,
+}) => {
 
     // js 코드로 페이지 이동할 때 사용하는 함수
     const navigate = useNavigate();
@@ -24,6 +31,10 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
     // 캘린더에서 날짜를 넘겨주면 그 날짜 사용, 없으면 URL의 ?date= 값 사용
     const selectedDate = selectedDateProp || searchParams.get('date');
 
+    // 팝업 영역 참조
+    // 바깥 클릭 여부를 확인하기 위해 실제 팝업 DOM을 기억한다.
+    const popupRef = useRef(null);
+
     // 퀵 팝업으로 열렸으면 팝업만 닫고,
     // 단독 페이지로 접근한 경우에는 캘린더 메인으로 이동
     const handleClose = () => {
@@ -33,6 +44,18 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
             onClose();
         } else {
             navigate(PATH.CALENDAR.ROOT);
+        }
+    };
+
+    // 상세등록 팝업 전환
+    // 간편등록 입력값을 비우고 부모 캘린더에 큰 팝업 열기를 요청.
+    const handleDetailAddClick = () => {
+        resetSimpleForm();
+
+        if (onOpenDetailAdd) {
+            onOpenDetailAdd();
+        } else {
+            navigate(`${PATH.CALENDAR.DETAIL_ADD}?date=${selectedDate || ''}`);
         }
     };
 
@@ -68,6 +91,10 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
         setAllDay(false);
         setErrorMessage('');
         setParticipantModalVisible(false);
+
+        if (onDraftChange) {
+            onDraftChange(null);
+        }
     };
 
     // 간단 등록 폼 입력값 관리
@@ -109,6 +136,44 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
         }));
     }, [visible, selectedDate, allDay]);
 
+    // 바깥 클릭 닫기
+    // document 전체 클릭을 감지한 뒤, 클릭 위치가 팝업 밖이면 팝업을 닫는다.
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+
+        const handleOutsideClick = (e) => {
+            // popupRef.current => 실제 팝업 div
+            // contains(e.target)이 false면 팝업 바깥 클릭한 것
+            // if(실제팝업존재여부 && 팝업 바깥 클릭시)
+            if (popupRef.current && !popupRef.current.contains(e.target)) {
+                handleClose();
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+        };
+    }, [visible]);
+
+    // 일정 입력 미리보기
+    // 입력 중인 제목/시간을 부모 캘린더에 임시 일정으로 전달.
+    useEffect(() => {
+        if (!visible || !selectedDate || !onDraftChange) {
+            return;
+        }
+
+        onDraftChange({
+            title: formData.title,
+            start: formData.start,
+            end: formData.end,
+            allDay,
+        });
+    }, [visible, selectedDate, formData.title, formData.start, formData.end, allDay, onDraftChange]);
+
     // 참석자 선택 테스트용 같은 부서 구성원 더미 데이터
     const deptMembers = [
         { empId: '20240001', name: '송창범' },
@@ -126,7 +191,25 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
         });
     };
 
+    // 종료 시간 자동 계산
+    // 시작 시간을 바꾸면 종료 시간을 시작 시간 +1시간 배정
+    const addOneHour = (dateTimeValue) => {
+        if (!dateTimeValue) return '';
+
+        const date = new Date(dateTimeValue);
+        date.setHours(date.getHours() + 1);
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+    };
+
     // 시작/종료 시간 변경
+    // field가 start면 시작/종료를 같이 바꿈, end면 종료 시간만 바꿈
     const handleTimeChange = (field, timeValue) => {
         const dateValue =
             selectedDate ||
@@ -137,9 +220,14 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
             return;
         }
 
+        const dateTimeValue = `${dateValue}T${timeValue}`;
+
         setFormData((prev) => ({
             ...prev,
-            [field]: `${dateValue}T${timeValue}`,
+            [field]: dateTimeValue,
+
+            // 시작 시간을 바꿀 때만 end 값을 추가로 덮어쓴다.
+            ...(field === 'start' ? { end: addOneHour(dateTimeValue) } : {}),
         }));
     };
 
@@ -249,6 +337,18 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
         border: '1px solid #d1d5db',
     };
 
+    const selectInputStyle = {
+        ...compactInputStyle,
+        appearance: 'none',
+        backgroundImage:
+            'linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%)',
+        backgroundPosition: 'calc(100% - 18px) 50%, calc(100% - 13px) 50%',
+        backgroundSize: '5px 5px, 5px 5px',
+        backgroundRepeat: 'no-repeat',
+        paddingRight: '34px',
+    };
+
+
     const titleInputStyle = {
         width: '100%',
         border: 'none',
@@ -307,7 +407,7 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
 
             {/* 일정 간단 등록 퀵 팝업 */}
             {visible && (
-                <div style={simplePopupStyle}>
+                <div ref={popupRef} style={simplePopupStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <strong>일정 간단 등록</strong>
 
@@ -339,7 +439,7 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
-                            style={{ ...fieldBlockStyle, ...compactInputStyle }}
+                            style={{ ...fieldBlockStyle, ...selectInputStyle }}
                         >
                             <option value="MEETING">회의</option>
                             <option value="WORK">업무</option>
@@ -455,7 +555,7 @@ const CalendarSimpleAdd = ({ visible = true, onClose, selectedDateProp, popupPos
                                 variant="outline"
                                 size="sm"
                                 type="button"
-                                onClick={() => navigate(`${PATH.CALENDAR.DETAIL_ADD}?date=${selectedDate || ''}`)}
+                                onClick={handleDetailAddClick}
                             >
                                 상세등록
                             </CButton>

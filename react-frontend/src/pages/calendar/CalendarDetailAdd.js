@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // CoreUI 
 import { CButton, CCard, CCardBody, CCardHeader, CForm, CFormInput, CFormSelect, CFormTextarea, CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter } from '@coreui/react';
@@ -11,9 +11,20 @@ import { containerStyle } from 'src/styles/js/demoPageStyle';
 
 // 경로 상수
 import { PATH } from 'src/constants/path';
+import { request } from 'src/helpers/axios_helper';
 
 // [캘린더] 상세 등록 / 반복 / 참석자 일정 페이지
-const CalendarDetailAdd = () => {
+const CalendarDetailAdd = ({
+    visible = true,
+    onClose,
+    selectedDateProp,
+    popupPosition,
+    onCreateSuccess,
+    onDraftChange,
+    popupMode = false,
+    mode = 'create',
+    initialSchedule = null,
+}) => {
 
     // DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
@@ -24,7 +35,15 @@ const CalendarDetailAdd = () => {
     // 캘린더에서 선택한 날짜를 URL query string으로 받음
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
-    const selectedDate = searchParams.get('date');
+    const selectedDate = selectedDateProp || searchParams.get('date');
+
+    // 팝업 영역 참조
+    // 바깥 클릭 여부 확인하기 위해 실제 상세등록 팝업 DOM을 기억한다.
+    const popupRef = useRef(null);
+
+    // 상세/수정 모드 확인
+    // edit 모드면 기존 일정 데이터를 채우고, 이후 수정 로직을 호출.
+    const isEditMode = mode === 'edit';
 
     // 선택 날짜가 있으면 현재 시각 기준 다음 정각으로 기본 시간 설정
     const getDefaultDateTime = (dateStr, plusHour = 0) => {
@@ -41,6 +60,16 @@ const CalendarDetailAdd = () => {
 
     const defaultStart = getDefaultDateTime(selectedDate, 0);
     const defaultEnd = getDefaultDateTime(selectedDate, 1);
+
+    // 상세등록 닫기
+    // 팝업이면 닫기 콜백 쓰고, 페이지면 캘린더로 이동.
+    const handleClose = () => {
+        if (onClose) {
+            onClose();
+        } else {
+            navigate(PATH.CALENDAR.ROOT);
+        }
+    };
 
     // 상세 등록 폼 입력값 관리
     const [formData, setFormData] = useState({
@@ -60,6 +89,214 @@ const CalendarDetailAdd = () => {
     // 참석자 선택 모달 열림/닫힘 상태 관리
     const [participantModalVisible, setParticipantModalVisible] = useState(false);
 
+    // 종일 여부
+    const [allDay, setAllDay] = useState(false);
+
+    // 등록 오류 메세지
+    // 저장 실패 시 화면에 짧게 보여줌
+    const [errorMessage, setErrorMessage] = useState('');
+
+    // 상세등록 폼 초기화
+    // create 모드는 새 일정 기본값, edit 모드는 기존 일정값을 폼에 채움.
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+
+        if (isEditMode && initialSchedule) {
+            setFormData({
+                title: initialSchedule.title || '',
+                type: initialSchedule.type || 'PERSONAL',
+                category: initialSchedule.category || 'MEETING',
+                start: initialSchedule.startTime || '',
+                end: initialSchedule.endTime || '',
+                location: initialSchedule.location || '',
+                content: initialSchedule.content || '',
+                participants: [],
+                repeatYn: initialSchedule.repeatRule ? 'Y' : 'N',
+                repeatRule: initialSchedule.repeatRule || '',
+                visibility: initialSchedule.isPublic ? 'COMPANY' : 'PRIVATE',
+            });
+
+            setAllDay(Boolean(initialSchedule.isAllDay));
+            setErrorMessage('');
+            setParticipantModalVisible(false);
+
+            if (onDraftChange) {
+                onDraftChange(null);
+            }
+
+            return;
+        }
+
+        if (!selectedDate) {
+            return;
+        }
+
+        setFormData({
+            title: '',
+            type: 'PERSONAL',
+            category: 'MEETING',
+            start: getDefaultDateTime(selectedDate, 0),
+            end: getDefaultDateTime(selectedDate, 1),
+            location: '',
+            content: '',
+            participants: [],
+            repeatYn: 'N',
+            repeatRule: '',
+            visibility: 'PRIVATE',
+        });
+
+        setAllDay(false);
+        setErrorMessage('');
+        setParticipantModalVisible(false);
+
+        if (onDraftChange) {
+            onDraftChange(null);
+        }
+
+    }, [visible, selectedDate, isEditMode, initialSchedule, onDraftChange]);
+
+    // 종일 시간 반영
+    // 새 일정 등록 중 종일 체크 시 해당 날짜의 처음부터 끝까지로 시간을 맞춤
+    useEffect(() => {
+        if (!visible || !selectedDate || isEditMode) {
+            return;
+        }
+
+        setFormData((prev) => ({
+            ...prev,
+            start: allDay
+                ? `${selectedDate}T00:00`
+                : getDefaultDateTime(selectedDate, 0),
+            end: allDay
+                ? `${selectedDate}T23:59`
+                : getDefaultDateTime(selectedDate, 1),
+        }));
+    }, [visible, selectedDate, allDay, isEditMode]);
+
+    // 일정 입력 미리보기
+    // 새 일정 등록 중인 제목/시간만 부모 캘린더에 임시 일정으로 전달한다.
+    useEffect(() => {
+        if (!visible || !selectedDate || !onDraftChange || isEditMode) {
+            return;
+        }
+
+        onDraftChange({
+            title: formData.title,
+            start: formData.start,
+            end: formData.end,
+            allDay,
+        });
+    }, [visible, selectedDate, formData.title, formData.start, formData.end, allDay, onDraftChange, isEditMode]);
+
+    // 바깥 클릭 닫기
+    // document 전체 클릭을 감지하고, 상세등록 팝업 밖이면 닫는다
+    useEffect(() => {
+        if (!visible || participantModalVisible) {
+            return;
+        }
+
+        const handleOutsideClick = (e) => {
+            // popupRef.current => 실제 상세등록 팝업 div
+            // contains(e.target)이 false면 팝업 바깥을 클릭한 것
+            if (popupRef.current && !popupRef.current.contains(e.target)) {
+                handleClose();
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+        };
+    }, [visible, participantModalVisible]);
+
+    // 상세등록 팝업 배경
+    const detailOverlayStyle = {
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'transparent',
+        zIndex: 1040,
+        pointerEvents: 'none',
+    };
+
+    // 상세등록 팝업 위치
+    // top 값에 따라 화면 아래쪽에 남은 높이 계산
+    const detailPopupTop = popupPosition?.top || 90;
+    const detailPopupLeft = popupPosition?.left || '50%';
+
+    // 상세등록 큰 팝업
+    const detailPopupStyle = {
+        position: 'fixed',
+        top: detailPopupTop,
+        left: detailPopupLeft,
+        transform: popupPosition ? 'none' : 'translateX(-50%)',
+        width: 'min(560px, calc(100vw - 48px))',
+        maxHeight: `calc(100vh - ${detailPopupTop}px - 24px)`,
+        overflowY: 'auto',
+        borderRadius: '14px',
+        boxShadow: '0 18px 42px rgba(15, 23, 42, 0.24)',
+        backgroundColor: '#ffffff',
+        animation: 'calendarDetailPopupIn 0.18s ease-out',
+        pointerEvents: 'auto',
+    };
+
+    const fieldBlockStyle = {
+        marginTop: '14px',
+    };
+
+    const compactInputStyle = {
+        height: '40px',
+        fontSize: '14px',
+        backgroundColor: '#ffffff',
+        color: '#111827',
+        border: '1px solid #d1d5db',
+    };
+
+    const selectInputStyle = {
+        ...compactInputStyle,
+        appearance: 'none',
+        backgroundImage:
+            'linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%)',
+        backgroundPosition: 'calc(100% - 18px) 50%, calc(100% - 13px) 50%',
+        backgroundSize: '5px 5px, 5px 5px',
+        backgroundRepeat: 'no-repeat',
+        paddingRight: '34px',
+    };
+
+
+    const titleInputStyle = {
+        width: '100%',
+        border: 'none',
+        borderBottom: '1px solid #d1d5db',
+        outline: 'none',
+        padding: '10px 0 12px 0',
+        fontSize: '16px',
+        fontWeight: '700',
+        backgroundColor: 'transparent',
+        color: '#111827',
+        marginBottom: '2px',
+    };
+
+    const timeRowStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginTop: '14px',
+    };
+
+    const timeInputStyle = {
+        flex: 1,
+        ...compactInputStyle,
+        colorScheme: 'light',
+    };
+
+    const helperTextStyle = {
+        fontSize: '12px',
+        color: '#6b7280',
+    };
+
     // 참석자 선택 테스트용 같은 부서 구성원 더미 데이터
     const deptMembers = [
         { empId: '20240001', name: '송창범' },
@@ -77,6 +314,53 @@ const CalendarDetailAdd = () => {
         });
     };
 
+    // 종료 시간 자동 계산
+    // 문자열 시간을 Date로 바꾼 뒤 1시간을 더해서 다시 input용 문자열로 만든다.
+    const addOneHour = (dateTimeValue) => {
+        if (!dateTimeValue) return '';
+
+        // ex) 2026-05-20T09:00 -> Date 객체 -> 1시간 추가
+        const date = new Date(dateTimeValue);
+        date.setHours(date.getHours() + 1);
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+    };
+
+
+    // 시작/종료 시간 변경
+    // field가 start면 시작/종료를 같이 바꾸고, end면 종료 시간만 바꾼다.
+    const handleTimeChange = (field, timeValue) => {
+        // 우선 캘린더에서 클릭한 날짜를 사용하고,
+        // 없으면 기존 시작/종료값에서 날짜 부분만 가져옴
+        const dateValue =
+            selectedDate ||
+            formData.start?.slice(0, 10) ||
+            formData.end?.slice(0, 10);
+
+        if (!dateValue) {
+            return;
+        }
+
+        // field에는 'start' 또는 'end'가 들어옴
+        // ex) start + 09:00 -> 2026-05-20T09:00
+        const dateTimeValue = `${dateValue}T${timeValue}`;
+
+        setFormData((prev) => ({
+            ...prev,
+            [field]: dateTimeValue,
+
+            // 시작 시간을 바꿀 때만 end 값을 추가로 덮어쓴다.
+            ...(field === 'start' ? { end: addOneHour(dateTimeValue) } : {}),
+        }));
+    };
+
+
     // 참석자 선택 토글 처리: 선택된 사람은 제거, 선택 안 된 사람은 추가
     const handleParticipantChange = (member) => {
         const isSelected = formData.participants.some(
@@ -91,56 +375,199 @@ const CalendarDetailAdd = () => {
         });
     };
 
-    // 상세 등록 버튼 클릭 시 입력값 확인 후 캘린더 메인 이동
-    const handleSubmit = (e) => {
+    // 상세 일정 등록
+    // 입력값 백엔드 DTO 형식으로 바꿔 저장 API 호출
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setErrorMessage('');
 
-        console.log('상세 등록 데이터:', formData);
-        alert('상세 일정이 등록되었습니다.');
+        if (!formData.title.trim()) {
+            setErrorMessage('제목을 입력해 주세요.');
+            return;
+        }
 
-        navigate(PATH.CALENDAR.ROOT);
+        if (!userInfo?.empNo) {
+            setErrorMessage('로그인 사용자 정보를 확인할 수 없습니다.');
+            return;
+        }
+
+        // 저장 요청 데이터
+        // 화면 state 이름을 백엔드 DTO 필드명에 맞춰 변환한다.
+        const payload = {
+            title: formData.title.trim(),
+            content: formData.content,
+            startTime: formData.start,
+            endTime: formData.end,
+            type: formData.type,
+            creatorNo: userInfo.empNo,
+            deptId: null,
+            category: formData.category,
+            location: formData.location,
+            isAllDay: allDay,
+            isPublic: formData.visibility !== 'PRIVATE',
+            repeatRule: formData.repeatYn === 'Y' ? formData.repeatRule : null,
+        };
+
+        try {
+            // 상세 일정 저장 요청
+            // 성공하면 캘린더 메인으로 이동한다.
+            await request('POST', '/calendar/create', payload);
+
+            if (onCreateSuccess) {
+                await onCreateSuccess();
+            } else {
+                navigate(PATH.CALENDAR.ROOT);
+            }
+        } catch (error) {
+            console.error('상세 일정 등록 실패:', error);
+
+            // 실패 메시지 표시
+            // 서버에서 내려준 메시지가 있으면 우선 사용한다.
+            const message = error.response?.data;
+            setErrorMessage(
+                typeof message === 'string' ? message : '상세 일정 등록에 실패했습니다.'
+            );
+        }
     };
 
-    return (
-        <div style={containerStyle}>
-            {/* 일정 상세 등록 영역 */}
-            <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
-                <CCardHeader>
-                    <strong>일정 상세 등록</strong>
-                </CCardHeader>
-                <CCardBody className="p-0 d-flex flex-column">
-                    {/* 일정 상세 등록 폼 영역 */}
-                    <div style={{ padding: '20px' }}>
-                        <h4>일정 상세 등록</h4>
+    if (!visible) {
+        return null;
+    }
 
+    const wrapperStyle = popupMode ? detailOverlayStyle : containerStyle;
+    const cardStyle = popupMode
+        ? { ...detailPopupStyle }
+        : { height: 'calc(100vh - 120px)' };
+
+    return (
+        <div style={wrapperStyle}>
+            {/* 상세등록 팝업 입력창 색상 보정 */}
+            <style>
+                {`
+                @keyframes calendarDetailPopupIn {
+                    from {
+                        opacity: 0;
+                        margin-top: -8px;
+                    }
+
+                    to {
+                        opacity: 1;
+                        margin-top: 0;
+                    }
+                }
+
+                .calendar-detail-popup,
+
+                .calendar-detail-popup .card-header,
+                .calendar-detail-popup .card-body {
+                    background-color: #ffffff;
+                    color: #111827;
+                }
+
+                .calendar-detail-popup .form-label,
+                .calendar-detail-popup strong,
+                .calendar-detail-popup h4 {
+                    color: #111827;
+                }
+
+                .calendar-detail-popup {
+                    border: 1px solid #e5e7eb;
+                }
+
+                .calendar-detail-popup .card-header {
+                    border-bottom: none;
+                    padding: 20px 22px 8px 22px;
+                }
+
+                .calendar-detail-popup .card-body {
+                    padding: 0;
+                }
+
+                .calendar-detail-popup .form-label {
+                    margin-top: 12px;
+                    margin-bottom: 6px;
+                    font-size: 12px;
+                    color: #6b7280;
+                }
+
+                .calendar-detail-popup .form-control,
+                .calendar-detail-popup .form-select {
+                    height: 40px;
+                    background-color: #ffffff !important;
+                    color: #111827 !important;
+                    border: 1px solid #d1d5db !important;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    color-scheme: light;
+                }
+
+                .calendar-detail-popup textarea.form-control {
+                    height: auto;
+                    min-height: 96px;
+                }
+
+
+                .calendar-detail-popup .form-control::placeholder {
+                    color: #9ca3af;
+                }
+            `}
+            </style>
+
+            {/* 일정 상세 등록 영역 */}
+            <CCard
+                ref={popupRef}
+                className={`calendar-detail-popup ${popupMode ? 'mb-0' : 'mb-4'}`}
+                style={cardStyle}
+            >
+
+                <CCardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>일정 상세 등록</strong>
+
+                    <button
+                        type="button"
+                        onClick={handleClose}
+                        style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#9ca3af',
+                            fontSize: '20px',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        ×
+                    </button>
+                </CCardHeader>
+
+                <CCardBody className="p-0 d-flex flex-column" style={{ minHeight: 0 }}>
+                    {/* 일정 상세 등록 폼 영역 */}
+                    <div style={{ padding: '16px 20px 18px 20px' }}>
                         <CForm onSubmit={handleSubmit}>
-                            <CFormInput
-                                label="일정 제목"
+                            <input
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
-                                placeholder="일정 제목을 입력하세요"
+                                placeholder="제목을 입력하세요"
+                                style={titleInputStyle}
                             />
 
-                            {/* 상세등록에서는 일정 구분을 선택 가능 */}
+                            {/* 일정 구분 */}
                             <CFormSelect
-                                label="일정 구분"
                                 name="type"
                                 value={formData.type}
                                 onChange={handleChange}
-                                style={{ marginTop: '16px' }}
+                                style={{ ...fieldBlockStyle, ...selectInputStyle }}
                             >
                                 <option value="PERSONAL">개인일정</option>
                                 <option value="DEPARTMENT">부서일정</option>
                                 <option value="COMPANY">전사일정</option>
                             </CFormSelect>
 
+                            {/* 카테고리 */}
                             <CFormSelect
-                                label="카테고리"
                                 name="category"
                                 value={formData.category}
                                 onChange={handleChange}
-                                style={{ marginTop: '16px' }}
+                                style={{ ...fieldBlockStyle, ...selectInputStyle }}
                             >
                                 <option value="MEETING">회의</option>
                                 <option value="WORK">업무</option>
@@ -149,24 +576,47 @@ const CalendarDetailAdd = () => {
                                 <option value="ETC">기타</option>
                             </CFormSelect>
 
-                            {/* 시작/종료일시는 선택 날짜가 있으면 기본값이 자동 세팅됨 */}
-                            <CFormInput
-                                type="datetime-local"
-                                label="시작일시"
-                                name="start"
-                                value={formData.start}
-                                onChange={handleChange}
-                                style={{ marginTop: '16px' }}
-                            />
+                            {/* 선택 날짜 */}
+                            <div style={{ marginTop: '12px', ...helperTextStyle }}>
+                                {selectedDate}
+                            </div>
 
-                            <CFormInput
-                                type="datetime-local"
-                                label="종료일시"
-                                name="end"
-                                value={formData.end}
-                                onChange={handleChange}
-                                style={{ marginTop: '16px' }}
-                            />
+                            {/* 시작/종료 시간 */}
+                            <div style={timeRowStyle}>
+                                <CFormInput
+                                    className="calendar-time-input"
+                                    type="time"
+                                    value={formData.start ? formData.start.slice(11, 16) : ''}
+                                    onChange={(e) => handleTimeChange('start', e.target.value)}
+                                    disabled={allDay}
+                                    style={timeInputStyle}
+                                />
+
+                                <span style={{ color: '#6b7280', fontWeight: '600' }}>~</span>
+
+                                <CFormInput
+                                    className="calendar-time-input"
+                                    type="time"
+                                    value={formData.end ? formData.end.slice(11, 16) : ''}
+                                    onChange={(e) => handleTimeChange('end', e.target.value)}
+                                    disabled={allDay}
+                                    style={timeInputStyle}
+                                />
+                            </div>
+
+                            {/* 종일 */}
+                            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <input
+                                    id="detailAllDay"
+                                    type="checkbox"
+                                    checked={allDay}
+                                    onChange={(e) => setAllDay(e.target.checked)}
+                                />
+                                <label htmlFor="detailAllDay" style={{ fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
+                                    종일
+                                </label>
+                            </div>
+
 
                             {/* 장소와 내용은 상세등록에서도 기본 일정 정보로 입력 */}
                             <CFormInput
@@ -175,7 +625,6 @@ const CalendarDetailAdd = () => {
                                 value={formData.location}
                                 onChange={handleChange}
                                 placeholder="장소를 입력하세요"
-                                style={{ marginTop: '16px' }}
                             />
 
                             {/* 참석자는 직접 입력하지 않고 모달에서 선택 */}
@@ -199,6 +648,7 @@ const CalendarDetailAdd = () => {
                                 <CButton
                                     color="primary"
                                     variant="outline"
+                                    size="sm"
                                     type="button"
                                     onClick={() => setParticipantModalVisible(true)}
                                 >
@@ -213,7 +663,6 @@ const CalendarDetailAdd = () => {
                                 onChange={handleChange}
                                 placeholder="일정 내용을 입력하세요"
                                 rows={4}
-                                style={{ marginTop: '16px' }}
                             />
 
                             {/* 상세등록 확장 항목: 반복 여부, 반복 규칙, 공개 범위 */}
@@ -222,7 +671,7 @@ const CalendarDetailAdd = () => {
                                 name="repeatYn"
                                 value={formData.repeatYn}
                                 onChange={handleChange}
-                                style={{ marginTop: '16px' }}
+                                style={selectInputStyle}
                             >
                                 <option value="N">반복 없음</option>
                                 <option value="Y">반복 사용</option>
@@ -233,7 +682,7 @@ const CalendarDetailAdd = () => {
                                 name="repeatRule"
                                 value={formData.repeatRule}
                                 onChange={handleChange}
-                                style={{ marginTop: '16px' }}
+                                style={selectInputStyle}
                             >
                                 <option value="">반복 없음</option>
                                 <option value="DAILY">매일</option>
@@ -246,25 +695,32 @@ const CalendarDetailAdd = () => {
                                 name="visibility"
                                 value={formData.visibility}
                                 onChange={handleChange}
-                                style={{ marginTop: '16px' }}
+                                style={selectInputStyle}
                             >
                                 <option value="PRIVATE">비공개</option>
                                 <option value="DEPARTMENT">부서 공개</option>
                                 <option value="COMPANY">전사 공개</option>
                             </CFormSelect>
 
+                            {errorMessage && (
+                                <div style={{ marginTop: '16px', color: '#dc3545', fontSize: '14px' }}>
+                                    {errorMessage}
+                                </div>
+                            )}
+
                             {/* 취소/등록 버튼 영역 */}
                             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                                 <CButton
                                     color="secondary"
                                     variant="outline"
+                                    size="sm"
                                     type="button"
-                                    onClick={() => navigate(PATH.CALENDAR.ROOT)}
+                                    onClick={handleClose}
                                 >
                                     취소
                                 </CButton>
 
-                                <CButton color="primary" type="submit">
+                                <CButton color="primary" size="sm" type="submit">
                                     등록
                                 </CButton>
                             </div>

@@ -1,16 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // CoreUI 
 import { CCard, CCardBody } from '@coreui/react';
 
-// 페이지 이동
-import { useNavigate } from 'react-router-dom';
-
 // 간편등록 퀵 팝업
 import CalendarSimpleAdd from './CalendarSimpleAdd';
 
-// 경로 상수
-import { PATH } from 'src/constants/path';
+// 상세등록 큰 팝업
+import CalendarDetailAdd from './CalendarDetailAdd';
+
+// 기존 일정 상세/수정/삭제 팝업
+import CalendarDetail from './CalendarDetail';
+
 import { request } from 'src/helpers/axios_helper';
 
 // 풀캘린더
@@ -22,9 +23,6 @@ import koLocale from '@fullcalendar/core/locales/ko';
 
 const Calendar = () => {
 
-    // JS 코드로 페이지 이동할 때 사용하는 함수
-    const navigate = useNavigate();
-
     // FullCalendar를 직접 제어하기 위한 ref
     const calendarRef = useRef(null);
 
@@ -34,10 +32,25 @@ const Calendar = () => {
     // 간편등록 퀵 팝업 열림 여부
     const [simpleAddVisible, setSimpleAddVisible] = useState(false);
 
+    // 상세등록 큰 팝업 열림 여부    
+    const [detailAddVisible, setDetailAddVisible] = useState(false);
+
+    // 기존 일정 상세 팝업 열림 여부
+    const [detailVisible, setDetailVisible] = useState(false);
+
+    // 선택한 기존 일정 정보
+    const [selectedSchedule, setSelectedSchedule] = useState(null);
+
     // 간편등록 퀵 팝업 위치
     const [popupPosition, setPopupPosition] = useState({
         top: 120,
         left: 420,
+    });
+
+    // 상세등록 큰 팝업 위치
+    const [detailPopupPosition, setDetailPopupPosition] = useState({
+        top: 100,
+        left: 760,
     });
 
     // 현재 캘린더 제목
@@ -79,12 +92,72 @@ const Calendar = () => {
     // 등록 완료 알림
     const [successMessage, setSuccessMessage] = useState('');
 
-    // 캘린더 일정 클릭 시 일정 상세 화면으로 이동
+    // 일정 입력 실시간 반영 노출
+    // 등록 전 입력 중인 제목/시간을 캘린더에 임시로 보여줌
+    const [draftEvent, setDraftEvent] = useState(null);
+
+    // 캘린더 일정 클릭 처리
+    // 기존 일정은 페이지 이동 대신 읽기 전용 상세 팝업으로 열림.
     const handleEventClick = (info) => {
         const scheduleId = info.event.id;
 
-        navigate(`${PATH.CALENDAR.DETAIL}?id=${scheduleId}`);
+        // 저장 전 미리보기 일정은 실제 DB 일정이 아니므로 상세 팝업을 열지 않는다.
+        if (scheduleId === 'calendar-draft-event') {
+            return;
+        }
+
+        // 기존 일정 클릭 위치 기준으로 상세 팝업 위치 계산
+        // info.el은 FullCalendar에서 실제로 클릭한 일정 DOM 영역이다.
+        const rect = info.el.getBoundingClientRect();
+        const popupGap = 12;
+        const popupWidth = 560;
+        const popupHeight = 520;
+        const viewportPadding = 20;
+
+        let left = rect.right + popupGap;
+        let top = rect.top;
+
+        // 오른쪽 공간이 부족하면 일정 왼쪽으로 팝업을 띄운다.
+        if (left + popupWidth > window.innerWidth) {
+            left = rect.left - popupWidth - popupGap;
+        }
+
+        // 화면 왼쪽 밖으로 나가지 않게 보정한다.
+        if (left < viewportPadding) {
+            left = viewportPadding;
+        }
+
+        // 화면 아래쪽으로 잘리지 않게 위로 올린다.
+        if (top + popupHeight > window.innerHeight) {
+            top = window.innerHeight - popupHeight - viewportPadding;
+        }
+
+        // 상단 메뉴 영역과 너무 붙지 않게 최소 위치를 잡는다.
+        if (top < 80) {
+            top = 80;
+        }
+
+        setDetailPopupPosition({
+            top,
+            left,
+        });
+
+        setDraftEvent(null);
+        setSimpleAddVisible(false);
+        setDetailAddVisible(false);
+
+        setSelectedSchedule({
+            scheduleId,
+            title: info.event.title,
+            startTime: info.event.startStr,
+            endTime: info.event.endStr,
+            isAllDay: info.event.allDay,
+            ...info.event.extendedProps,
+        });
+
+        setDetailVisible(true);
     };
+
 
     // 일정 목록 조회
     // 서버 데이터를 FullCalendar 형식으로 변환한다.
@@ -127,7 +200,9 @@ const Calendar = () => {
     // 목록을 다시 불러오고 성공 문구 띄움
     const handleCreateSuccess = async () => {
         await fetchScheduleList();
+        setDraftEvent(null);
         setSimpleAddVisible(false);
+        setDetailAddVisible(false);
         setSuccessMessage('일정이 등록되었습니다.');
 
         setTimeout(() => {
@@ -135,22 +210,53 @@ const Calendar = () => {
         }, 2000);
     };
 
-    // 날짜 숫자 클릭 시 선택 날짜 옆에 간편등록 퀵 팝업 열기
-    const handleDateClick = (info) => {
-        // 날짜 숫자가 아닌 흰 영역을 클릭한 경우 팝업 열지 않음
-        if (!info.jsEvent.target.closest('.calendar-day-number')) {
+    // 일정 입력 미리보기 반영
+    // 자식 팝업에서 넘어온 입력값을 FullCalendar용 임시 일정으로 만듬
+    // useCallback으로 함수를 고정해서 자식 useEffect가 무한 반복되지 않게 함
+    const handleDraftChange = useCallback((draft) => {
+        if (!draft) {
+            setDraftEvent(null);
             return;
         }
 
+        setDraftEvent({
+            id: 'calendar-draft-event',
+            title: draft.title?.trim() ? draft.title.trim() : '(제목 없음)',
+            start: draft.start,
+            end: draft.end,
+            allDay: draft.allDay,
+            className: 'calendar-draft-event',
+        });
+    }, []);
+
+    // 상세등록 팝업 열기
+    // 간편등록 팝업은 닫고, 새 일정 등록 모드로 큰 팝업을 띄움
+    const handleOpenDetailAdd = () => {
+        setDraftEvent(null);
+        setSelectedSchedule(null);
+        setDetailVisible(false);
+        setSimpleAddVisible(false);
+        setDetailAddVisible(true);
+    };
+
+    // 날짜 클릭 시 선택 날짜 옆에 간편등록 퀵 팝업 열기
+    const handleDateClick = (info) => {
+
         // 클릭한 날짜 저장
         setSelectedDate(info.dateStr);
+        setDraftEvent(null);
+        setSelectedSchedule(null);
+        setDetailVisible(false);
 
         // 클릭한 날짜 셀의 화면상 위치 가져오기
         const rect = info.dayEl.getBoundingClientRect();
 
         // 간편등록 팝업 크기
         const popupWidth = 390;
-        const popupHeight = 430;
+        const popupHeight = 520;
+
+        // 상세등록 팝업 크기
+        const detailPopupWidth = 560;
 
         // 기본위치 : 클릭한 날짜 셀 오른쪽 아래 근처
         let left = rect.right + 10;
@@ -182,6 +288,27 @@ const Calendar = () => {
         setPopupPosition({
             top,
             left,
+        });
+
+        // 상세등록 팝업 위치 계산
+        let detailLeft = rect.right + 10;
+        let detailTop = 80;
+
+        if (detailLeft + detailPopupWidth > window.innerWidth) {
+            detailLeft = rect.left - detailPopupWidth - 10;
+        }
+
+        if (detailLeft < 20) {
+            detailLeft = 20;
+        }
+
+        if (detailTop < 20) {
+            detailTop = 20;
+        }
+
+        setDetailPopupPosition({
+            top: detailTop,
+            left: detailLeft,
         });
 
         // 퀵 팝업 열기
@@ -434,6 +561,46 @@ const Calendar = () => {
                     width: 100%;
                     text-align: center;
                     padding: 6px 0;
+                    text-decoration: none;
+                }
+
+                /* 월간 캘린더 행 높이 고정 */
+                .calendar-main-area .fc-daygrid-body,
+                .calendar-main-area .fc-daygrid-body table {
+                    height: 100% !important;
+                }
+
+                .calendar-main-area .fc-daygrid-body tbody {
+                    height: 100%;
+                }
+
+                .calendar-main-area .fc-daygrid-body tr {
+                    height: calc(100% / 6);
+                }
+
+                .calendar-main-area .fc-daygrid-day-frame {
+                    height: 100%;
+                    min-height: 0;
+                }
+
+                .calendar-main-area .fc-daygrid-day-events {
+                    min-height: 0;
+                }
+
+                .calendar-main-area .fc-daygrid-day-bottom {
+                    padding: 0 6px 6px;
+                }
+
+                /* 더보기 링크 스타일 */
+                .calendar-main-area .fc-daygrid-more-link {
+                    display: block;
+                    margin-top: 2px;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    background-color: #f3f4f6;
+                    color: #6b7280 !important;
+                    font-size: 12px;
+                    font-weight: 600;
                     text-decoration: none;
                 }
             `}
@@ -714,7 +881,10 @@ const Calendar = () => {
                                 initialView="dayGridMonth"
                                 locale={koLocale}
                                 height="100%"
-                                events={calendarEvents}
+                                expandRows={true}
+                                dayMaxEvents={2}
+                                moreLinkContent={(arg) => `${arg.num}개 더보기`}
+                                events={draftEvent ? [...calendarEvents, draftEvent] : calendarEvents}
                                 eventClick={handleEventClick}
                                 dateClick={handleDateClick}
                                 headerToolbar={false}
@@ -735,13 +905,48 @@ const Calendar = () => {
                 </CCardBody>
             </CCard>
 
+            {/* 기존 일정 상세/수정/삭제 팝업 */}
+            <CalendarDetail
+                visible={detailVisible}
+                onClose={() => {
+                    setSelectedSchedule(null);
+                    setDetailVisible(false);
+                }}
+                schedule={selectedSchedule}
+                popupPosition={detailPopupPosition}
+                onEdit={(schedule) => {
+                    setSelectedSchedule(schedule);
+                    setDetailVisible(false);
+                    setDetailAddVisible(true);
+                }}
+            />
+
             {/* 간편등록 퀵 팝업 */}
             <CalendarSimpleAdd
                 visible={simpleAddVisible}
-                onClose={() => setSimpleAddVisible(false)}
+                onClose={() => {
+                    setDraftEvent(null);
+                    setSimpleAddVisible(false);
+                }}
                 selectedDateProp={selectedDate}
                 popupPosition={popupPosition}
                 onCreateSuccess={handleCreateSuccess}
+                onOpenDetailAdd={handleOpenDetailAdd}
+                onDraftChange={handleDraftChange}
+            />
+
+            {/* 상세등록 팝업 */}
+            <CalendarDetailAdd
+                visible={detailAddVisible}
+                onClose={() => {
+                    setDraftEvent(null);
+                    setDetailAddVisible(false);
+                }}
+                selectedDateProp={selectedDate}
+                popupPosition={detailPopupPosition}
+                onCreateSuccess={handleCreateSuccess}
+                onDraftChange={handleDraftChange}
+                popupMode={true}
             />
         </div>
     );
