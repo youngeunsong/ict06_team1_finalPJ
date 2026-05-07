@@ -283,6 +283,7 @@
     function reorderApprovalSteps() {
 
         const newApproval = {};
+        const newRules = {};
 
         $('.approval-step-card').each(function(index) {
 
@@ -316,6 +317,8 @@
         });
 
         selectedState.approval = newApproval;
+
+        approvalRules.minPositionByStep = newRules;
 
         state.approvalStep =
             Object.keys(newApproval).length;
@@ -458,9 +461,9 @@
                 const minPositionId = getPreviousStepMinPosition(); // 각 결재 단계별 결재 가능 최소 직급 구하기
 
                 // 결재 가능 최소 직급보다 낮은 직급의 사원은 제외
-                if (state.searchMode === 'app' && emp.positionId <= minPositionId) {
-                    return;
-                }
+                // if (state.searchMode === 'app' && emp.positionId <= minPositionId) {
+                //     return;
+                // }
                 
                 // 렌더링할 값 가져오기
                 const id = String(emp.empNo);
@@ -498,6 +501,12 @@
                         / <strong>${emp.name}</strong> (${emp.empNo})
                     </label>
                 `;
+
+                console.log(
+                    emp.name,
+                    emp.positionName,
+                    emp.positionId
+                );
             });
         }
 
@@ -512,6 +521,7 @@
         if (!data || data.length === 0) {
             html = `<div class="text-muted">조회 결과 없음</div>`;
         } else {
+            const selectedDeptIds = getSelectedDeptIdsBeforeCurrentStep();
 
             data.forEach(dept => {
 
@@ -589,6 +599,7 @@
                             ${pos.name}
                         </label>
                     `;
+                    console.log(pos.name, pos.id);  
                 }
             });
         }
@@ -724,7 +735,7 @@
         stepMap.forEach(item => {
 
             if (
-                item.type === 'USER'
+                (item.type === 'USER' || item.type === 'POSITION')
                 && item.positionId
             ) {
                 maxPosition = Math.max(

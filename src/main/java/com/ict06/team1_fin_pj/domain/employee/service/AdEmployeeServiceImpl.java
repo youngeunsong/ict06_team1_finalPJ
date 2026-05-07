@@ -115,6 +115,7 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
                 conditionDto.getParentDeptId(),
                 conditionDto.getDeptId(),
                 conditionDto.getPositionId(),
+                conditionDto.getMinPositionId(),
                 conditionDto.getRoleId(),
                 status,
                 pageable
