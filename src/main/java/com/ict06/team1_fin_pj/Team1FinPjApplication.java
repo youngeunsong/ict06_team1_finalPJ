@@ -16,11 +16,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableJpaAuditing
 @EnableScheduling
-@SpringBootApplication
+@SpringBootApplication // 스케줄러 기능 사용 설정
 public class Team1FinPjApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(Team1FinPjApplication.class, args);
 	}
-
 }

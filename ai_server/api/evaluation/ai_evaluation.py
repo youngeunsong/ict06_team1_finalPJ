@@ -10,6 +10,7 @@
 #  @ 수정일         수정자        수정내용
 #  @ ----------    ---------    -------------------------------
 #  @ 2026.05.02    김다솜        최초 생성 및 AI 평가 API 라우터 분리
+#  @ 2026.05.06    김다솜        evaluate_answer 실제 호출로 연결 (mock 하드코딩 제거)
 # 
 
 from fastapi import APIRouter
@@ -20,8 +21,9 @@ router = APIRouter()
 
 @router.post("/evaluate")
 def evaluate(req: AiEvaluationRequest):
-    return {
-        "score": 70,
-        "feedback": "좋은 답변입니다",
-        "similarity": 0.8
-    }
+    return evaluate_answer(req)
+    # return {
+    #     "score": 70,
+    #     "feedback": "좋은 답변입니다",
+    #     "similarity": 0.8
+    # }

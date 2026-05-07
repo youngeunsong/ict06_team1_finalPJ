@@ -110,10 +110,29 @@ public class AdEmployeeController {
 
         // 현재 페이지 크기
         model.addAttribute("size", size);
+        
+        /*
+         * 검색 필터용 본부 목록
+         *
+         * 사원 목록 검색 화면에서는
+         * 부서를 본부 / 팀 2단계로 나누어 선택한다.
+         */
+        model.addAttribute("parentDepartments", adEmployeeService.findParentDepartments());
 
-        // 검색 필터 select 박스에 사용할 부서 목록
-        // 목록 검색은 아직 전체 부서 목록 방식 유지
-        model.addAttribute("departments", adEmployeeService.findDepartments());
+        /*
+         * 사용자가 이미 본부를 선택한 상태라면
+         * 해당 본부의 팀 목록도 함께 전달한다.
+         *
+         * 이렇게 해야 검색 후에도 팀 select 값이 유지된다.
+         */
+        if (conditionDto.getParentDeptId() != null) {
+            model.addAttribute(
+                    "teams",
+                    adEmployeeService.findTeamsByParentDeptId(conditionDto.getParentDeptId())
+            );
+        } else {
+            model.addAttribute("teams", List.of());
+        }
 
         // 검색 필터 select 박스에 사용할 직급 목록
         model.addAttribute("positions", adEmployeeService.findPositions());

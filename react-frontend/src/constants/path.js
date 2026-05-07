@@ -52,6 +52,7 @@ export const PATH = {
   ONBOARDING: {
     ROOT: "/onboarding",
     ROADMAP: "/onboarding/myroadmap",         // 로드맵
+    DASHBOARD: "/onboarding/dashboard",           // 대시보드
     LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
     LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
     PROGRESS_COMPLETE: "/onboarding/progress/complete",
@@ -63,13 +64,15 @@ export const PATH = {
     ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
     QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
     RESULT: "/evaluation/result", // 평가 결과 조회
+    QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`, // 평가 결과 상세 조회
+    QUIZ_DETAIL_PATTERN: "/evaluation/result/detail/:empNo/:categoryName", // 평가 결과 상세 조회(라우트 등록용)
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
   AI_API: {
     BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000/api',
     ROADMAP: (empNo) => `/ai/roadmap/${empNo}`,
-    CONTENT_DETAIL: (contentId) => `/content/${contentId}`,     // 학습자료 상세 조회
+    CONTENT_DETAIL: (contentId) => `/ai/content/${contentId}`,     // 학습자료 상세 조회
   },
 
   // 대분류 : 인사관리
@@ -113,6 +116,8 @@ export const PATH = {
     USER_ME: '/user/me',
 
     ONBOARDING: {
+      ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
+      DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
@@ -121,7 +126,8 @@ export const PATH = {
     EVALUATION: {
       QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,
       QUIZ_SUBMIT: "/evaluation/quiz/submit",
-      QUIZ_RESULT: (empNo) => `/evaluation/quiz/result/${empNo}`
+      QUIZ_RESULT: (empNo) => `/evaluation/result/${empNo}`,
+      QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`,
     }
   }
 };

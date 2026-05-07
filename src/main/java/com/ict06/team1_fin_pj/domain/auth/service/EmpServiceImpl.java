@@ -41,7 +41,7 @@ public class EmpServiceImpl {
                 "MYPAGE",
                 "정보 수정 알림",
                 name + "님의 정보가 성공적으로 수정되었습니다.",
-                "/mypage"
+                "/auth/mypage"
         );
     }
 }

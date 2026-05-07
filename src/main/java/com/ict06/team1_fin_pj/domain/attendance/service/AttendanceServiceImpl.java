@@ -14,6 +14,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import org.springframework.scheduling.annotation.Scheduled;
+import java.time.DayOfWeek;
+
 
 @Service
 @RequiredArgsConstructor
@@ -55,14 +58,14 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new RuntimeException("이미 출근했습니다.");
         }
 
-            // 1-1. GPS 위치 검증
-            // 회사 위치와 사용자의 현재 위치 사이 거리를 계산한다.
-            double distance = calculateDistanceMeter(
-                    COMPANY_LAT,
-                    COMPANY_LNG,
-                    lat,
-                    lng
-            );
+        // 1-1. GPS 위치 검증
+        // 회사 위치와 사용자의 현재 위치 사이 거리를 계산한다.
+        double distance = calculateDistanceMeter(
+                COMPANY_LAT,
+                COMPANY_LNG,
+                lat,
+                lng
+        );
 
             // 허용 반경보다 멀면 출근을 막는다.
             if (distance > ALLOWED_DISTANCE_METER) {
@@ -200,10 +203,17 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
 
         // 4. 18:00 기준 조퇴/퇴근 판단
-        AttendanceStatus status =
-                now.toLocalTime().isBefore(LocalTime.of(18, 0))
-                        ? AttendanceStatus.EARLY
-                        : AttendanceStatus.LEFT;
+        // 퇴근 후 최종 근태 상태 결정
+        // 기존에 지각(LATE)이었던 사람은 정상 퇴근해도 지각 상태를 유지
+        // 18:00 이전 퇴근이면 조퇴(EARLY)로 처리
+        // 정상 출근 + 정상 퇴근이면 ON_TIME 유지
+        AttendanceStatus status;
+
+        if (now.toLocalTime().isBefore(LocalTime.of(18, 0))) {
+            status = AttendanceStatus.EARLY;
+        } else {
+            status = attendance.getStatus();
+        }
 
         // 5. 연장근무 계산
         int overtimeMins = 0;
@@ -229,4 +239,50 @@ public class AttendanceServiceImpl implements AttendanceService {
         attendanceRepository.save(attendance);
 
     }
+
+    // ==============================
+    // 결근 자동 생성 스케줄러
+    // ==============================
+    // 매일 밤 23시 50분에 실행된다.
+    // 오늘 출근 기록이 없는 직원은 ABSENT(결근)으로 저장한다.
+    @Scheduled(cron = "0 50 23 * * *")
+    public void createAbsentAttendance() {
+
+        // 오늘 날짜
+        LocalDate today = LocalDate.now();
+
+        // 오늘 요일
+        DayOfWeek dayOfWeek = today.getDayOfWeek();
+
+        // 토요일, 일요일은 결근 처리하지 않는다.
+        if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
+            return;
+        }
+
+        // 전체 직원 조회
+        List<EmpEntity> employees = employeeRepository.findAll();
+
+        // 전체 직원을 한 명씩 확인
+        for (EmpEntity employee : employees) {
+
+            // 해당 직원의 오늘 근태 기록이 있는지 확인
+            boolean exists = attendanceRepository
+                    .findByEmployee_EmpNoAndWorkDate(employee.getEmpNo(), today)
+                    .isPresent();
+
+            // 오늘 근태 기록이 없으면 결근 데이터 생성
+            if (!exists) {
+                AttendanceEntity absentAttendance = AttendanceEntity.builder()
+                        .employee(employee)                 // 직원 정보
+                        .workDate(today)                    // 오늘 날짜
+                        .status(AttendanceStatus.ABSENT)    // 결근 상태
+                        .note("자동 결근 처리")              // 관리자 확인용 메모
+                        .build();
+
+                // DB 저장
+                attendanceRepository.save(absentAttendance);
+            }
+        }
+    }
+
 }
