@@ -180,13 +180,19 @@
     const state = {
         searchMode: 'ref',   // 조회 모드: ref(참조) | app(결재)
         targetType: 'user',  // 대상 유형: user(개인) | dept(부서) | position(직급)
-        approvalStep: 0      // 결재 단계 번호
+        approvalStep: 0,      // 전체 결재 단계 수
+        currentEditingStep: null  // 현재 수정 중인 결재 단계
     };
 
     // 선택 상태 저장 구조
     const selectedState = {
         ref: new Map(),        // 참조 대상
         approval: {}           // 단계별 결재 대상
+    };
+
+    // 결재 단계별 최소 직급 정보
+    const approvalRules = {
+        minPositionByStep: {}
     };
 
     // offcanvas 열기 함수 (모드 + 단계 반영)
@@ -207,14 +213,25 @@
         panel.show();
     }
 
-    // 결재 단계 UI 생성 (왼쪽)
+    // 결재 단계 UI 생성 (왼쪽) : 수정, 삭제 기능
     function addApprovalStepUI(step) {
         const html = `
-            <div class="card p-2 mb-2" id="approval_${step}">
+            <div class="card p-2 mb-2 approval-step-card"
+                id="approval_${step}"
+                data-step="${step}"
+                onclick="editApprovalStep(${step})">
+
                 <div class="d-flex justify-content-between">
-                    <span>${step}단계</span>
-                    <button type="button" class="btn btn-sm btn-danger  top-0 end-0" onclick="removeStep('${step}')">-</button>
+
+                    <span class="step-title">${step}단계</span>
+
+                    <button type="button"
+                        class="btn btn-sm btn-danger top-0 end-0"
+                        onclick="event.stopPropagation(); removeStep(${step})">
+                        -
+                    </button>
                 </div>
+
                 <div class="approval-targets"></div>
             </div>
         `;
@@ -242,6 +259,13 @@
             alert("더 결재 단계를 추가할 수 없습니다."); 
         }
     });
+
+    // 결재 단계 수정
+    function editApprovalStep(step) {
+        state.currentEditingStep = step;
+
+        openSearchPanel('app');
+    }
 
     // 결재 단계 삭제 버튼 클릭 시
     function removeStep(step) {
@@ -372,22 +396,21 @@
 
     // 사원 목록 렌더링
     function renderEmployeeList(data) {
-        const type = state.targetType === 'user' ? 'USER'
-            : state.targetType === 'dept' ? 'DEPT'
-            : 'POSITION';
-
-        const key = `${type}_${id}`;
 
         let html = '';
 
         if (!data || data.length === 0) {
             html = `<div class="text-muted">조회 결과 없음</div>`;
         } else {
+
             data.forEach(emp => {
 
-                const id = emp.empNo;
+                const id = String(emp.empNo);
 
-                // 이미 선택된 대상인지 확인
+                const type = 'USER';
+
+                const key = `${type}_${id}`;
+
                 let isChecked = false;
 
                 if (state.searchMode === 'ref') {
@@ -399,15 +422,15 @@
 
                 html += `
                     <label class="list-group-item d-flex align-items-center">
-                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
+                        <input type="checkbox"
+                            class="form-check-input me-2 target-checkbox"
                             value="${id}"
                             data-name="${emp.name}"
-                            data-dept="${emp.deptName}"
-                            data-position="${emp.positionName}"
+                            data-type="${type}"
                             ${isChecked ? 'checked' : ''}>
-                        
-                        ${emp.deptName} / ${emp.positionName} / 
-                        <strong>${emp.name}</strong> (${emp.empNo})
+
+                        ${emp.deptName} / ${emp.positionName}
+                        / <strong>${emp.name}</strong> (${emp.empNo})
                     </label>
                 `;
             });
@@ -418,22 +441,21 @@
 
     // 부서 목록 렌더링
     function renderDeptList(data) {
-        const type = state.targetType === 'user' ? 'USER'
-            : state.targetType === 'dept' ? 'DEPT'
-            : 'POSITION';
-
-        const key = `${type}_${id}`;
 
         let html = '';
 
         if (!data || data.length === 0) {
             html = `<div class="text-muted">조회 결과 없음</div>`;
         } else {
+
             data.forEach(dept => {
 
                 const id = String(dept.id);
 
-                // 선택 상태 확인 
+                const type = 'DEPT';
+
+                const key = `${type}_${id}`;
+
                 let isChecked = false;
 
                 if (state.searchMode === 'ref') {
@@ -445,9 +467,11 @@
 
                 html += `
                     <label class="list-group-item">
-                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
-                            value="${dept.id}"
+                        <input type="checkbox"
+                            class="form-check-input me-2 target-checkbox"
+                            value="${id}"
                             data-name="${dept.name}"
+                            data-type="${type}"
                             ${isChecked ? 'checked' : ''}>
                         ${dept.name}
                     </label>
@@ -460,23 +484,23 @@
 
     // 직급 목록 렌더링
     function renderPositionList(data) {
-        const type = state.targetType === 'user' ? 'USER'
-            : state.targetType === 'dept' ? 'DEPT'
-            : 'POSITION';
-
-        const key = `${type}_${id}`;
 
         let html = '';
 
         if (!data || data.length === 0) {
             html = `<div class="text-muted">조회 결과 없음</div>`;
         } else {
+
             data.forEach(pos => {
-                if(pos.id > 1 || state.searchMode === 'ref') { // 가장 낮은 직급은 결재 대상이 될 수 없음. 
+
+                if(pos.id > 1 || state.searchMode === 'ref') { // 가장 낮은 직급은 결재자가 될 수 없음. 
 
                     const id = String(pos.id);
 
-                    // 선택 상태 확인
+                    const type = 'POSITION';
+
+                    const key = `${type}_${id}`;
+
                     let isChecked = false;
 
                     if (state.searchMode === 'ref') {
@@ -487,14 +511,16 @@
                     }
 
                     html += `
-                    <label class="list-group-item">
-                        <input type="checkbox" class="form-check-input me-2 target-checkbox"
-                            value="${pos.id}"
-                            data-name="${pos.name}"
-                            ${isChecked ? 'checked' : ''}>
-                        ${pos.name}
-                    </label>
-                `;
+                        <label class="list-group-item">
+                            <input type="checkbox"
+                                class="form-check-input me-2 target-checkbox"
+                                value="${id}"
+                                data-name="${pos.name}"
+                                data-type="${type}"
+                                ${isChecked ? 'checked' : ''}>
+                            ${pos.name}
+                        </label>
+                    `;
                 }
             });
         }
@@ -593,26 +619,32 @@
             <span class="badge bg-${type === 'ref' ? 'secondary' : 'primary'} me-1">
                 ${item.name}
                 <button type="button" class="btn-close btn-close-white ms-1"
-                    onclick="removeSelected('${type}', '${item.id}', '${step}')"></button>
+                    onclick="removeSelected('${type}', '${item.type}', '${item.id}', '${step}')"></button>
             </span>
         `;
     }
 
     // 삭제 기능
-    function removeSelected(type, id, step) {
+    function removeSelected(mode, itemType, id, step) {
 
-        if (type === 'ref') {
-            selectedState.ref.delete(id);
+        const key = `${itemType}_${id}`;
+
+        if (mode === 'ref') {
+
+            selectedState.ref.delete(key);
 
             $('#refList').empty();
+
             selectedState.ref.forEach(item => {
                 $('#refList').append(renderBadge(item, 'ref'));
             });
 
         } else {
-            selectedState.approval[step]?.delete(id);
+
+            selectedState.approval[step]?.delete(key);
 
             const stepDiv = $(`#approval_${step} .approval-targets`);
+
             stepDiv.empty();
 
             selectedState.approval[step]?.forEach(item => {
@@ -648,13 +680,13 @@
 
         // 서버 전송
         $.ajax({
-            url: '/admin/approval/lines',
+            url: '/admin/approval/createAppLineFormAction',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(payload),
             success: function () {
                 alert('저장 완료');
-                window.location.href = '/admin/approval/lines';
+                window.location.href = '/admin/approval/appLineFormList'; // 결재선 서식 목록 확면으로 이동
             },
             error: function () {
                 alert('저장 실패');

@@ -1,8 +1,6 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
-import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
-import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
-import com.ict06.team1_fin_pj.common.dto.approval.ApprovalTargetDto;
+import com.ict06.team1_fin_pj.common.dto.approval.*;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
@@ -25,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author : 송영은
@@ -115,7 +115,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // insert
     @Transactional
     @Override
-    public void saveAppLineTemplate(ApprovalLineCreateRequestDto dto) {
+    public void saveAppLineForm(ApprovalLineCreateRequestDto dto) {
         // 1️⃣ 템플릿 생성
         AppLineTemplateEntity template = AppLineTemplateEntity.builder()
                 .templateName(dto.getFormName())
@@ -154,7 +154,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         appLineTemplateRepository.save(template);
     }
 
-    // Detail 생성 로직
+    // 결재선 서식의 Detail 추가 로직
     private AppLineTemplateDetailEntity createDetailEntity(
             AppLineTemplateEntity template,
             int step,
@@ -194,31 +194,101 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         return builder.build();
     }
 
-    // 사원 목록 조회 (페이징 처리 X)
-//    @Override
-//    public List<ApprovalTargetEmployeeDto> searchEmployees(EmployeeSearchConditionDto conditionDto) {
-//        return adEmployeeService.findEmployees(conditionDto)
-//                .stream()
-//                .map(emp -> new ApprovalTargetEmployeeDto(
-//                        emp.getEmpNo(),
-//                        emp.getName(),
-//                        emp.getDeptName(),
-//                        emp.getPositionName(),
-//                        emp.getRoleName()
-//                ))
-//                .toList();
-//    }
-
     // list
     @Override
-    public List<AppLineTemplateEntity> listAppLineTemplate() {
-        return List.of();
+    @Transactional(readOnly = true)
+    public Page<AppLineListDto> listAppLineForm(Pageable pageable) {
+        return appLineTemplateRepository.findAll(pageable)
+                .map(t -> AppLineListDto.builder()
+                        .templateId(t.getTemplateId())
+                        .templateName(t.getTemplateName())
+                        .formName(
+                                t.getForm() != null
+                                        ? t.getForm().getFormName()
+                                        : "-"
+                        )
+                        .createdBy(
+                                t.getCreatedBy() != null
+                                        ? t.getCreatedBy().getName()
+                                        : "-"
+                        )
+                        .isDefault(t.getIsDefault())
+                        .createdAt(t.getCreatedAt())
+                        .build()
+                );
     }
 
     // 1건 select (상세 화면)
     @Override
-    public AppLineTemplateEntity selectAppLineTemplate(int id) {
-        return null;
+    @Transactional(readOnly = true)
+    public AppLineDetailDto selectAppLineForm(Integer id) {
+        AppLineTemplateEntity template =
+                appLineTemplateRepository.findDetailById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("결재선 없음"));
+
+        // step 기준 그룹핑
+        Map<Integer, List<AppLineTemplateDetailEntity>> grouped =
+                template.getDetails().stream()
+                        .collect(Collectors.groupingBy(
+                                AppLineTemplateDetailEntity::getStepOrder
+                        ));
+
+        List<AppLineStepDto> steps = grouped.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+
+                    List<AppLineTargetDto> targets =
+                            entry.getValue().stream()
+                                    .map(this::convertTargetDto)
+                                    .toList();
+
+                    return AppLineStepDto.builder()
+                            .stepOrder(entry.getKey())
+                            .targets(targets)
+                            .build();
+                })
+                .toList();
+
+        return AppLineDetailDto.builder()
+                .templateId(template.getTemplateId())
+                .templateName(template.getTemplateName())
+                .formName(
+                        template.getForm() != null
+                                ? template.getForm().getFormName()
+                                : "-"
+                )
+                .isDefault(template.getIsDefault())
+                .steps(steps)
+                .build();
+    }
+
+    // 대상 DTO로 변환
+    private AppLineTargetDto convertTargetDto(
+            AppLineTemplateDetailEntity detail
+    ) {
+
+        String targetName = switch (detail.getApproverType()) {
+
+            case USER ->
+                    detail.getApprover() != null
+                            ? detail.getApprover().getName()
+                            : "-";
+
+            case DEPT ->
+                    detail.getDepartment() != null
+                            ? detail.getDepartment().getDeptName()
+                            : "-";
+
+            case POSITION ->
+                    detail.getMinPosition() != null
+                            ? detail.getMinPosition().getPositionName()
+                            : "-";
+        };
+
+        return AppLineTargetDto.builder()
+                .type(detail.getApproverType().name())
+                .targetName(targetName)
+                .build();
     }
 
     // delete

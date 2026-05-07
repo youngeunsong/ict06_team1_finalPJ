@@ -98,7 +98,7 @@ $('#formEditor').on('submit', function (e) {
 
     // Ajax 방식으로 보내기
     $.ajax({
-        url: '/admin/approval/addTemplate',
+        url: '/admin/approval/createAppForm/action',
         type: 'POST',
         contentType: 'application/json; charset=UTF-8',
         data: JSON.stringify({
@@ -109,7 +109,7 @@ $('#formEditor').on('submit', function (e) {
         success: function (res) {
             console.log('저장 성공:', res);
             alert('저장되었습니다.');
-            window.location.href = "/admin/approval/templateList"; // DB 저장 성공 시 서식 목록으로 돌아가기
+            window.location.href = "/admin/approval/appFormList"; // DB 저장 성공 시 서식 목록으로 돌아가기
         },
         error: function (err) {
             console.error('에러:', err);
