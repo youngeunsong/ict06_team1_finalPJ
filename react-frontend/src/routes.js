@@ -1,7 +1,7 @@
 import React from 'react'
 
 const UserHome = React.lazy(() => import('./pages/auth/UserHome'))
-const AIPortal = React.lazy(() => import('./pages/chatbot/Chatbot'))
+const AIPortal = React.lazy(() => import('./pages/aiSecretary/AiSecretary'))
 const Calendar = React.lazy(() => import('./pages/calendar/Calendar'))
 const Approval = React.lazy(() => import('./pages/approval/Approval'))
 const MyRoadmap = React.lazy(() => import('./pages/onboarding/MyRoadmap'))

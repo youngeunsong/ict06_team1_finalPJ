@@ -34,6 +34,13 @@ public class AdPayrollServiceImpl implements AdPayrollService {
         return adSalaryPolicyRepository.selectSalaryPolicyList(searchDTO);
     }
 
+    // 본부 select box용 목록 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<PayrollSelectOptionDTO> getHeadDepartmentList() {
+        return adSalaryPolicyRepository.selectHeadDepartmentList();
+    }
+
     // 부서 select box용 목록 조회
     @Override
     @Transactional(readOnly = true)

@@ -13,6 +13,11 @@ public interface AdPayrollService {
     */
     SalaryPolicyPageResponseDTO getSalaryPolicyList(SalaryPolicySearchDTO searchDTO);
 
+    /* 본부 select box용 목록 조회
+       - parent_dept_id가 null인 데이터만 조회
+     */
+    List<PayrollSelectOptionDTO> getHeadDepartmentList();
+
     /* 부서 목록 조회
        - 기본급관리 화면 상단의 "부서" select box에 사용할 데이터 조회
        - DEPARTMENT 테이블에서 부서 ID, 부서명을 가져옴
@@ -78,7 +83,7 @@ public interface AdPayrollService {
        기본급 정책 수정
        - 기본급만 수정한다.
        - AJAX에서 검증했더라도 Service에서 서열 검증을 다시 수행한다.
-    */
+     */
     void updateSalaryPolicy(SalaryPolicyRequestDTO requestDTO);
 
     // 기본급 정책 삭제
