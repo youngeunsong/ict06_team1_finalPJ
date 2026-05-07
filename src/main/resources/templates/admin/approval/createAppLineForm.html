@@ -309,6 +309,10 @@
             // 데이터 이동
             newApproval[newStep] =
                 selectedState.approval[oldStep] || new Map();
+
+            // approvalRules도 이동
+            newRules[newStep] =
+                approvalRules.minPositionByStep[oldStep] || 0;
         });
 
         selectedState.approval = newApproval;
@@ -450,7 +454,15 @@
         } else {
 
             data.forEach(emp => {
+                // 이전 결재 단계보다 높은 직급의 사원만 결재 가능하게 설정
+                const minPositionId = getPreviousStepMinPosition(); // 각 결재 단계별 결재 가능 최소 직급 구하기
 
+                // 결재 가능 최소 직급보다 낮은 직급의 사원은 제외
+                if (state.searchMode === 'app' && emp.positionId <= minPositionId) {
+                    return;
+                }
+                
+                // 렌더링할 값 가져오기
                 const id = String(emp.empNo);
 
                 const type = 'USER';
@@ -546,7 +558,9 @@
 
             data.forEach(pos => {
 
-                if(pos.id > 1 || state.searchMode === 'ref') { // 가장 낮은 직급은 결재자가 될 수 없음. 
+                const minPositionId = getPreviousStepMinPosition(); // 각 결재 단계의 결재 가능 최소 직급 구하기 
+
+                if (state.searchMode === 'ref' || pos.id > minPositionId) { // 가장 낮은 직급은 결재자가 될 수 없음. 
 
                     const id = String(pos.id);
 
@@ -569,6 +583,7 @@
                                 class="form-check-input me-2 target-checkbox"
                                 value="${id}"
                                 data-name="${pos.name}"
+                                data-position-id="${pos.id}"
                                 data-type="${type}"
                                 ${isChecked ? 'checked' : ''}>
                             ${pos.name}
@@ -579,6 +594,24 @@
         }
 
         $('#positionList').html(html);
+    }
+
+    // 결재 단계에 따라 선택 가능 직급 제한
+    function getPreviousStepMinPosition() {
+
+        // 참조는 제한 없음
+        if (state.searchMode === 'ref') {
+            return 0;
+        }
+
+        // 1단계는 사원 제외만 적용
+        if (state.currentEditingStep <= 1) {
+            return 1;
+        }
+
+        return approvalRules.minPositionByStep[
+            state.currentEditingStep - 1
+        ] || 1;
     }
 
     // 사원 검색 버튼 클릭 동작
@@ -648,8 +681,8 @@
 
                 stepMap.set(key, data);
 
-                // USER 선택 시 최소 직급 갱신
-                if (type === 'USER') {
+                // 사원이나 직급 목록 선택 시 최소 직급 갱신
+                if (type === 'USER' || type === 'POSITION') {
 
                     const currentMin =
                         approvalRules.minPositionByStep[
@@ -663,26 +696,46 @@
                         data.positionId
                     );
                 }
-
             }
             // 체크 해제 시 삭제
             else {
 
                 stepMap.delete(key);
             }
+
+            recalculateStepMinPosition(state.currentEditingStep); // 결재 가능 최소 직급 재계산
         }
     });
 
-    // 이전 단계보다 높은 직급만 조회
-    function getPreviousStepMinPosition() {
+    // 결재 가능 최소 직급 재계산
+    function recalculateStepMinPosition(step) {
 
-        if (state.currentEditingStep <= 1) {
-            return 1;
+        const stepMap =
+            selectedState.approval[step];
+
+        if (!stepMap || stepMap.size === 0) {
+
+            approvalRules.minPositionByStep[step] = 0;
+            return;
         }
 
-        return approvalRules.minPositionByStep[
-            state.currentEditingStep - 1
-        ] || 1;
+        let maxPosition = 0;
+
+        stepMap.forEach(item => {
+
+            if (
+                item.type === 'USER'
+                && item.positionId
+            ) {
+                maxPosition = Math.max(
+                    maxPosition,
+                    item.positionId
+                );
+            }
+        });
+
+        approvalRules.minPositionByStep[step] =
+            maxPosition;
     }
 
     // 선택 완료 버튼 클릭 시 제출
@@ -756,6 +809,8 @@
 
             selectedState.approval[step]?.delete(key);
 
+            recalculateStepMinPosition(step); // 최소 결재 직급 재계산
+
             const stepDiv = $(`#approval_${step} .approval-targets`);
 
             stepDiv.empty();
@@ -766,15 +821,21 @@
         }
     }
 
-    // 최종 제출: 결재선 추가
+    // 최종 제출: 결재선 서식 추가
     $('#appFormEditor').on('submit', function (e) {
 
         // 기본 submit 막기 (선택)
         e.preventDefault();
 
-        // 결재선 옵션 선택 없을 때 submit 방지
-        if (selectedState.ref.size === 0 && Object.keys(selectedState.approval).length === 0) {
-            alert("결재선 대상을 선택해주세요.");
+        // 실제 결재 단계 수 계산
+        const approvalStepCount =
+            Object.values(selectedState.approval)
+                .filter(map => map && map.size > 0)
+                .length;
+
+        // 새 결재선 서식 추가할려면 최소 결재 1단계 이상 필요
+        if (approvalStepCount === 0) {
+            alert("최소 1개 이상의 결재 단계를 추가해주세요.");
             return;
         }
 
