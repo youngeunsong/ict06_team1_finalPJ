@@ -22,7 +22,7 @@ public class AiRetrievalTraceEntity extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "trace_id")
-    private Integer traceId;
+    private Integer traceId; // 검색 추적 식별자
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "log_id", nullable = false)
