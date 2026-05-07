@@ -1,6 +1,7 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.common.dto.approval.*;
+import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,12 +117,19 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // insert
     @Transactional
     @Override
-    public void saveAppLineForm(ApprovalLineCreateRequestDto dto) {
+    public void saveAppLineForm(ApprovalLineCreateRequestDto dto, PrincipalDetails principal) {
+
+        // 로그인 정보에서 작성자 정보 가져오기
+        EmpEntity loginEmp = principal.getEmpEntity();
+
         // 1️⃣ 템플릿 생성
-        AppLineTemplateEntity template = AppLineTemplateEntity.builder()
+        AppLineTemplateEntity template =
+                AppLineTemplateEntity.builder()
                 .templateName(dto.getFormName())
                 .isDefault(false)
+                .createdBy(loginEmp)
                 .build();
+        appLineTemplateRepository.save(template);
 
         // TODO: createdBy, form 세팅 필요하면 추가
 
@@ -207,15 +216,56 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                         ? t.getForm().getFormName()
                                         : "-"
                         )
-                        .createdBy(
+                        .createdBy( // 작성자: 이름(사번) 형식
                                 t.getCreatedBy() != null
                                         ? t.getCreatedBy().getName()
-                                        : "-"
+                                        + "("
+                                        + t.getCreatedBy().getEmpNo()
+                                        + ")"
+                                        : ""
                         )
                         .isDefault(t.getIsDefault())
                         .createdAt(t.getCreatedAt())
                         .build()
                 );
+    }
+
+    // 페이징 처리된 list로 받기
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AppLineListDto> getAppLineFormsWithPaging(
+            int page,
+            int size
+    ) {
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "templateId")
+        );
+
+        Page<AppLineTemplateEntity> result =
+                appLineTemplateRepository.findAll(pageable);
+
+        return result.map(entity -> AppLineListDto.builder()
+                .templateId(entity.getTemplateId())
+                .templateName(entity.getTemplateName())
+                .formName(
+                        entity.getForm() != null
+                                ? entity.getForm().getFormName()
+                                : "-"
+                )
+                .isDefault(entity.getIsDefault())
+                .createdAt(entity.getCreatedAt())
+                .createdBy(
+                        entity.getCreatedBy() != null
+                                ? entity.getCreatedBy().getName()
+                                + "("
+                                + entity.getCreatedBy().getEmpNo()
+                                + ")"
+                                : "-"
+                )
+                .build());
     }
 
     // 1건 select (상세 화면)
@@ -267,27 +317,57 @@ public class AdApprovalServiceImpl implements AdApprovalService {
             AppLineTemplateDetailEntity detail
     ) {
 
-        String targetName = switch (detail.getApproverType()) {
+        String targetName = "-";
+        String departmentName = "";
+        String positionName = "";
+        String empNo = "";
 
-            case USER ->
-                    detail.getApprover() != null
-                            ? detail.getApprover().getName()
-                            : "-";
+        switch (detail.getApproverType()) {
 
-            case DEPT ->
-                    detail.getDepartment() != null
-                            ? detail.getDepartment().getDeptName()
-                            : "-";
+            case USER -> {
 
-            case POSITION ->
-                    detail.getMinPosition() != null
-                            ? detail.getMinPosition().getPositionName()
-                            : "-";
-        };
+                if (detail.getApprover() != null) {
+
+                    EmpEntity emp = detail.getApprover();
+
+                    targetName = emp.getName();
+                    empNo = emp.getEmpNo();
+
+                    if (emp.getDepartment() != null) {
+                        departmentName =
+                                emp.getDepartment().getDeptName();
+                    }
+
+                    if (emp.getPosition() != null) {
+                        positionName =
+                                emp.getPosition().getPositionName();
+                    }
+                }
+            }
+
+            case DEPT -> {
+
+                targetName =
+                        detail.getDepartment() != null
+                                ? detail.getDepartment().getDeptName()
+                                : "-";
+            }
+
+            case POSITION -> {
+
+                targetName =
+                        detail.getMinPosition() != null
+                                ? detail.getMinPosition().getPositionName()
+                                : "-";
+            }
+        }
 
         return AppLineTargetDto.builder()
                 .type(detail.getApproverType().name())
                 .targetName(targetName)
+                .departmentName(departmentName)
+                .positionName(positionName)
+                .empNo(empNo)
                 .build();
     }
 
@@ -302,4 +382,6 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     public void updateAppLineTemplate(AppLineTemplateEntity entity) {
 
     }
+
+
 }

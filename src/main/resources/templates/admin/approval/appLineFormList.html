@@ -54,37 +54,28 @@
                 <table class="table">
                     <thead>
                     <tr>
-                        <th>번호</th>
-                        <th>결재선 이름</th>
-                        <th>양식</th>
+                        <th>서식 번호</th>
+                        <th>결재선 서식 이름</th>
                         <th>기본 여부</th>
-                        <th>생성자</th>
+                        <th>생성일</th>
+                        <th>작성자</th>
                     </tr>
                     </thead>
 
-                    <tbody>
-                    <tr th:each="line : ${page.content}">
-                        <td th:text="${line.templateId}"></td>
-
-                        <td>
-                            <a th:href="@{/admin/approval/appLineFormDetail/{id}(id=${line.templateId})}"
-                               th:text="${line.templateName}">
-                            </a>
-                        </td>
-
-                        <td th:text="${line.formName}"></td>
-
-                        <td>
-                            <span th:if="${line.isDefault}" class="badge bg-primary">
-                                기본
-                            </span>
-                        </td>
-
-                        <td th:text="${line.createdBy}"></td>
-                    </tr>
-                    </tbody>
+                    <!-- 동적 표 내용 시작 -->
+                    <tbody id="tableBody"></tbody> 
+                    <!-- 동적 표 내용 끝 -->
                 </table>
                 <!-- end::서식 표 끝-->
+                <!-- 페이징 코드 시작-->
+                <div class="d-flex justify-content-center">
+                    <nav>
+                        <ul class="pagination" id="pagination">
+                            <!-- JS로 생성 -->
+                        </ul>
+                    </nav>
+                </div>
+                <!-- 페이징 코드 끝 -->
             </div>
             <!--end::Container-->
         </div>
@@ -99,6 +90,131 @@
 <!--스크립트 시작-->
 <th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
+<script>
+
+    let currentPage = 0;
+    const pageSize = 10;
+
+    // 최초 로딩
+    $(document).ready(function () {
+        loadPage(0);
+    });
+
+    // 데이터 조회
+    function loadPage(page) {
+
+        $.ajax({
+            url: "/admin/approval/getAppLineForms",
+            type: "GET",
+            data: {
+                page: page,
+                size: pageSize
+            },
+            success: function (data) {
+
+                renderTable(data.content);
+                renderPagination(data);
+
+                currentPage = page;
+            },
+            error: function () {
+                alert("결재선 목록 조회 실패");
+            }
+        });
+    }
+
+    // 테이블 렌더링
+    function renderTable(list) {
+
+        let html = "";
+
+        list.forEach(item => {
+
+            let createdAt =
+                    item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString()
+                    : "";
+
+            html += `
+                <tr>
+                    <td>${item.templateId}</td>
+
+                    <td>
+                        <a href="/admin/approval/appLineFormDetail/${item.templateId}">
+                            ${item.templateName}
+                        </a>
+                    </td>
+
+                    <td>
+                        ${item.isDefault
+                            ? '<span class="badge bg-primary">기본</span>'
+                            : ''}
+                    </td>
+
+                    <td>${createdAt}</td>
+
+                    <td>${item.createdBy}</td>
+                </tr>
+            `;
+        });
+
+        $("#tableBody").html(html);
+    }
+
+    // 페이지 렌더링
+    function renderPagination(pageData) {
+
+        let html = "";
+
+        // 이전 버튼
+        if (!pageData.first) {
+
+            html += `
+                <li class="page-item">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${pageData.number - 1})">
+                        이전
+                    </a>
+                </li>
+            `;
+        }
+
+        // 페이지 번호
+        for (let i = 0; i < pageData.totalPages; i++) {
+
+            html += `
+                <li class="page-item ${i === pageData.number ? 'active' : ''}">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${i})">
+
+                        ${i + 1}
+
+                    </a>
+                </li>
+            `;
+        }
+
+        // 다음 버튼
+        if (!pageData.last) {
+
+            html += `
+                <li class="page-item">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${pageData.number + 1})">
+                        다음
+                    </a>
+                </li>
+            `;
+        }
+
+        $("#pagination").html(html);
+    }
+
+</script>
 <!--스크립트 끝-->
 </body>
 <!--end::Body-->

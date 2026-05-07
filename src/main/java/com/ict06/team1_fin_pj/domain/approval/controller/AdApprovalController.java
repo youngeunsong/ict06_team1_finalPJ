@@ -10,10 +10,12 @@
 package com.ict06.team1_fin_pj.domain.approval.controller;
 
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineListDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.common.dto.employee.HrSelectOptionDto;
+import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.service.AdApprovalServiceImpl;
 import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
@@ -27,6 +29,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -181,10 +185,11 @@ public class AdApprovalController {
     @PostMapping("/createAppLineFormAction")
     @ResponseBody
     public String createAppLineFormAction(
-            @RequestBody ApprovalLineCreateRequestDto requestDto
+            @RequestBody ApprovalLineCreateRequestDto requestDto,
+            @AuthenticationPrincipal PrincipalDetails principal
     ) {
         System.out.println("[AdApprovalController] - createAppLineFormAction()");
-        service.saveAppLineForm(requestDto);
+        service.saveAppLineForm(requestDto, principal);
         return "ok";
     }
 
@@ -200,11 +205,23 @@ public class AdApprovalController {
         System.out.println("[AdApprovalController] - appLineFormList()");
         model.addAttribute("activeTab", "appLineForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
 
-        model.addAttribute(
-                "page",
-                service.listAppLineForm(pageable)
-        );
+//        model.addAttribute(
+//                "page",
+//                service.listAppLineForm(pageable)
+//        );
         return "admin/approval/appLineFormList";
+    }
+
+    // 페이징 처리된 결재선 목록 조회 (Ajax)
+    @GetMapping("/getAppLineForms")
+    @ResponseBody
+    public Page<AppLineListDto> getAppLineForms(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        System.out.println("[AdApprovalController] - getAppLineForms()");
+
+        return service.getAppLineFormsWithPaging(page, size);
     }
 
     // 전자 결재선 1건 상세 조회

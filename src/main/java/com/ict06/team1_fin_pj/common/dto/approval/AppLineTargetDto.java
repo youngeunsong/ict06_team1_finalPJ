@@ -17,6 +17,9 @@ import lombok.Getter;
 public class AppLineTargetDto {
 
     private String type;
-
     private String targetName;
+    private String departmentName;
+    private String positionName;
+    private String empNo;
+    private String targetType;
 }

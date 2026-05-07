@@ -47,7 +47,9 @@
                         <div class="d-flex flex-wrap gap-2">
                             <span class="badge bg-primary"
                                   th:each="target : ${step.targets}"
-                                  th:text="${target.targetName}">
+                                  th:text="${target.type == 'USER'}
+                                  ? ${target.departmentName + ' · ' + target.positionName + ' · ' + target.targetName + '(' + target.empNo + ')'}
+                                  : ${target.targetName}">
                             </span>
                         </div>
                     </div>
