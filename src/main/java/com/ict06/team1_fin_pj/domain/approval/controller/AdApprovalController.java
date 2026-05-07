@@ -240,6 +240,19 @@ public class AdApprovalController {
     }
 
     // [전자 결재선 삭제] ----------------------------------------
+    @DeleteMapping("/deleteAppLineForm/{templateId}")
+    @ResponseBody
+    public ResponseEntity<?> deleteAppLineForm(
+            @PathVariable int templateId
+    ) {
+
+        System.out.println("[AdApprovalController] - deleteAppLineForm()");
+
+        service.deleteAppLineTemplate(templateId);
+
+        return ResponseEntity.ok().build();
+    }
+
     // [전자 결재선 수정] ----------------------------------------
 
 

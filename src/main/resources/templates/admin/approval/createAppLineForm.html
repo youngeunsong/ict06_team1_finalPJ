@@ -101,13 +101,13 @@
                                     </label>
                                 </div>
                                 <!--기본 결재선 설정 여부 끝-->
-                                <!--서식 제출 버튼 시작-->
-                                <div class="d-grid w-100">
-                                    <button type="submit" class="btn btn btn-primary w-100">
-                                        서식 추가
-                                    </button>
+                                <!-- 버튼 목록 시작 -->
+                                <div class="text-end mt-4">
+                                    <button type="submit" id="" class="btn btn-primary">서식 저장하기</button> <!--서식 제출 버튼-->
+                                    <button type="reset" class="btn btn-secondary">취소</button>
+                                    <a th:href="@{/admin/approval/appLineFormList}" class="btn btn-secondary">목록</a>
                                 </div>
-                                <!--서식 제출 버튼 끝-->
+                                <!-- 버튼 목록 끝 -->
                             </div>
                         </form>
                     </div>

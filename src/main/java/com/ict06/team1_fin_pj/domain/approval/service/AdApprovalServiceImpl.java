@@ -373,8 +373,15 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
     // delete
     @Override
+    @Transactional
     public void deleteAppLineTemplate(int id) {
 
+        AppLineTemplateEntity template =
+                appLineTemplateRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException("결재선 서식 없음"));
+
+        appLineTemplateRepository.delete(template);
     }
 
     // update
