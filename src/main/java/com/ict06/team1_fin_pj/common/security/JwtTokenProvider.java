@@ -8,6 +8,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ * @ 2026.05.07    김다솜        Refresh Token 생성 로직 추가 및 만료 시간 분리
  */
 
 package com.ict06.team1_fin_pj.common.security;
@@ -35,8 +36,13 @@ public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    // AccessToken 만료 시간
     @Value("${jwt.expiration}")
     private long tokenValidTime;
+
+    // RefreshToken 만료 시간 추가
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long refreshTokenValidTime;
 
     private Key key;
 
@@ -54,7 +60,7 @@ public class JwtTokenProvider {
     }
 
     //JWT 토큰 생성
-    public String createToken(String empNo, String role) {
+    public String createAccessToken(String empNo, String role) {
         Claims claims = Jwts.claims().setSubject(empNo);
         claims.put("role", role);
         Date now = new Date();
@@ -62,7 +68,22 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
+                // 1. 토큰 유효기간 설정
                 .setExpiration(new Date(now.getTime() + tokenValidTime))
+                // 2. 암호화 서명
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    //RefreshToken 생성 메서드
+    public String createRefreshToken(String empNo) {
+        Claims claims = Jwts.claims().setSubject(empNo);
+        Date now = new Date();
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + refreshTokenValidTime))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }

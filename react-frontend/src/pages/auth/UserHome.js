@@ -14,12 +14,13 @@
 import React, { useEffect, useState } from 'react';
 import { CRow, CCol, CWidgetStatsA, CCard, CCardHeader, CCardBody, CListGroup, CListGroupItem, CFormCheck } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilSun, cilClock, cilEducation, cilCalendar, cilCheckCircle } from '@coreui/icons';
+import { cilSun, cilClock, cilCalendar, cilCheckCircle } from '@coreui/icons';
 
 import { fetchHomeData } from './Crawling';
 import { useUser } from 'src/api/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { PATH } from 'src/constants/path';
+import OnboardingSummaryCard from 'src/pages/onboarding/OnboardingSummaryCard';
 
 const UserHome = () => {
   const navigate = useNavigate();
@@ -57,6 +58,9 @@ const UserHome = () => {
   return (
     <div className="fade-in">
       <h4 className="mb-4 text-dark">{userInfo?.name}님의 오늘 예정 업무</h4>
+
+      {/* 온보딩 요약 카드 */}
+      <OnboardingSummaryCard />
       
       <CRow className="mb-4">
 
@@ -87,7 +91,7 @@ const UserHome = () => {
               <CCardBody className='pt-0'>
                 {homeData.newsList && homeData.newsList.map((item, index) => (
                   <div key={index} className='py-1'>
-                    <a href={item.link} target="_blank" rel="nonreferrer"
+                    <a href={item.link} target="_blank" rel="noreferrer"
                       style={{
                             fontSize: '0.85rem', 
                             textDecoration: 'none', 
@@ -123,7 +127,8 @@ const UserHome = () => {
                 />
               </CCol>
 
-              {/* AI 온보딩/평가 현황 위젯 */}
+              {/* OnboardingSummaryCard.js로 대체 */}
+              {/* AI 온보딩/평가 현황 위젯
               <CCol sm={6}>
                 <CWidgetStatsA
                   color="success"
@@ -131,7 +136,7 @@ const UserHome = () => {
                   title="신규 입사자 온보딩 진행률"
                   action={<CIcon icon={cilEducation} height={40} className="my-2 text-white" />}
                   />
-              </CCol>
+              </CCol> */}
             </CRow>
 
             {/*  오늘의 일정 및 To-Do */}

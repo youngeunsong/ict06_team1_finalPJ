@@ -157,6 +157,14 @@ public class EmpEntity extends BaseTimeEntity {
     @Column(name = "is_deleted", columnDefinition = "char(1)")
     private String isDeleted = "N";
 
+    //RefreshToken 적용 위해 필드 추가
+    @Column(name = "refresh_token")
+    private String refreshToken;
+
+    public void updateRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
     /*
      * 사원 기본 정보 수정 메서드
      *

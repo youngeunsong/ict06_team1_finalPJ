@@ -20,11 +20,13 @@ import com.ict06.team1_fin_pj.domain.auth.repository.EmpRepository;
 import com.ict06.team1_fin_pj.domain.notification.repository.NotificationRepository;
 import com.ict06.team1_fin_pj.domain.notification.sse.SseEmitterManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,8 @@ public class NotificationServiceImpl {
     private final NotificationRepository notificationRepository;
     private final SseEmitterManager sseEmitterManager;
     private final EmpRepository empRepository;
+    // Redis 추가
+    private final RedisTemplate<String, String> redisTemplate;
 
     //SSE 구독(프론트에서 처음 연결 시 추출)
     public SseEmitter subscribe(String empNo) {
@@ -71,8 +75,33 @@ public class NotificationServiceImpl {
                 .build();
         notificationRepository.save(noti);
 
-        //2. SSE로 실시간 전송
+        //2. Redis 알림 개수 증가(추가된 부분)
+        // key 예시: "unread:count:20260001"
+        String redisKey = "unread:count:" + empNo;
+        redisTemplate.opsForValue().increment(redisKey);
+
+        //해당 사번의 알림 개수 데이터를 30일 동안만 유지
+        redisTemplate.expire(redisKey, 30, TimeUnit.DAYS);
+
+        //3. SSE로 실시간 전송
         sseEmitterManager.sendToEmp(empNo, noti);
+    }
+
+    //읽지 않은 알림 개수 -> Redis에서 가져오는 방식으로 수정
+    public long getUnreadCount(String empNo) {
+        String redisKey = "unread:count:" + empNo;
+        String count = redisTemplate.opsForValue().get(redisKey);
+
+        // Redis에 데이터가 없으면 DB에서 조회해서 다시 넣기(캐싱)
+        if(count == null) {
+            long dbCount = notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
+            redisTemplate.opsForValue().set(redisKey, String.valueOf(dbCount));
+            return dbCount;
+        }
+        return Long.parseLong(count);
+
+        //기존코드
+        //return notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
     }
 
     //알림 목록 조회
@@ -80,20 +109,31 @@ public class NotificationServiceImpl {
         return notificationRepository.findByEmployee_EmpNoOrderByCreatedAtDesc(empNo);
     }
 
-    //읽지 않은 알림 개수
-    public long getUnreadCount(String empNo) {
-        return notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
-    }
 
-    //알림 읽음 처리
+    //알림 읽음 처리 -> Redis 개수 감소 추가
     @Transactional
     public void markAsRead(Integer notiId) {
         //1. DB에서 해당 알림 조회
         //persistence context에 스냅샷 저장
         NotificationEntity noti = notificationRepository.findById(notiId)
                 .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
-        //2. Entity 상태 변경(NotificationEntity 하단 markRead() 메서드 참고)
-        noti.markRead();
-        //@Transactional에 의해 메서드 끝날 때 자동으로 update 쿼리 실행하여 DB 업데이트
+
+        //추가
+        if(Boolean.FALSE.equals(noti.getIsRead())) {
+            noti.markRead();
+
+            //Redis 알림 개수 감소(추가된 부분)
+            String redisKey = "unread:count:" + noti.getEmployee().getEmpNo();
+            //0 이하로 내려가지 않도록 처리
+            Long count = redisTemplate.opsForValue().decrement(redisKey);
+            if(count != null && count < 0) {
+                redisTemplate.opsForValue().set(redisKey, "0");
+            }
+        }
+
+//        기존 코드
+//        //2. Entity 상태 변경(NotificationEntity 하단 markRead() 메서드 참고)
+//        noti.markRead();
+//        //@Transactional에 의해 메서드 끝날 때 자동으로 update 쿼리 실행하여 DB 업데이트
     }
 }
