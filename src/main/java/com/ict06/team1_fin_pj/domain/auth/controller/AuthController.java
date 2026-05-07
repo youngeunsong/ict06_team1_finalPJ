@@ -9,6 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.16    김다솜        최초 생성
  * @ 2026.04.17    김다솜        로그인 처리 메서드 추가 (JWT 연동)
+ * @ 2026.05.07    김다솜        토큰 재발급(Refresh) 엔드포인트 추가
  */
 
 package com.ict06.team1_fin_pj.domain.auth.controller;
@@ -46,10 +47,31 @@ public class AuthController {
         }
     }
 
-    //로그인 요청 데이터 담는 DTO
+    // 토큰 재발급
+    @PostMapping("/reissue")
+    public ResponseEntity<?> reissue(@RequestBody ReissueRequest reissueRequest) {
+        try {
+            Map<String, String> result = authService.reissue(
+                    reissueRequest.getEmpNo(),
+                    reissueRequest.getRefreshToken()
+            );
+            return ResponseEntity.ok(result);
+        } catch(RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    //로그인 요청 DTO
     @Data
     static class LoginRequest {
         private String empNo;
         private String password;
+    }
+
+    // 재발급 요청 DTO
+    @Data
+    static class ReissueRequest {
+        private String empNo;
+        private String refreshToken;
     }
 }

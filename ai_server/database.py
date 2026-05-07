@@ -240,6 +240,7 @@ def get_on_content_list():
                 f"태그:{r[8]} | "
                 f"필수여부:{r[9]} | "
             )
+            
         return "\n".join(content_items)
 
     except Exception as e:

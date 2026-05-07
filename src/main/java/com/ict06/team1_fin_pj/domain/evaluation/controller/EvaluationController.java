@@ -12,15 +12,12 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.30    김다솜        최초 생성 및 퀴즈 조회/제출 API 구현
  * @ 2026.05.01    김다솜        카테고리별 퀴즈 조회 및 일괄 제출 구조로 수정
- * @ 2026.05.02    김다솜        카테고리별 평가 결과 조회 API 추가
+ * @ 2026.05.06    김다솜        카테고리별 퀴즈 상세 결과 조회 API 추가
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.controller;
 
-import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationCategoryResultResponse;
-import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationQuestionResponse;
-import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationSubmitRequest;
-import com.ict06.team1_fin_pj.common.dto.evaluation.EvaluationSubmitResponse;
+import com.ict06.team1_fin_pj.common.dto.evaluation.*;
 import com.ict06.team1_fin_pj.domain.evaluation.service.EvaluationServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -58,5 +55,13 @@ public class EvaluationController {
             @PathVariable String empNo) {
 
         return ResponseEntity.ok(evaluationService.getEvaluationResults(empNo));
+    }
+
+    //특정 퀴즈 결과의 상세 질문/답변 내역 조회
+    @GetMapping("/result/detail/{empNo}/{categoryName}")
+    public ResponseEntity<EvaluationDetailResponse> getEvaluationDetail(
+            @PathVariable String empNo,
+            @PathVariable String categoryName) {
+        return ResponseEntity.ok(evaluationService.getEvaluationDetail(empNo, categoryName));
     }
 }

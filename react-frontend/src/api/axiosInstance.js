@@ -22,6 +22,8 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.01    김다솜        최초 생성 및 JWT 자동 헤더 처리 추가
+ * @ 2026.05.07    김다솜        401 에러 시 Refresh Token을 통한 토큰 자동 재발급(Interceptor) 추가
+ * @ 2026.05.07    김다솜        로그인/리프레시 엔드포인트는 401 재발급 분기에서 제외 및 강제 리다이렉트 제거
  */
 
 import axios from 'axios';
@@ -54,14 +56,13 @@ const axiosInstance = axios.create({
  * 4. 서버로 요청 전송
  */
 axiosInstance.interceptors.request.use((config) => {
-    // localStorage에서 JWT 토큰 조회
-    const token = localStorage.getItem("token");
+    // localStorage에서 AccessToken 조회
+    const accessToken = localStorage.getItem("accessToken");
 
     // 토큰이 존재하면 Authorization 헤더에 추가
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
     }
-
     return config;
 },
     (error) => {
@@ -82,10 +83,40 @@ axiosInstance.interceptors.request.use((config) => {
  * - 공통 에러 메시지 처리
  */
 axiosInstance.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-    (error) => {
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
+        const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh');
+
+        // 401 에러 시 토큰 갱신 시도 (로그인/재발급 API는 제외)
+        if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
+            originalRequest._retry = true;
+            const refreshToken = localStorage.getItem("refreshToken");
+
+            if (refreshToken) {
+                try {
+                    // 토큰 재발급 API 호출(/refresh)
+                    const res = await axios.post(`${PATH.API.BASE}/auth/refresh`, { refreshToken });
+                    const { accessToken: newAccessToken } = res.data;
+
+                    // 새 AccessToken 저장
+                    localStorage.setItem("accessToken", newAccessToken);
+                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+                    // 원래 요청 재시도
+                    return axiosInstance(originalRequest);
+                } catch (refreshError) {
+                    // RefreshToken도 유효하지 않은 경우
+                    // 즉시 강제 이동하지 않고, 호출부에서 에러를 다루도록 위임해 원인 파악을 쉽게 함
+                    console.error("토큰 갱신 실패:", refreshError);
+                    console.error("401 원본 요청 URL:", requestUrl);
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    return Promise.reject(refreshError);
+                }
+            }
+        }
         return Promise.reject(error);
     }
 );

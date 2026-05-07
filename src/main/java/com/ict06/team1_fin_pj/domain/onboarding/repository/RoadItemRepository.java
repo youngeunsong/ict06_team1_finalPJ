@@ -15,5 +15,9 @@ package com.ict06.team1_fin_pj.domain.onboarding.repository;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.RoadItemEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface RoadItemRepository extends JpaRepository<RoadItemEntity, Integer> {
+
+    List<RoadItemEntity> findByRoadmap_RoadmapIdOrderByOrderNo(Integer roadmapId);
 }

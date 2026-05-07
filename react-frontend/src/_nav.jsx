@@ -17,7 +17,7 @@
 
 import React from 'react'
 import CIcon from '@coreui/icons-react'
-import { cilCalculator, cilCalendar, cilChatBubble, cilClock, cilDescription, cilHome, cilPeople, cilUser } from '@coreui/icons'
+import { cilCalculator, cilCalendar, cilChartLine, cilChatBubble, cilClock, cilDescription, cilHome, cilSettings, cilTask, cilUser } from '@coreui/icons'
 import { CNavItem, CNavTitle } from '@coreui/react'
 import { PATH } from './constants/path'
 
@@ -67,8 +67,8 @@ const _nav = [
   {
     component: CNavItem,
     name: 'AI 온보딩 로드맵',
-    to: PATH.ONBOARDING.ROADMAP,
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    to: PATH.ONBOARDING.DASHBOARD,
+    icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
     badge: {
       color: 'primary',
       text: 'AI',
@@ -78,23 +78,24 @@ const _nav = [
     component: CNavItem,
     name: 'AI 온보딩 평가',
     to: PATH.EVALUATION.ROOT,
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilChartLine} customClassName="nav-icon" />,
     badge: {
       color: 'primary',
       text: 'AI',
     },
+    end: true,
   },
   {
     component: CNavItem,
     name: '평가 조회',
     to: PATH.EVALUATION.RESULT,
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilChartLine} customClassName="nav-icon" />,
   },
   {
     component: CNavItem,
     name: '평가 관리',
     to: '/evaluation/admin',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
     roles: ['ROLE_TEAM_LEADER', 'ROLE_ADMIN'],
   },
   {

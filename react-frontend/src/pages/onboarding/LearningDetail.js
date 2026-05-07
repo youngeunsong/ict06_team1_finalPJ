@@ -13,6 +13,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.28    김다솜        최초 생성 및 로드맵 콘텐츠 상세 조회/타입별 렌더링 구현
  * @ 2026.04.29    김다솜        학습 완료 처리 API 연동 및 로드맵 상태 반영 로직 추가
+ * @ 2026.05.06    김다솜        콘텐츠 상세 요청 URL 수정 (/content → /ai/content)
  */
 
 import { CButton, CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react';
@@ -309,7 +310,11 @@ const LearningDetail = () => {
                     학습을 완료하셨나요? 완료 버튼을 누르면 진행 상태 저장 API와 연결할 수 있습니다.
                 </p>
 
-                <CButton color='success' onClick={handleCompleteLearning}>
+                <CButton
+                    color='success'
+                    onClick={handleCompleteLearning}
+                    disabled={!itemId}
+                >
                     학습 완료
                 </CButton>
             </div>
