@@ -1,13 +1,42 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import axios from 'axios';
-import { CButton, CCard, CCardBody, CCardHeader, CBadge, CProgress, CRow, CCol } from '@coreui/react';
-// Recharts 차트 라이브러리 import
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  // PieChart 관련 추가
-  PieChart, Pie, Cell, Legend, } from 'recharts';
-import { useNavigate } from 'react-router-dom';
+
+// react-router-dom
+// 사용자 정보 + 페이지 이동
+import { useNavigate, useOutletContext } from 'react-router-dom';
+
+// CoreUI 컴포넌트
+import {
+  CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CBadge,
+  CProgress,
+  CRow,
+  CCol,
+} from '@coreui/react';
+
+// Recharts 차트 라이브러리
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+
+  // PieChart 관련
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+
+// PATH 상수
 import { PATH } from 'src/constants/path';
+
+// 공통 axios helper
+import { request } from 'src/helpers/axios_helper';
 
   // 일반 사원용 근태 메인 화면
 const Attendance = () => {
@@ -201,11 +230,13 @@ const Attendance = () => {
   const fetchAttendance = async () => {
     try {
       // 백엔드에서 내 근태 목록 조회
-      const res = await axios.get('http://localhost:8081/api/attendance/my', {
-        params: {
-          empNo: empNo, 
-        },
-      });
+      // const res = await axios.get('http://localhost:8081/api/attendance/my', {
+      //   params: {
+      //     empNo: empNo, 
+      //   },
+      // });
+      const params = {empNo}; 
+      const res = await request('GET', '/attendance/my', params);
 
       console.log('근태 조회 결과:', res.data);
 
@@ -260,11 +291,13 @@ const Attendance = () => {
   // 근태 메인에서 "내 연차" 카드에 보여줄 데이터 조회
   const fetchLeaveSummary = async () => {
     try {
-      const res = await axios.get('http://localhost:8081/api/leave/summary', {
-        params: {
-          empNo: empNo,
-        },
-      });
+      // 공통 axios helper 사용
+      // GET 요청이므로 세 번째 인자는 자동으로 params로 전달됨
+      const params = {
+        empNo: empNo,
+      };
+
+      const res = await request('GET', '/api/leave/summary', params);
 
       console.log('근태 메인 연차 요약:', res.data);
 
@@ -365,13 +398,20 @@ const Attendance = () => {
           setGpsMessage('GPS 확인 완료');
 
           // 4. 백엔드 출근 API 호출
-          await axios.post('http://localhost:8081/api/attendance/check-in', null, {
-            params: {
-              empNo: empNo,
-              lat: lat,
-              lng: lng,
-            }
-          });
+          // await axios.post('http://localhost:8081/api/attendance/check-in', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
+            empNo: empNo,
+            lat: lat,
+            lng: lng,
+          }
+          await request('POST', '/attendance/check-in', params);
+
 
           // 성공 메시지
           setAttendanceMessage('출근 처리가 완료되었습니다.');
@@ -437,13 +477,19 @@ const Attendance = () => {
           // GPS 성공
           setGpsMessage('GPS 확인 완료');
 
-          await axios.post('http://localhost:8081/api/attendance/check-out', null, {
-            params: {
+          // await axios.post('http://localhost:8081/api/attendance/check-out', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
               empNo: empNo,
               lat: lat,
               lng: lng,
-            }
-          });
+          }
+          await request('POST', '/attendance/check-out', params);
 
           // 성공 메시지
           setAttendanceMessage('퇴근 처리가 완료되었습니다.');

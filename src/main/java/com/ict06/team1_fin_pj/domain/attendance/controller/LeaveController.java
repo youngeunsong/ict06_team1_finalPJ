@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 // 연차 현황 API 컨트롤러
 @RestController
@@ -66,8 +67,8 @@ public class LeaveController {
     // 2. LEAVE_OCCURRENCE 테이블에 저장
     // 3. 저장 후 총/사용/잔여 연차 요약 반환
     @PostMapping("/grant")
-    public LeaveSummaryDTO grantAnnualLeave(@RequestParam String empNo) {
+    public LeaveSummaryDTO grantAnnualLeave(@RequestBody Map<String, Object> body) {
+        String empNo = (String) body.get("empNo");
         return leaveService.grantAnnualLeave(empNo);
     }
-
 }

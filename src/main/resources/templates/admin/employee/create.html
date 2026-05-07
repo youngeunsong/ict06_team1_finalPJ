@@ -8,6 +8,11 @@
     - 입력된 값은 POST /admin/employees 로 전송된다.
     - 프로필 사진 / 서명 이미지를 같이 업로드하므로 enctype="multipart/form-data"가 필요하다.
     - 화면 동작 JS는 /static/js/employee/create.js 로 분리했다.
+
+    변경 사항:
+    - 기존 부서 select 1개를 본부 select + 팀 select 2개로 분리했다.
+    - 본부를 선택하면 JS에서 해당 본부의 하위 팀 목록을 불러온다.
+    - 실제 employee.dept_id에는 팀 ID가 저장된다.
 -->
 <head th:include="/admin/common/head.html :: common_header">
     <title id="page_title">사원 등록</title>
@@ -197,20 +202,66 @@
                                            maxlength="13">
                                 </div>
 
-                                <!-- 부서 -->
-                                <!-- departments는 Controller에서 model로 전달한 목록이다. -->
+                                <!-- 본부 -->
+                                <!--
+                                    parentDepartments는 Controller에서 model로 전달한 본부 목록이다.
+
+                                    본부 기준:
+                                    - DEPARTMENT.parent_dept_id가 null인 데이터
+                                    - 예: 경영본부, 개발본부
+
+                                    이 값은 실제 employee 테이블에 저장하기 위한 값이 아니라,
+                                    아래 팀 select 목록을 불러오기 위한 기준값이다.
+                                -->
                                 <div class="col-md-4">
-                                    <label class="form-label">부서 <span class="text-danger">*</span></label>
-                                    <select th:field="*{deptId}" id="deptId" class="form-select required-input">
-                                        <option value="">부서 선택</option>
-                                        <option th:each="dept : ${departments}"
+                                    <label class="form-label">본부 <span class="text-danger">*</span></label>
+                                    <select th:field="*{parentDeptId}"
+                                            id="parentDeptId"
+                                            class="form-select required-input">
+                                        <option value="">본부 선택</option>
+                                        <option th:each="dept : ${parentDepartments}"
                                                 th:value="${dept.id}"
                                                 th:text="${dept.name}">
                                         </option>
                                     </select>
                                 </div>
 
+                                <!-- 팀 -->
+                                <!--
+                                    본부 선택 후 JS가 해당 본부의 하위 팀 목록을 가져와 option을 채운다.
+
+                                    최종적으로 employee.dept_id에 저장되는 값은 이 팀의 deptId이다.
+                                    예:
+                                    본부 = 경영본부
+                                    팀 = 인사팀
+                                    저장 = 인사팀 dept_id
+                                -->
+                                <div class="col-md-4">
+                                    <label class="form-label">팀 <span class="text-danger">*</span></label>
+                                    <select th:field="*{deptId}"
+                                            id="deptId"
+                                            class="form-select required-input"
+                                            th:attr="data-selected-dept-id=*{deptId}">
+                                        <option value="">팀 선택</option>
+
+                                        <!--
+                                            등록 실패 후 다시 돌아온 경우를 위한 팀 목록 유지용
+
+                                            예:
+                                            이메일 중복 오류 발생
+                                            → 다시 등록 화면으로 돌아옴
+                                            → 사용자가 선택했던 본부/팀을 유지하기 위해 사용
+                                        -->
+                                        <option th:each="team : ${teams}"
+                                                th:value="${team.id}"
+                                                th:text="${team.name}"
+                                                th:selected="${employeeCreateRequestDto.deptId != null and employeeCreateRequestDto.deptId == team.id}">
+                                        </option>
+                                    </select>
+                                </div>
+
                                 <!-- 직급 -->
+                                <!-- positions는 Controller에서 model로 전달한 직급 목록이다. -->
                                 <div class="col-md-4">
                                     <label class="form-label">직급 <span class="text-danger">*</span></label>
                                     <select th:field="*{positionId}" id="positionId" class="form-select required-input">
@@ -223,6 +274,7 @@
                                 </div>
 
                                 <!-- 권한 -->
+                                <!-- roles는 Controller에서 model로 전달한 권한 목록이다. -->
                                 <div class="col-md-4">
                                     <label class="form-label">권한 <span class="text-danger">*</span></label>
                                     <select th:field="*{roleId}" id="roleId" class="form-select required-input">
@@ -275,6 +327,7 @@
                                 </div>
 
                                 <!-- 서명 이미지 업로드 -->
+                                <!-- 선택한 이미지는 JS에서 미리보기로 보여준다. -->
                                 <div class="col-md-6">
                                     <label class="form-label">서명 이미지</label>
                                     <input type="file"

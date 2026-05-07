@@ -43,7 +43,7 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String uri = httpRequest.getRequestURI();
 
-        // ✅ 1. 관리자 페이지는 JWT 검사 제외 (핵심🔥)
+        // ✅ 1. 관리자 페이지는 JWT 검사 건너뛰고 세션/폼로그인에서 검사 (핵심🔥)
         if (uri.startsWith("/admin")) {
             chain.doFilter(request, response);
             return;
@@ -51,17 +51,17 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
 
         // ✅ 2. 그 외 url은 JWT 검사
         else {
-            //1. Request Header에서 JWT 토큰 추출
+            // 2-1. Request Header에서 JWT 토큰 추출
             String token = jwtTokenProvider.resolveToken((HttpServletRequest) request);
 
-            //2. 헤더에 토큰 없는 경우 URL 파라미터("token")에서 추출(SSE 대응)
+            // 2-2. 헤더에 토큰 없는 경우 URL 파라미터("token")에서 추출(SSE 대응)
             if(!StringUtils.hasText(token)) {
                 token = httpRequest.getParameter("token");
             }
 
-            //3. 토큰 유효성 검증
+            // 2-3. 토큰 유효성 검증
             if (token != null && jwtTokenProvider.validateToken(token)) {
-                //토큰 유효하면 인증 객체(Authentication) 생성, SecurityContext에 저장
+                // 토큰이 유효하면 인증 객체(Authentication) 생성해 SecurityContext에 저장
                 Authentication authentication = jwtTokenProvider.getAuthentication(token);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }

@@ -9,7 +9,7 @@ const Evaluation2 = () => {
     const navigate = useNavigate();
     const handleButtonClick = () => {
         // navigate('/evaluation/quiz')\
-        navigate(PATH.ONBOARDING.QUIZ); 
+        navigate(PATH.EVALUATION.QUIZ); 
     }
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)

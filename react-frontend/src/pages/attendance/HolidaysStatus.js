@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+
+import { request } from 'src/helpers/axios_helper';
 
 // CoreUI 컴포넌트
 import {
@@ -99,19 +100,19 @@ import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
       try {
         // 2. 연차 요약 API 호출
         // 총 연차 / 사용 연차 / 잔여 연차 조회
-        const summaryRes = await axios.get('http://localhost:8081/api/leave/summary', {
-          params: {
-            empNo: empNo,
-          },
-        });
+        const summaryParams = {
+          empNo: empNo,
+        };
+
+        const summaryRes = await request('GET', '/api/leave/summary', summaryParams);
 
         // 3. 연차 사용 내역 API 호출
         // 연차/반차 사용 이력 조회
-        const historyRes = await axios.get('http://localhost:8081/api/leave/history', {
-          params: {
-            empNo: empNo,
-          },
-        });
+        const historyParams = {
+          empNo: empNo,
+        };
+
+        const historyRes = await request('GET', '/api/leave/history', historyParams);
 
         // 4. 응답 데이터를 화면 상태에 저장
         // summaryRes.data 예시:

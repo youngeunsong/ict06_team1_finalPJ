@@ -9,15 +9,17 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.22    김다솜        최초 생성/화면 구성
  * @ 2026.04.23    김다솜        내 정보 조회/수정 구현
+ * @ 2026.04.30    김다솜        스타일 코드 분리 (MyPageStyle.js) 및 UI 구조 개선
 */
 
 import { CAvatar, CBadge, CButton, CCard, CCardBody, CCol, CFormInput, CNav, CNavItem, CNavLink, CRow } from '@coreui/react';
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 
 import CIcon from '@coreui/icons-react';
 import { cilCheckAlt, cilPencil, cilX } from '@coreui/icons';
 import { useUser } from 'src/api/UserContext';
+import { accountInfoGroup, activeStatusBadge, profileAvatar, profileCover, profileHeader, valueGroup } from 'src/styles/js/auth/MyPageStyle';
+import axiosInstance from 'src/api/axiosInstance';
 
 const MyPage = () => {
     const { userInfo, updateUserInfo } = useUser();
@@ -47,13 +49,10 @@ const MyPage = () => {
     const handleUpdate = async() => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.put('http://localhost:8081/api/user/update', formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await axiosInstance.put('/user/update', formData);
             if(response.status === 200) {
                 updateUserInfo(formData);
                 setIsEditing(false);
-                alert('정보가 수정되었습니다.');
             }
         } catch(error) {
             console.error('수정 실패: ', error);
@@ -73,20 +72,13 @@ const MyPage = () => {
             <CCol xs={12}>
                 {/* 상단 프로필 헤더 영역 */}
                 <CCard className='mb-4 border-0 shadow-sm'>
-                    <div style={{
-                            height: '150px',
-                            background: 'linear-gradient(to right, #ffafbd, #ffc3a0)',
-                            borderRadius: '0.375rem 0.375rem 0 0'
-                        }}></div>
+                    <div style={profileCover}></div>
                     <CCardBody className='pt-0'>
-                        <div className='d-flex align-items-end'
-                            style={{ marginTop: '-50px' }}>
+                        <div className='d-flex align-items-end' style={profileHeader}>
                             <CAvatar src={userInfo?.profile_img || 'avatars/8.jpg'}
                                 size="xl"
                                 className="border border-4 border-white shadow"
-                                style={{
-                                    width: '100px', height: '100px'
-                                }}
+                                style={profileAvatar}
                             />
                             <div className='ms-3 mb-2'>
                                 <h4 className='mb-0 fw-bold text-dark'>
@@ -152,7 +144,7 @@ const MyPage = () => {
                         <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>이메일 · 사번</CCol>
                             <CCol sm={9}>
-                                <div className="d-flex align-items-center">
+                                <div style={valueGroup}>
                                     {isEditing ? (
                                         <CFormInput
                                             name='email'
@@ -179,7 +171,7 @@ const MyPage = () => {
                                         color="success"
                                         className="ms-3 px-2 py-1"
                                         shape="rounded-pill"
-                                        style={{ fontSize: '0.7rem' }}
+                                        style={activeStatusBadge}
                                     >
                                         재직중
                                     </CBadge>
@@ -223,7 +215,7 @@ const MyPage = () => {
                             <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>계좌 정보</CCol>
                             <CCol sm={9}>
-                                <div className='d-flex align-items-center gap-4'>
+                                <div style={accountInfoGroup}>
                                     <div>
                                         <span className="me-4 text-muted small">은행</span>
                                         <span className={valueStyle}>{userInfo?.bank || '-'}</span>

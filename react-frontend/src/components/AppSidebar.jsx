@@ -2,18 +2,13 @@ import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 
 // 페이지 이동
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
   CAvatar,
-  CBadge,
-  CCloseButton,
   CFormInput,
   CInputGroup,
   CInputGroupText,
-  CNavGroup,
-  CNavItem,
-  CNavTitle,
   CSidebar,
   CSidebarBrand,
   CSidebarFooter,
@@ -25,16 +20,16 @@ import CIcon from '@coreui/icons-react'
 import { AppSidebarNav } from './AppSidebarNav'
 
 import navigation from '../_nav'
-import { cilBell, cilSearch } from '@coreui/icons'
+import { cilSearch } from '@coreui/icons'
 
-import { logo } from 'src/assets/brand/logo'
-import { sygnet } from 'src/assets/brand/sygnet'
 
 //프로필 이미지(추후 수정)
 import avatar8 from 'src/assets/images/avatars/8.jpg'
+import { PATH } from 'src/constants/path';
 
 //DefaultLayout에서 전달한 userInfo를 props로 받음
 const AppSidebar = ({ userInfo }) => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const unfoldable = useSelector((state) => state.sidebarUnfoldable);
   const sidebarShow = useSelector((state) => state.sidebarShow);
@@ -59,9 +54,17 @@ const AppSidebar = ({ userInfo }) => {
       }}
     >
 
-      <CSidebarBrand className='d-none d-md-flex' to="/">
-        {logo && <CIcon className='sidebar-brand-full' icon={logo} height={35} />}
-        {sygnet && <CIcon className='sidebar-brand-narrow' icon={sygnet} height={35} />}
+      {/* 임시 로고: 수정 필요 */}
+      <CSidebarBrand className='d-flex align-items-center justify-content-center'>
+        <div
+          className='sidebar-logo'
+          onClick={() => navigate(PATH.AUTH.USERHOME)}
+          style={{ cursor: 'pointer' }}
+        >
+          <span className='sidebar-logo-main'>
+            🏢 함께UP 그룹웨어
+          </span>
+        </div>
       </CSidebarBrand>
 
       {/* 2. 프로필 및 검색 영역 */}
@@ -80,11 +83,6 @@ const AppSidebar = ({ userInfo }) => {
                 </div>
               </div>
           </div>
-
-          {/* 알림 페이지로 이동 */}
-          <Link to="/alert">
-            <CIcon icon={cilBell} size="lg" className="text-secondary" style={{ cursor: 'pointer' }} />
-          </Link>
         </div>
 
         {/* 검색창 */}
