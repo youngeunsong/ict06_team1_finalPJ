@@ -109,6 +109,12 @@ const _nav = [
   },
   {
     component: CNavItem,
+    name: '연차 현황',
+    to: PATH.ATTENDANCE.HOLIDAYS, // /attendance/holidays 로 이동
+    icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
     name: '급여관리',
     to: '/payroll',
     icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
