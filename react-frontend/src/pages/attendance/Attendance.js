@@ -1,9 +1,44 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import axios from 'axios';
-import { CButton, CCard, CCardBody, CCardHeader, CBadge } from '@coreui/react';
 
-// 일반 사원용 근태 메인 화면
+// react-router-dom
+// 사용자 정보 + 페이지 이동
+import { useNavigate, useOutletContext } from 'react-router-dom';
+
+// CoreUI 컴포넌트
+import {
+  CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CBadge,
+  CProgress,
+  CRow,
+  CCol,
+} from '@coreui/react';
+
+// Recharts 차트 라이브러리
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+
+  // PieChart 관련
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+
+// PATH 상수
+import { PATH } from 'src/constants/path';
+
+// 공통 axios helper
+import { request } from 'src/helpers/axios_helper';
+
+  // 일반 사원용 근태 메인 화면
 const Attendance = () => {
   // DefaultLayout에서 전달받은 로그인 사용자 정보
   const [userInfo] = useOutletContext();
@@ -20,6 +55,24 @@ const Attendance = () => {
   // 퇴근 시간
   const [checkOutTime, setCheckOutTime] = useState(null);
 
+  // 페이지 이동용
+  const navigate = useNavigate();
+
+  // 연차 요약 데이터
+  // 근태 메인 상단의 "내 연차" 카드에 표시할 데이터
+  const [leaveSummary, setLeaveSummary] = useState({
+    usedDays: 0,
+    totalDays: 0,
+    remainDays: 0,
+  });
+
+  // 근무시간 프로그래스바, 백엔드에서 계산된 workHours 값을 저장한다.
+  const [todayWorkHours, setTodayWorkHours] = useState(0);
+
+  // 실시간 근무시간
+  // 퇴근 전에는 출근 시간부터 현재 시간까지 계산한 값을 저장
+  const [liveWorkHours, setLiveWorkHours] = useState(0);
+
   // GPS 처리 상태 메시지
   // 출근/퇴근 버튼을 눌렀을 때 위치 확인 상태를 화면에 보여주기 위함
   const [gpsMessage, setGpsMessage] = useState('위치 확인 전');
@@ -30,6 +83,14 @@ const Attendance = () => {
   // 조회 보기 모드: day / week / month
   const [viewMode, setViewMode] = useState('month');
 
+  // 현재 캘린더에서 기준이 되는 날짜
+  // 이전/다음 버튼을 누르면 이 날짜가 바뀐다.
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // 근태 상태 필터
+  // ALL / ON_TIME / LATE / EARLY
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
   // 출근/퇴근 처리 결과 메시지
   // 성공/실패 내용을 화면에 보여주기 위한 상태값
   const [attendanceMessage, setAttendanceMessage] = useState('');
@@ -38,39 +99,130 @@ const Attendance = () => {
   // 버튼 중복 클릭 방지 + UX 개선
   const [loading, setLoading] = useState(false);
 
-  // 현재 날짜
+  // 실제 오늘 날짜
   const today = new Date();
 
-  // 현재 월의 연도와 월
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  // 화면에서 보고 있는 기준 날짜
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
 
-  // 현재 월의 마지막 날짜
-  const lastDate = new Date(year, month + 1, 0).getDate();
+  // ==============================
+  // Date 기반 캘린더 데이터 생성
+  // ==============================
 
-  // 1일부터 마지막 날짜까지 배열 생성
-  const days = Array.from({ length: lastDate }, (_, i) => i + 1);
+  // 현재 월의 1일
+  // 예: currentDate가 2026-05-15라면 startOfMonth는 2026-05-01
+  const startOfMonth = new Date(year, month, 1);
 
-  // 오늘 날짜 숫자
-  const todayDay = today.getDate();
+  // 현재 월 1일의 요일
+  // 0: 일요일, 1: 월요일, ..., 6: 토요일
+  const startDay = startOfMonth.getDay();
 
-  // 이번 주 날짜 계산
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay());
+  // 달력에 표시할 첫 번째 날짜
+  // 월 달력은 1일이 무슨 요일인지에 따라 앞쪽에 이전 달 날짜가 보일 수 있음
+  // 예: 5월 1일이 금요일이면, 달력 시작은 그 주 일요일인 4월 26일
+  const calendarStart = new Date(startOfMonth);
+  calendarStart.setDate(startOfMonth.getDate() - startDay);
 
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    return d.getDate();
+  // 월 보기용 날짜 배열
+  // 6주 x 7일 = 총 42칸을 만든다.
+  // 각 칸은 단순 숫자가 아니라 날짜 정보를 가진 객체로 만든다.
+  const monthDays = Array.from({ length: 42 }, (_, i) => {
+    const date = new Date(calendarStart);
+    date.setDate(calendarStart.getDate() + i);
+
+    return {
+      // 실제 Date 객체
+      date: date,
+
+      // 화면에 보여줄 날짜 숫자
+      day: date.getDate(),
+
+      // DB의 workDate와 비교할 문자열
+      // 예: 2026-05-01
+      dateString: date.toLocaleDateString('en-CA'),
+    };
   });
 
-  // 보기 모드에 따라 화면에 보여줄 날짜 결정
+  // 현재 보고 있는 주의 시작일 계산
+  // 일요일 시작 기준
+  const weekStart = new Date(currentDate);
+  weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+
+  // 주 보기용 날짜 배열
+  // 현재 주의 일요일부터 토요일까지 7개 날짜를 만든다.
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+
+    return {
+      date: date,
+      day: date.getDate(),
+      dateString: date.toLocaleDateString('en-CA'),
+    };
+  });
+
+  // 일 보기용 날짜 배열
+  // 하루만 보여주지만, 구조를 월/주와 똑같이 맞춘다.
+  const dayDays = [
+    {
+      date: currentDate,
+      day: currentDate.getDate(),
+      dateString: currentDate.toLocaleDateString('en-CA'),
+    },
+  ];
+
+  // 보기 모드에 따라 화면에 보여줄 날짜 배열 결정
+  // month: 42칸 달력
+  // week: 7일
+  // day: 1일
   const displayDays =
-    viewMode === 'day'
-      ? [todayDay]
+    viewMode === 'month'
+      ? monthDays
       : viewMode === 'week'
         ? weekDays
-        : days;
+        : dayDays;
+
+  // 이전 기간으로 이동
+  const handlePrev = () => {
+    const newDate = new Date(currentDate);
+
+    if (viewMode === 'month') {
+      // 이전 달
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else if (viewMode === 'week') {
+      // 이전 주
+      newDate.setDate(newDate.getDate() - 7);
+    } else {
+      // 이전 일
+      newDate.setDate(newDate.getDate() - 1);
+    }
+
+    setCurrentDate(newDate);
+  };
+
+  // 다음 기간으로 이동
+  const handleNext = () => {
+    const newDate = new Date(currentDate);
+
+    if (viewMode === 'month') {
+      // 다음 달
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else if (viewMode === 'week') {
+      // 다음 주
+      newDate.setDate(newDate.getDate() + 7);
+    } else {
+      // 다음 일
+      newDate.setDate(newDate.getDate() + 1);
+    }
+
+    setCurrentDate(newDate);
+  };
+
+  // 오늘로 이동
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };      
 
   // 근태 목록을 다시 조회하는 함수
   // 처음 화면 들어왔을 때도 사용하고,
@@ -78,11 +230,13 @@ const Attendance = () => {
   const fetchAttendance = async () => {
     try {
       // 백엔드에서 내 근태 목록 조회
-      const res = await axios.get('http://localhost:8081/api/attendance/my', {
-        params: {
-          empNo: empNo, 
-        },
-      });
+      // const res = await axios.get('http://localhost:8081/api/attendance/my', {
+      //   params: {
+      //     empNo: empNo, 
+      //   },
+      // });
+      const params = {empNo}; 
+      const res = await request('GET', '/attendance/my', params);
 
       console.log('근태 조회 결과:', res.data);
 
@@ -109,11 +263,23 @@ const Attendance = () => {
         setCheckOutTime(
           todayData.checkOutAt ? todayData.checkOutAt.substring(11, 16) : null
         );
+
+        // 오늘 근무시간 저장
+        // DB에서 workHours가 null이면 0으로 처리
+        setTodayWorkHours(todayData.workHours || 0);
+
       } else {
         // 오늘 데이터가 없으면 출근 전 상태로 초기화
         setTodayStatus('출근 전');
+
+        // 출근 시간이 없으므로 null
         setCheckInTime(null);
+
+        // 퇴근 시간이 없으므로 null
         setCheckOutTime(null);
+
+        // 오늘 근무시간도 0으로 초기화
+        setTodayWorkHours(0);
       }
     } catch (err) {
       console.error(err);
@@ -121,19 +287,79 @@ const Attendance = () => {
     }
   };
 
+  // 연차 요약 조회 함수
+  // 근태 메인에서 "내 연차" 카드에 보여줄 데이터 조회
+  const fetchLeaveSummary = async () => {
+    try {
+      // 공통 axios helper 사용
+      // GET 요청이므로 세 번째 인자는 자동으로 params로 전달됨
+      const params = {
+        empNo: empNo,
+      };
+
+      const res = await request('GET', '/leave/summary', params);
+
+      console.log('근태 메인 연차 요약:', res.data);
+
+      setLeaveSummary(res.data);
+    } catch (error) {
+      console.error(error);
+
+      // 연차 데이터 조회 실패 시 화면이 깨지지 않도록 0으로 유지
+      setLeaveSummary({
+        usedDays: 0,
+        totalDays: 0,
+        remainDays: 0,
+      });
+    }
+  };
+
   // 화면이 처음 열릴 때 근태 목록 조회
   useEffect(() => {
     fetchAttendance();
+
+    // 근태 메인 진입 시 연차 요약도 함께 조회
+    fetchLeaveSummary();
   }, []);
 
-  // 시간 포맷
-  const getNowTime = () => {
-    const now = new Date();
-    return now.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // 출근 후 퇴근 전일 때 실시간 근무시간 계산
+  useEffect(() => {
+
+    // 출근 안 했으면 계산 안 함
+    if (!checkInTime) return;
+
+    // 퇴근했으면 DB 값 사용
+    if (checkOutTime) {
+      setLiveWorkHours(todayWorkHours);
+      return;
+    }
+    
+    // 1초마다 현재 시간 기준으로 근무시간 다시 계산
+    const timer = setInterval(() => {
+      // 오늘 날짜 문자열 생성
+      const todayDate = new Date().toLocaleDateString('en-CA');
+
+      // 출근 시간 → Date 변환
+      const checkInDateTime = new Date(`${todayDate}T${checkInTime}:00`);
+
+      // 현재 시간
+      const now = new Date();
+
+      // 밀리초 차이 계산
+      const diffMs = now - checkInDateTime;
+
+      // 시간 단위 변환
+      const hours = diffMs / (1000 * 60 * 60);
+
+      // 소수점 2자리까지 반올림
+      setLiveWorkHours(Number(hours.toFixed(2)));
+
+    }, 1000);
+
+    // 화면이 바뀌거나 값이 바뀌면 타이머 정리
+    return () => clearInterval(timer);
+
+  }, [checkInTime, checkOutTime, todayWorkHours]);
 
   // 출근 버튼 클릭
   const handleCheckIn = () => {
@@ -152,7 +378,8 @@ const Attendance = () => {
     if (!navigator.geolocation) {
       alert('GPS를 지원하지 않는 브라우저입니다.');
 
-      setLoading(false); 
+      setLoading(false);
+      return;
     }
 
     // GPS 요청 시작 상태 표시
@@ -171,13 +398,20 @@ const Attendance = () => {
           setGpsMessage('GPS 확인 완료');
 
           // 4. 백엔드 출근 API 호출
-          await axios.post('http://localhost:8081/api/attendance/check-in', null, {
-            params: {
-              empNo: empNo,
-              lat: lat,
-              lng: lng,
-            }
-          });
+          // await axios.post('http://localhost:8081/api/attendance/check-in', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
+            empNo: empNo,
+            lat: lat,
+            lng: lng,
+          }
+          await request('POST', '/attendance/check-in', params);
+
 
           // 성공 메시지
           setAttendanceMessage('출근 처리가 완료되었습니다.');
@@ -243,13 +477,19 @@ const Attendance = () => {
           // GPS 성공
           setGpsMessage('GPS 확인 완료');
 
-          await axios.post('http://localhost:8081/api/attendance/check-out', null, {
-            params: {
+          // await axios.post('http://localhost:8081/api/attendance/check-out', null, {
+          //   params: {
+          //     empNo: empNo,
+          //     lat: lat,
+          //     lng: lng,
+          //   }
+          // });
+          const params = {
               empNo: empNo,
               lat: lat,
               lng: lng,
-            }
-          });
+          }
+          await request('POST', '/attendance/check-out', params);
 
           // 성공 메시지
           setAttendanceMessage('퇴근 처리가 완료되었습니다.');
@@ -308,112 +548,497 @@ const Attendance = () => {
     return '출근 전';
   };
 
+  // 하루 기준 근무시간
+  // 우리 프로젝트는 고정근무제 기준 1일 8시간으로 계산
+  const STANDARD_WORK_HOURS = 8;
+
+  // 화면에 표시할 근무시간
+  // 8시간을 넘으면 Progress Bar가 100%를 초과하지 않게 제한
+  // 퇴근 전이면 liveWorkHours, 퇴근 후면 todayWorkHours 사용
+  const displayWorkHours = checkOutTime ? todayWorkHours : liveWorkHours;
+
+  // 진행률 계산
+  const workProgress = Math.min(
+    Math.round((displayWorkHours / STANDARD_WORK_HOURS) * 100),
+    100
+  );
+
+  // ==============================
+  // 이번 달 근태 요약 계산
+  // ==============================
+
+  // 이번 달 문자열 만들기
+  // 예: 2026-05
+  const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+  // 이번 달 데이터만 필터링
+  const monthlyAttendanceList = attendanceList.filter((item) =>
+    item.workDate?.startsWith(currentMonth)
+  );
+
+  // 정상출근 횟수
+  const onTimeCount = monthlyAttendanceList.filter(
+    (item) => item.status === 'ON_TIME' || item.status === '정상출근'
+  ).length;
+
+  // 지각 횟수
+  const lateCount = monthlyAttendanceList.filter(
+    (item) => item.status === 'LATE' || item.status === '지각'
+  ).length;
+
+  // 조퇴 횟수
+  const earlyCount = monthlyAttendanceList.filter(
+    (item) => item.status === 'EARLY' || item.status === '조퇴'
+  ).length;
+
+  // 이번 달 총 근무시간
+  const totalWorkHours = monthlyAttendanceList
+    .reduce((sum, item) => sum + Number(item.workHours || 0), 0)
+    .toFixed(2);
+
+  // ==============================
+  // 이번 주 근무시간 차트 데이터
+  // ==============================
+
+  // 이번 주 시작일 계산
+  const chartWeekStart = new Date(currentDate);
+  chartWeekStart.setDate(currentDate.getDate() - currentDate.getDay());
+
+  // 요일 이름
+  const weekLabels = ['일', '월', '화', '수', '목', '금', '토'];
+
+  // 차트 데이터 생성
+  const weeklyChartData = Array.from({ length: 7 }, (_, i) => {
+
+    // 현재 요일 날짜
+    const date = new Date(chartWeekStart);
+    date.setDate(chartWeekStart.getDate() + i);
+
+    // YYYY-MM-DD 형식
+    const dateString = date.toLocaleDateString('en-CA');
+
+    // 해당 날짜 근태 찾기
+    const attendance = attendanceList.find(
+      (item) => item.workDate === dateString
+    );
+
+    return {
+      day: weekLabels[i],
+
+      // 근무시간
+      hours: Number(attendance?.workHours || 0),
+    };
+  });
+
+  // 월간 근태 상태 비율 차트 데이터
+  const monthlyPieData = [
+    {
+      name: '정상출근',
+      value: onTimeCount,
+    },
+    {
+      name: '지각',
+      value: lateCount,
+    },
+    {
+      name: '조퇴',
+      value: earlyCount,
+    },
+  ];
+
+  // PieChart 색상
+  const pieColors = ['#198754', '#f9b115', '#e55353'];
+
   return (
     <div style={{ padding: '24px' }}>
       <h2 className="mb-4"> {userInfo?.name || '테스트'}</h2>
       
-      {/* 오늘 출퇴근 카드 */}
+      {/* 이번 달 근태 요약 카드 */}
+      <CRow className="mb-4">
+
+        {/* 정상출근 카드 */}
+        <CCol md={2}>
+          <CCard
+            onClick={() => setStatusFilter('ON_TIME')} // 정상출근 필터 적용
+            style={{
+              cursor: 'pointer',
+              border: statusFilter === 'ON_TIME' ? '2px solid #198754' : '1px solid #ddd',
+              minHeight: '120px',
+            }}
+          >
+            <CCardBody>
+              <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                {month + 1}월 정상출근
+              </div>
+              <h4 className="mt-2 mb-0">{onTimeCount}회</h4>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* 지각 카드 */}
+        <CCol md={2}>
+          <CCard
+            onClick={() => setStatusFilter('LATE')} // 지각 필터 적용
+            style={{
+              cursor: 'pointer',
+              border: statusFilter === 'LATE' ? '2px solid #f9b115' : '1px solid #ddd',
+              minHeight: '120px',
+            }}
+          >
+            <CCardBody>
+              <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                {month + 1}월 지각
+              </div>
+              <h4 className="mt-2 mb-0">{lateCount}회</h4>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* 조퇴 카드 */}
+        <CCol md={2}>
+          <CCard
+            onClick={() => setStatusFilter('EARLY')} // 조퇴 필터 적용
+            style={{
+              cursor: 'pointer',
+              border: statusFilter === 'EARLY' ? '2px solid #e55353' : '1px solid #ddd',
+              minHeight: '120px',
+            }}
+          >
+            <CCardBody>
+              <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                {month + 1}월 조퇴
+              </div>
+              <h4 className="mt-2 mb-0">{earlyCount}회</h4>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* 총 근무시간 카드 */}
+        <CCol md={3}>
+          <CCard
+            onClick={() => setStatusFilter('ALL')} // 전체 보기로 초기화
+            style={{
+              cursor: 'pointer',
+              border: statusFilter === 'ALL' ? '2px solid #321fdb' : '1px solid #ddd',
+              minHeight: '120px',
+            }}
+          >
+            <CCardBody>
+              <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                {month + 1}월 총 근무시간
+              </div>
+              <h4 className="mt-2 mb-0">{totalWorkHours}시간</h4>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* 내 연차 카드 */}
+        <CCol md={3}>
+          <CCard
+            onClick={() => navigate(PATH.ATTENDANCE.HOLIDAYS)} // 연차 현황 페이지로 이동
+            style={{
+              cursor: 'pointer',
+              border: '1px solid #ddd',
+              minHeight: '120px',
+              backgroundColor: '#f8f9ff',
+            }}
+          >
+            <CCardBody>
+              <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                내 연차
+              </div>
+
+              {/* 남은 연차 / 총 연차 */}
+              <h4 className="mt-2 mb-0">
+                {leaveSummary.remainDays} / {leaveSummary.totalDays}일
+              </h4>
+
+              <div className="mt-2" style={{ fontSize: '13px', color: '#6c757d' }}>
+                클릭하면 연차 현황으로 이동
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+      {/* 대시보드 메인 영역: 오늘 근무 상태 + 월간 비율 차트 */}
+      <CRow className="mb-4">
+
+        {/* 왼쪽: 오늘 출퇴근 카드 */}
+        <CCol md={7}>
+          <CCard className="h-100">
+            <CCardHeader>
+              <strong>오늘의 근무 상태</strong>
+            </CCardHeader>
+
+            <CCardBody>
+              <h5>
+                상태:{' '}
+                <CBadge color={getBadgeColor(todayStatus)}>
+                  {getStatusText(todayStatus)}
+                </CBadge>
+              </h5>
+
+              <p className="mt-3">출근 시간: {checkInTime || '-'}</p>
+              <p>퇴근 시간: {checkOutTime || '-'}</p>
+
+              {/* 오늘 근무시간 */}
+              <div className="mt-3">
+                <div className="d-flex justify-content-between mb-1">
+                  <strong>오늘 근무시간</strong>
+                  <span>{displayWorkHours} / 8시간</span>
+                </div>
+
+                <CProgress value={workProgress} height={16} />
+
+                <div className="mt-1" style={{ fontSize: '13px', color: '#6c757d' }}>
+                  진행률: {workProgress}%
+                </div>
+              </div>
+
+              <p className="mt-2" style={{ fontSize: '13px', color: '#6c757d' }}>
+                GPS 상태: {gpsMessage}
+              </p>
+
+              {attendanceMessage && (
+                <div
+                  className="mt-2"
+                  style={{
+                    fontSize: '13px',
+                    color: attendanceMessage.includes('완료') ? '#198754' : '#dc3545',
+                  }}
+                >
+                  {attendanceMessage}
+                </div>
+              )}
+
+              {/* 출근/퇴근 버튼 */}
+              <div className="mt-3">
+                <CButton
+                  color="primary"
+                  variant="outline"
+                  onClick={handleCheckIn}
+                  disabled={checkInTime !== null || loading}
+                >
+                  {loading ? '처리중...' : '출근하기'}
+                </CButton>
+
+                <CButton
+                  color="success"
+                  variant="outline"
+                  className="ms-2"
+                  onClick={handleCheckOut}
+                  disabled={checkInTime === null || checkOutTime !== null || loading}
+                >
+                  {loading ? '처리중...' : '퇴근하기'}
+                </CButton>
+              </div>
+
+              <div className="mt-2" style={{ fontSize: '13px', color: '#6c757d' }}>
+                {checkInTime === null && '아직 출근 전입니다. 출근 버튼을 눌러 출근을 등록하세요.'}
+                {checkInTime !== null && checkOutTime === null && '출근이 등록되었습니다. 퇴근 시 퇴근 버튼을 눌러주세요.'}
+                {checkInTime !== null && checkOutTime !== null && '오늘의 출퇴근 처리가 완료되었습니다.'}
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+
+        {/* 오른쪽: 월간 PieChart */}
+        <CCol md={5}>
+          <CCard className="h-100">
+            <CCardHeader>
+              <strong>{month + 1}월 근태 상태 비율</strong>
+            </CCardHeader>
+
+            <CCardBody>
+              <div style={{ width: '100%', height: '260px' }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={monthlyPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={75}
+                      label
+                    >
+                      {monthlyPieData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={pieColors[index]}
+                        />
+                      ))}
+                    </Pie>
+
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+      {/* 주간 근무시간 차트 */}
       <CCard className="mb-4">
         <CCardHeader>
-          <strong>오늘의 근무 상태</strong>
+          <strong>
+            {`${weekStart.getFullYear()}-${String(
+              weekStart.getMonth() + 1
+            ).padStart(2, '0')}-${String(
+              weekStart.getDate()
+            ).padStart(2, '0')} 기준 주간 근무시간`}
+          </strong>
         </CCardHeader>
 
         <CCardBody>
-          <h5>
-            상태:{' '}
-            <CBadge color={getBadgeColor(todayStatus)}>
-              {getStatusText(todayStatus)}
-            </CBadge>
-          </h5>
+          <div style={{ width: '100%', height: '220px' }}>
+            <ResponsiveContainer>
+              <BarChart data={weeklyChartData}>
+                <XAxis dataKey="day" />
+                <YAxis domain={[0, 8]} />
+                <Tooltip />
 
-          <p className="mt-3">출근 시간: {checkInTime || '-'}</p>
-          <p>퇴근 시간: {checkOutTime || '-'}</p>
-
-          {/* GPS 상태 표시 */}
-          <p style={{ fontSize: '13px', color: '#6c757d' }}>
-            GPS 상태: {gpsMessage}
-          </p>
-
-          {/* 출근/퇴근 처리 결과 메시지 */}
-          {attendanceMessage && (
-            <div
-              className="mt-2"
-              style={{
-                fontSize: '13px',
-                color: attendanceMessage.includes('완료') ? '#198754' : '#dc3545',
-              }}
-            >
-              {attendanceMessage}
-            </div>
-          )}
-
-          <CButton
-            color="primary"
-            variant="outline"
-            onClick={handleCheckIn}
-            disabled={checkInTime !== null || loading}  // 출근 시간이 있으면 이미 출근한 것 → 출근 버튼 비활성화
-          >
-            {loading ? '처리중...' : '출근하기'}
-          </CButton>
-
-          <CButton
-            color="success"
-            variant="outline"
-            className="ms-2"
-            onClick={handleCheckOut}
-            disabled={checkInTime === null || checkOutTime !== null || loading}  // 출근 시간이 없으면 퇴근 불가, 퇴근 시간이 있으면 다시 퇴근 불가
-          >
-            {loading ? '처리중...' : '퇴근하기'}
-          </CButton>
-          
-          {/* 안내 문구 */}
-          <div className="mt-2" style={{ fontSize: '13px', color: '#6c757d' }}>
-            {checkInTime === null && '아직 출근 전입니다. 출근 버튼을 눌러 출근을 등록하세요.'}
-            {checkInTime !== null && checkOutTime === null && '출근이 등록되었습니다. 퇴근 시 퇴근 버튼을 눌러주세요.'}
-            {checkInTime !== null && checkOutTime !== null && '오늘의 출퇴근 처리가 완료되었습니다.'}
+                <Bar
+                  dataKey="hours"
+                  name="근무시간"
+                  fill="#321fdb"
+                  barSize={36}
+                  radius={[6, 6, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </CCardBody>
-      </CCard>
+      </CCard>      
 
       {/* 월간 캘린더 */}
       <CCard>
-        <CCardHeader className="d-flex justify-content-between align-items-center">
-          <strong>
-            {viewMode === 'day' && '오늘 근태'}
-            {viewMode === 'week' && '이번 주 근태'}
-            {viewMode === 'month' && `${year}년 ${month + 1}월 근태 캘린더`}
-          </strong>
+        <CCardHeader>
 
-          <div>
-            <CButton
-              size="sm"
-              color={viewMode === 'day' ? 'primary' : 'secondary'}
-              variant={viewMode === 'day' ? undefined : 'outline'}
-              onClick={() => setViewMode('day')}
-            >
-              일
-            </CButton>
+          {/* 상단 헤더 영역 */}
+          <div className="d-flex justify-content-between align-items-start">
 
-            <CButton
-              size="sm"
-              className="ms-2"
-              color={viewMode === 'week' ? 'primary' : 'secondary'}
-              variant={viewMode === 'week' ? undefined : 'outline'}
-              onClick={() => setViewMode('week')}
-            >
-              주
-            </CButton>
+            {/* 왼쪽: 캘린더 제목 */}
+            <div>
 
-            <CButton
-              size="sm"
-              className="ms-2"
-              color={viewMode === 'month' ? 'primary' : 'secondary'}
-              variant={viewMode === 'month' ? undefined : 'outline'}
-              onClick={() => setViewMode('month')}
-            >
-              월
-            </CButton>
+              <strong>
+                {/* 일 보기 제목 */}
+                {viewMode === 'day' &&
+                  `${year}년 ${month + 1}월 ${currentDate.getDate()}일 근태`
+                }
+
+                {/* 주 보기 제목 */}
+                {viewMode === 'week' && (() => {
+
+                  const start = new Date(weekStart);
+
+                  const end = new Date(weekStart);
+                  end.setDate(start.getDate() + 6);
+
+                  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')} ~ ${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')} 근태`;
+
+                })()}
+
+                {/* 월 보기 제목 */}
+                {viewMode === 'month' &&
+                  `${year}년 ${month + 1}월 근태 캘린더`
+                }
+              </strong>
+
+              {/* 현재 필터 표시 */}
+              <span
+                style={{
+                  fontSize: '13px',
+                  color: '#6c757d',
+                  marginLeft: '10px',
+                }}
+              >
+                {statusFilter === 'ALL' && '전체 보기'}
+                {statusFilter === 'ON_TIME' && '정상출근만 보기'}
+                {statusFilter === 'LATE' && '지각만 보기'}
+                {statusFilter === 'EARLY' && '조퇴만 보기'}
+              </span>
+
+            </div>
+
+            {/* 오른쪽 버튼 영역 */}
+            <div className="d-flex flex-column align-items-end">
+
+              {/* 위쪽: 일 / 주 / 월 버튼 */}
+              <div className="mb-2">
+
+                <CButton
+                  size="sm"
+                  shape="rounded-pill"
+                  color={viewMode === 'day' ? 'primary' : 'secondary'}
+                  variant={viewMode === 'day' ? undefined : 'outline'}
+                  onClick={() => setViewMode('day')}
+                >
+                  일
+                </CButton>
+
+                <CButton
+                  size="sm"
+                  shape="rounded-pill"
+                  className="ms-2"
+                  color={viewMode === 'week' ? 'primary' : 'secondary'}
+                  variant={viewMode === 'week' ? undefined : 'outline'}
+                  onClick={() => setViewMode('week')}
+                >
+                  주
+                </CButton>
+
+                <CButton
+                  size="sm"
+                  shape="rounded-pill"
+                  className="ms-2"
+                  color={viewMode === 'month' ? 'primary' : 'secondary'}
+                  variant={viewMode === 'month' ? undefined : 'outline'}
+                  onClick={() => setViewMode('month')}
+                >
+                  월
+                </CButton>
+
+              </div>
+
+              {/* 아래쪽: 이전 / 오늘 / 다음 버튼 */}
+              <div>
+
+                <CButton
+                  size="sm"
+                  color="info"
+                  variant="outline"
+                  onClick={handlePrev}
+                >
+                  ◀ 이전
+                </CButton>
+
+                <CButton
+                  size="sm"
+                  color="dark"
+                  className="ms-2"
+                  onClick={handleToday}
+                >
+                  오늘
+                </CButton>
+
+                <CButton
+                  size="sm"
+                  color="info"
+                  variant="outline"
+                  className="ms-2"
+                  onClick={handleNext}
+                >
+                  다음 ▶
+                </CButton>
+
+              </div>
+
+            </div>
+
           </div>
+
         </CCardHeader>
         <CCardBody>
           <div
@@ -423,26 +1048,79 @@ const Attendance = () => {
               gap: '10px',
             }}
           >
-            {displayDays.map((day) => {
-                const isToday = day === today.getDate();
+            {/* 월/주 모드에서만 요일 표시 */}
+            {viewMode !== 'day' &&
+              ['일','월','화','수','목','금','토'].map((dayName) => (
+              <div
+                key={dayName}
+                style={{
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  color: '#6c757d',
+                  padding: '6px 0',
+                }}
+              >
+                {dayName}
+              </div>
+            ))}
 
-                // 현재 반복 중인 날짜를 YYYY-MM-DD 형식으로 만들기
-                const currentDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            {displayDays.map((item, index) => {
 
-                
-                // DB에서 가져온 근태 목록 중 현재 날짜와 같은 데이터 찾기
-                // find() = 조건에 맞는 "첫 번째 데이터 1개"만 가져옴
-                const attendance = attendanceList.find((item) => item.workDate === currentDate);
+                // displayDays 안의 날짜 객체에서 필요한 값 꺼내기
+                const { date, day, dateString } = item;
+
+                // 오늘 날짜인지 확인
+                // 연/월/일을 각각 비교해서 브라우저 문자열 포맷 영향 없이 정확하게 판단
+                const isToday =
+                  date.getFullYear() === today.getFullYear() &&
+                  date.getMonth() === today.getMonth() &&
+                  date.getDate() === today.getDate();
+
+                // 월 보기에서 현재 달이 아닌 날짜인지 확인
+                // 예: 5월 달력에 보이는 4월 28일, 6월 1일 같은 날짜
+                const isOtherMonth = viewMode === 'month' && date.getMonth() !== month;
+
+                const attendance = attendanceList.find((item) => {
+                  // 날짜가 다르면 제외
+                  // dateString은 YYYY-MM-DD 형식이라 DB의 workDate와 비교하기 좋음
+                  if (item.workDate !== dateString) return false;
+
+                  // 전체 보기일 때는 날짜만 맞으면 표시
+                  if (statusFilter === 'ALL') return true;
+
+                  // DB에서 영어 Enum 코드로 올 경우
+                  if (item.status === statusFilter) return true;
+
+                  // DB에서 한글 상태값으로 올 경우도 대비
+                  if (statusFilter === 'ON_TIME' && item.status === '정상출근') return true;
+                  if (statusFilter === 'LATE' && item.status === '지각') return true;
+                  if (statusFilter === 'EARLY' && item.status === '조퇴') return true;
+
+                  // 위 조건에 해당하지 않으면 표시하지 않음
+                  return false;
+                });                
 
               return (
                 <div
-                  key={day}
+                  key={dateString}
+                  
                   style={{
-                    minHeight: '110px',
+                    height: '120px',
                     border: isToday ? '2px solid #321fdb' : '1px solid #ddd',
                     borderRadius: '8px',
                     padding: '10px',
+
+                    // 오늘 날짜는 연한 배경으로 강조
                     backgroundColor: isToday ? '#f3f5ff' : '#fff',
+
+                    // 월 보기에서 현재 달이 아닌 날짜는 흐리게 표시
+                    opacity: isOtherMonth ? 0.35 : 1,
+                    
+                    // 다른달 날짜 클릭 막기
+                    pointerEvents: isOtherMonth ? 'none' : 'auto',
+                    
+                    // 클릭 가능한 느낌
+                    cursor: isOtherMonth ? 'default' : 'pointer',
                   }}
                 >
                   <strong>{day}일</strong>
@@ -453,7 +1131,7 @@ const Attendance = () => {
                       
                        {/* 상태 표시 (지각 / 정상출근 등) */}
                       <CBadge color={getBadgeColor(attendance.status)}>
-                        {attendance.status}
+                        {getStatusText(attendance.status)}
                       </CBadge>
 
                        {/* 출근 시간 표시 

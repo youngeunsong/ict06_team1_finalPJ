@@ -8,6 +8,7 @@
 
 package com.ict06.team1_fin_pj.domain.approval.service;
 
+import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
@@ -36,7 +37,7 @@ public interface AdApprovalService {
     public void deleteAppForm(int id);
 
     // update
-    public void updateAppForm(AppFormEntity entity);
+    public void updateAppForm(int id, AppFormDto dto);
 
     // [결재선 서식 관리]--------------------------------------------
     // insert

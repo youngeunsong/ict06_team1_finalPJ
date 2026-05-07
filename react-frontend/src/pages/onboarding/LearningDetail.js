@@ -20,6 +20,8 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axiosInstance from 'src/api/axiosInstance';
+import { useUser } from 'src/api/UserContext';
 import { PATH } from 'src/constants/path';
 import { containerStyle } from 'src/styles/js/demoPageStyle';
 
@@ -27,12 +29,13 @@ const LearningDetail = () => {
     const { contentId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
+
+    const { userInfo, userLoading } = useUser();
     
     const [content, setContent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
-    const userInfo = location.state?.userInfo;
     const pageTitle = location.state?.title || "학습 상세 정보";
     const displayTitle = content?.title || pageTitle;
     const itemId = location.state?.itemId;
@@ -55,6 +58,8 @@ const LearningDetail = () => {
     //학습 완료 버튼 클릭 핸들러
     //DB 저장 API 연결 전이므로 itemId 전달 여부만 확인
     const handleCompleteLearning = async() => {
+        console.log("[LearningDetail] itemId 확인:", itemId);  // ← 추가
+        console.log("[LearningDetail] location.state 확인:", location.state);
         try {
             const empNo = userInfo?.empNo;
 
@@ -65,26 +70,29 @@ const LearningDetail = () => {
 
             console.log("[LearningDetail] 완료 요청", { empNo, itemId, checklistId, contentId });
 
-            const url = `${PATH.API.BASE}${PATH.ONBOARDING.PROGRESS_COMPLETE}`;
+            //학습 완료 저장
+            // → Spring 서버 호출 → axiosInstance 사용 → PATH.API.ONBOARDING.PROGRESS_COMPLETE
 
-            //학습 완료 처리
             //2-1. 로드맵에서 진입한 경우(ROAD_PROGRESS 저장)
             if(itemId) {
-                await axios.post(url, {
-                    empNo,
-                    itemId
-                });
+                await axiosInstance.post(PATH.API.ONBOARDING.PROGRESS_COMPLETE,
+                    {
+                        empNo,
+                        itemId
+                    }
+                );
             }
 
             //2-2. 체크리스트에서 진입한 경우 -> 로드맵+체크리스트 자동 완료 처리(CHECKLIST_PROGRESS 저장)
             // -> 체크리스트와 학습 콘텐츠 간 연동 위함
+            console.log("요청 경로 확인:", PATH.API.ONBOARDING.CHECKLIST_COMPLETE);
             if(checklistId) {
-                const checklistUrl = `${PATH.API.BASE}${PATH.API.CHECKLIST_COMPLETE}`;
-
-                await axios.post(checklistUrl, {
-                    empNo,
-                    checklistId
-                });
+                await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_COMPLETE,
+                    {
+                        empNo,
+                        checklistId
+                    }
+                );
                 
                 toast.success("학습 및 체크리스트 완료!", {
                     icon: "🎉"
@@ -97,6 +105,7 @@ const LearningDetail = () => {
                 toast.success("학습 완료!", {
                     icon: "🎉"
                 });
+                console.log("[LearningDetail] navigate 직전 itemId:", itemId);
 
                 navigate(PATH.ONBOARDING.ROADMAP, {
                     state: { updatedItemId: itemId }
@@ -106,11 +115,14 @@ const LearningDetail = () => {
             console.log("[LearningDetail] 완료 처리 itemId: ", itemId);
             console.log("[LearningDetail] 완료 처리 contentId: ", contentId);
         } catch(err) {
+            console.error("에러 발생 주소:", err.config?.url);
             console.error("학습 완료 저장 실패", err);
             alert("학습 완료 저장 중 오류가 발생했습니다.");
         }
     };
 
+    // 학습 콘텐츠 상세 조회
+    // → AI 서버 호출 → axios 사용 → PATH.AI_API.BASE + PATH.AI_API.CONTENT_DETAIL(contentId)
     useEffect(() => {
         //백엔드에서 만든 단일 조회 API 호출
         const fetchDetail = async() => {
@@ -118,9 +130,10 @@ const LearningDetail = () => {
                 setLoading(true);
                 setError(null);
 
+                // const response = await axiosInstance.get(PATH.AI_API.CONTENT_DETAIL(contentId));
                 const url = `${PATH.AI_API.BASE}${PATH.AI_API.CONTENT_DETAIL(contentId)}`;
-                console.log("[LearningDetail] 요청 URL:", url);
-                
+                console.log("[LearningDetail] 콘텐츠 상세 요청 URL:", url);
+
                 const response = await axios.get(url);
                 console.log("[LearningDetail] 응답 data:", response.data);
 
@@ -142,6 +155,17 @@ const LearningDetail = () => {
         fetchDetail();
     }, [contentId]);
 
+    // 사용자 인증 로딩 처리
+    if(userLoading) {
+        return (
+            <div className='text-center py-5'>
+                <CSpinner color='primary' />
+                <p>사용자 인증 확인 중...</p>
+            </div>
+        );
+    }
+
+    // 콘텐츠 로딩 처리
     if(loading) {
         return (
             <div className='text-center py-5'>
@@ -150,7 +174,14 @@ const LearningDetail = () => {
             </div>
         );
     }
-
+    
+    if(!userLoading && !userInfo) {
+        alert("로그인이 필요한 서비스입니다.");
+        navigate(PATH.AUTH.LOGIN);
+        return null;
+    }
+    
+    // 콘텐츠 없을 때
     if(!content) {
         return (
             <div className='text-center py-5'>
@@ -256,7 +287,7 @@ const LearningDetail = () => {
                                     <CButton
                                         color='primary'
                                         size='lg'
-                                        onClick={() => navigate(PATH.ONBOARDING.QUIZ)}
+                                        onClick={() => navigate(PATH.EVALUATION.QUIZ)}
                                     >
                                         퀴즈 시작하기
                                     </CButton>

@@ -24,4 +24,7 @@ public class SalaryPolicySearchDTO {
 
     // 한 페이지 10개
     private int size = 10;
+
+    // 본부 필터
+    private String headDeptId;
 }

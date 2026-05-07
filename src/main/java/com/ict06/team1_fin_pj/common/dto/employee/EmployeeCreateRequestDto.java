@@ -50,7 +50,28 @@ public class EmployeeCreateRequestDto {
     // 연락처
     private String phone;
 
-    // 부서 ID
+    /*
+     * 본부 ID
+     *
+     * 화면의 첫 번째 select 박스 값이다.
+     * 예: 경영본부, 개발본부
+     *
+     * 실제 EMPLOYEE 테이블에 저장되는 값은 아니다.
+     * 본부 선택 후 하위 팀 목록을 불러오기 위해 사용한다.
+     */
+    private Integer parentDeptId;
+
+    /*
+     * 팀 ID
+     *
+     * 화면의 두 번째 select 박스 값이다.
+     * 실제 EMPLOYEE.dept_id에 저장되는 값이다.
+     *
+     * 예:
+     * 본부 = 경영본부
+     * 팀 = 인사팀
+     * 저장 = 인사팀 dept_id
+     */
     private Integer deptId;
 
     // 직급 ID

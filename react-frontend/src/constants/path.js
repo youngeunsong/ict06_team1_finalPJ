@@ -1,4 +1,7 @@
 // constants/path.js
+// 1) 단순 URL 주소 문자열을 상수로 정의하는 단계 (데이터)
+// path.js(여기!) -> routes/대분류 별 파일 -> routes/index.js -> App.js 
+
 export const PATH = {
   ROOT: "/",
 
@@ -51,10 +54,15 @@ export const PATH = {
     ROADMAP: "/onboarding/myroadmap",         // 로드맵
     LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
     LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
-    QUIZ: "/onboarding/quiz",
-    EVALUATION: "/evaluation/evaluation",       // 평가
     PROGRESS_COMPLETE: "/onboarding/progress/complete",
     CHECKLIST: "/onboarding/checklist",
+  }, 
+
+  // 대분류 : 인사평가 - AI 퀴즈 및 평가
+  EVALUATION: {
+    ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
+    QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
+    RESULT: "/evaluation/result", // 평가 결과 조회
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
@@ -78,22 +86,20 @@ export const PATH = {
 
   // 사내 AI 포털
   AI: {
-    PORTAL: "/ai-portal",                                       // 사내 AI 포털 메인
+    ROOT: "/ai-portal",
 
-    // 대분류 : AI비서
-    SECRETARY: "/ai-portal/secretary",                          // AI 비서 메인
-    SECRETARY_QUICK: "/ai-portal/secretary/quick-start",        // AI 비서 빠른 시작 응답
-    SECRETARY_CHAT: "/ai-portal/secretary/answer-to-chat",      // AI 비서 채팅에 응답
+    // AI 비서
+    ASSISTANT: "/ai-portal/assistant",                    // AI 비서 홈
+    ASSISTANT_NEW: "/ai-portal/assistant/new",            // 새 문서 작성 시작
+    ASSISTANT_TEMPLATE: "/ai-portal/assistant/template",  // 템플릿 생성
+    ASSISTANT_DOC: "/ai-portal/assistant/docs/:docId",    // 기존 문서/이전 대화 진입
 
-    // 대분류 : AI챗봇
-    CHATBOT: "/ai-portal/chatbot",                              // AI 챗봇 열기
-    CHATBOT_MAIN: "/ai-portal/chatbot/main",                    // 화면 하단에서 AI 챗봇 버튼 클릭 후 메인 페이지
-    CHATBOT_MAIN_MENU: "/ai-portal/chatbot/main/select-menu",                    // 챗봇 메인 - 메뉴 선택 페이지
-    CHATBOT_MAIN_MESSAGE: "/ai-portal/chatbot/main/message",                    // 챗봇 메인 - 메시지 작성 페이지
-    
-    CHATBOT_MENU: "/ai-portal/chatbot/select-menu",             // AI 챗봇에서 메뉴 선택
-    CHATBOT_RESULT: "/ai-portal/chatbot/select-menu/result",    // AI 챗봇에서 메뉴 선택 결과
-    CHATBOT_MESSAGE: "/ai-portal/chatbot/message",              // AI 챗봇에서 메시지 작성 페이지
+    // 추가 기능
+    CORRECTION: "/ai-portal/correction",                  // 문장 다듬기
+    KNOWLEDGE_REQUEST: "/ai-portal/knowledge-request",    // 지식 추가 요청
+
+    // AI 챗봇
+    CHATBOT: "/ai-portal/chatbot",                        // AI 챗봇 메인
   },
 
   ETC: {
@@ -101,13 +107,21 @@ export const PATH = {
     ALERT: "/alert",
   },
 
-  // REST API
+  // SpringBoot REST API
   API: {
     BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
     USER_ME: '/user/me',
 
-    CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
-    CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
-    CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
+    ONBOARDING: {
+      CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
+      CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
+      CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
+      PROGRESS_COMPLETE: "/onboarding/progress/complete",
+    },
+    EVALUATION: {
+      QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,
+      QUIZ_SUBMIT: "/evaluation/quiz/submit",
+      QUIZ_RESULT: (empNo) => `/evaluation/quiz/result/${empNo}`
+    }
   }
 };

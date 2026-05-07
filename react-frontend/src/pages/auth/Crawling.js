@@ -10,20 +10,16 @@
  * @ 2026.04.22    김다솜        최초 생성/OpenWeather API 연동 및 위젯 반영
 */
 
-import axios from 'axios';
 import { cilSun, cilCloud, cilRain, cilSnowflake } from '@coreui/icons';
+import axiosInstance from 'src/api/axiosInstance';
 
 //OpenWeather API 호출
   export const fetchHomeData = async () => {
-    //백엔드 서버 주소
-    const weatherUrl = `http://localhost:8081/api/weather`;
-    const newsUrl = `http://localhost:8081/api/news`;
-
     try {
       //1. 날씨, 뉴스 데이터 호출
       const [weatherRes, newsRes] = await Promise.all([
-        axios.get(weatherUrl),
-        axios.get(newsUrl)
+        axiosInstance.get("/weather"),
+        axiosInstance.get("/news")
       ]);
 
       //2. 날씨 데이터 파싱

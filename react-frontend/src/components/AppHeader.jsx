@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   CContainer, CDropdown, CDropdownItem, CDropdownMenu, CDropdownToggle, CHeader, CHeaderNav, CHeaderToggler, CNavLink, CNavItem, useColorModes,
   CBadge,
@@ -11,16 +11,18 @@ import {
   CListGroup,
   CListGroupItem, } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBell, cilContrast, cilEnvelopeOpen, cilList, cilMenu, cilMoon, cilSun, } from '@coreui/icons'
+import { cilBell, cilMenu, } from '@coreui/icons'
 
 import axios from 'axios'
 import { useDispatch, useSelector } from 'react-redux'
 import AppBreadcrumb from './AppBreadcrumb.jsx'
 import AppHeaderDropdown from './header/AppHeaderDropdown.jsx'
+import { PATH } from 'src/constants/path.js'
+import { headerNavLink, headerQuickNav } from 'src/styles/js/common/HeaderStyle.js'
+import axiosInstance from 'src/api/axiosInstance.js'
 
 const AppHeader = () => {
   const headerRef = useRef()
-  const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
   const dispatch = useDispatch()
   const sidebarShow = useSelector((state) => state.sidebarShow)
   const navigate = useNavigate()
@@ -37,16 +39,14 @@ const AppHeader = () => {
       if(!token)
         return
 
-      const response = await axios.get('http://localhost:8081/api/noti', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axiosInstance.get("/noti");
 
       //최근 알림이 가장 위에 보이도록 정렬
       const sortedData = [...response.data].reverse();
       setNotifications(sortedData);
 
       //읽지 않은 알림 개수 계산
-      const unread = response.data.filter(noti => noti.isRead === 'N').length;
+      const unread = response.data.filter(noti => noti.isRead === false).length;
       setUnreadCount(unread)
     } catch(error) {
       console.error("알림 로드 실패: ", error)
@@ -63,7 +63,7 @@ const AppHeader = () => {
         return;
 
       //1. 백엔드 호출: NotificationController > markAsRead()
-      await axios.patch(`http://localhost:8081/api/noti/${notiId}/read`, {}, {
+      await axios.patch(`${PATH.API.BASE}/noti/${notiId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -71,9 +71,7 @@ const AppHeader = () => {
       fetchNotifications();
 
       //3. 알림에 연결된 url 있는 경우 해당 페이지로 이동
-      if(url) {
-        navigate(url)
-      }
+      if(url) navigate(url)
     } catch(error) {
       console.error("알림 읽음 처리 실패: ", error)
     }
@@ -85,11 +83,8 @@ const AppHeader = () => {
     fetchNotifications()
 
     //Noti리스너에서 보낸 커스텀 이벤트 감지
-    const handleNewNoti = () => {
-      //새 알림 오면 목록 다시 불러오기
-      fetchNotifications()
-    }
-
+    //새 알림 오면 목록 다시 불러오기
+    const handleNewNoti = () => fetchNotifications()
     window.addEventListener('newNotification', handleNewNoti)
     
     //스크롤 이벤트
@@ -108,6 +103,8 @@ const AppHeader = () => {
   return (
     <CHeader position="sticky" className="mb-4 p-0" ref={headerRef}>
       <CContainer className="border-bottom px-4" fluid>
+
+        {/* 사이드바 토글 버튼 */}
         <CHeaderToggler
           onClick={() => dispatch({ type: 'set', sidebarShow: !sidebarShow })}
           style={{ marginInlineStart: '-14px' }}
@@ -115,21 +112,18 @@ const AppHeader = () => {
           <CIcon icon={cilMenu} size="lg" />
         </CHeaderToggler>
 
-        <CHeaderNav className="d-none d-md-flex">
+        <CHeaderNav className='d-none d-md-flex ms-3' style={headerQuickNav}>
           <CNavItem>
-            <CNavLink to="/dashboard" as={NavLink}>
-              Dashboard
+            <CNavLink style={headerNavLink} onClick={() => navigate(PATH.AUTH.USERHOME)}>
+              HOME
             </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">Users</CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">Settings</CNavLink>
           </CNavItem>
         </CHeaderNav>
 
-        <CHeaderNav className="ms-auto">
+        {/* 우측 메뉴 */}
+        <CHeaderNav className='ms-auto'>
+
+          {/* 알림 아이콘 */}
           <CDropdown variant='nav-item' placement='bottom-end'>
             {/* 알림 & 배지(클릭 시 드롭다운 오픈) */}
             <CDropdownToggle
@@ -172,11 +166,11 @@ const AppHeader = () => {
                     className='py-2 border-bottom'
                     style={{ 
                       cursor: 'pointer',
-                      backgroundColor: noti.isRead === 'Y' ? 'transparent' : '#f4f7ff'
+                      backgroundColor: noti.isRead === true ? 'transparent' : '#f4f7ff'
                     }}
                   >
                     <div className='d-flex flex-column'>
-                      <span className={noti.isRead === 'Y' ? 'text-muted' : 'fw-bold'} style={{ fontSize: '14px' }}>
+                      <span className={noti.isRead === true ? 'text-muted' : 'fw-bold'} style={{ fontSize: '14px' }}>
                         {noti.content}
                       </span>
                       <small className='text-muted' style={{ fontSize: '11px' }}>
@@ -197,68 +191,12 @@ const AppHeader = () => {
             </CDropdownMenu>
           </CDropdown>
 
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilList} size="lg" />
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilEnvelopeOpen} size="lg" />
-            </CNavLink>
-          </CNavItem>
-        </CHeaderNav>
-        <CHeaderNav>
-          <li className="nav-item py-1">
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
-          <CDropdown variant="nav-item" placement="bottom-end">
-            <CDropdownToggle caret={false}>
-              {colorMode === 'dark' ? (
-                <CIcon icon={cilMoon} size="lg" />
-              ) : colorMode === 'auto' ? (
-                <CIcon icon={cilContrast} size="lg" />
-              ) : (
-                <CIcon icon={cilSun} size="lg" />
-              )}
-            </CDropdownToggle>
-            <CDropdownMenu>
-              <CDropdownItem
-                active={colorMode === 'light'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('light')}
-              >
-                <CIcon className="me-2" icon={cilSun} size="lg" /> Light
-              </CDropdownItem>
-              <CDropdownItem
-                active={colorMode === 'dark'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('dark')}
-              >
-                <CIcon className="me-2" icon={cilMoon} size="lg" /> Dark
-              </CDropdownItem>
-              <CDropdownItem
-                active={colorMode === 'auto'}
-                className="d-flex align-items-center"
-                as="button"
-                type="button"
-                onClick={() => setColorMode('auto')}
-              >
-                <CIcon className="me-2" icon={cilContrast} size="lg" /> Auto
-              </CDropdownItem>
-            </CDropdownMenu>
-          </CDropdown>
-          <li className="nav-item py-1">
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
-        </CHeaderNav>
+          {/* 프로필 드롭다운 */}
+          {/* <CNavItem> */}
+            <AppHeaderDropdown />
+          {/* </CNavItem> */}
 
-        <AppHeaderDropdown />
-
+        </CHeaderNav>
       </CContainer>
       
       {/* 전체 알림 내역 모달 */}
@@ -281,7 +219,7 @@ const AppHeader = () => {
                 <CListGroupItem
                   key={noti.notiId}
                   className='d-flex justify-content-between align-items-center py-3'
-                  style={{ backgroundColor: noti.isRead === 'Y' ? 'transparent' : '#f8f9ff' }}
+                  style={{ backgroundColor: noti.isRead === true ? 'transparent' : '#f8f9ff' }}
                 >
                   <div
                     style={{ cursor: 'pointer', flex: 1 }}
@@ -291,7 +229,7 @@ const AppHeader = () => {
                       handleNotiClick(noti.notiId, noti.url); //읽음처리 및 이동
                     }}
                   >
-                    <div className={noti.isRead === 'Y' ? 'text-muted' : 'fw-bold'}>
+                    <div className={noti.isRead === true ? 'text-muted' : 'fw-bold'}>
                       {noti.content}
                     </div>
                     <small className='text-muted'>
@@ -312,4 +250,4 @@ const AppHeader = () => {
   )
 }
 
-export default AppHeader
+export default AppHeader;
