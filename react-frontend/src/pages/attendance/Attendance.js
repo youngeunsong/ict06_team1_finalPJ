@@ -297,7 +297,7 @@ const Attendance = () => {
         empNo: empNo,
       };
 
-      const res = await request('GET', '/api/leave/summary', params);
+      const res = await request('GET', '/leave/summary', params);
 
       console.log('근태 메인 연차 요약:', res.data);
 
