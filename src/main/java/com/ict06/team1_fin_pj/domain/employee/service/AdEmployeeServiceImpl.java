@@ -112,6 +112,7 @@ public class AdEmployeeServiceImpl implements AdEmployeeService {
         // Repository의 검색 + 페이징 쿼리 호출
         return adEmployeeRepository.searchEmployees(
                 conditionDto.getKeyword(),
+                conditionDto.getParentDeptId(),
                 conditionDto.getDeptId(),
                 conditionDto.getPositionId(),
                 conditionDto.getRoleId(),

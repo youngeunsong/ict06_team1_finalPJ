@@ -7,9 +7,10 @@
  * 1. 조직도 탭이 열리면 부서 트리를 API로 조회한다.
  * 2. 왼쪽에 부서 트리를 계층 구조로 출력한다.
  * 3. 부서를 클릭하면 해당 부서의 사원 목록을 API로 조회한다.
- * 4. 조회된 사원 목록을 직급별로 그룹핑해서 오른쪽에 출력한다.
- * 5. 오른쪽 사원 목록은 이름/사번으로 내부 검색할 수 있다.
- * 6. 선택한 부서와 펼침 상태를 화면에서 유지한다.
+ * 4. 전체 조직 보기 버튼을 클릭하면 전체 사원 목록을 API로 조회한다.
+ * 5. 조회된 사원 목록을 직급별로 그룹핑해서 오른쪽에 출력한다.
+ * 6. 오른쪽 사원 목록은 이름/사번으로 내부 검색할 수 있다.
+ * 7. 선택한 부서와 펼침 상태를 화면에서 유지한다.
  */
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -30,7 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
      * 조직도 오른쪽 사원 검색 이벤트
      *
      * API를 다시 호출하지 않고,
-     * 현재 선택한 부서의 사원 목록 배열에서 이름/사번을 기준으로 필터링한다.
+     * 현재 선택한 부서 또는 전체 조직의 사원 목록 배열에서
+     * 이름/사번을 기준으로 필터링한다.
      */
     if (searchInput) {
         searchInput.addEventListener("input", function () {
@@ -45,6 +47,9 @@ document.addEventListener("DOMContentLoaded", function () {
  * 현재 선택된 부서 버튼
  *
  * 부서를 클릭했을 때 선택 표시를 바꾸기 위해 사용한다.
+ *
+ * 추가:
+ * - 전체 조직 보기 버튼도 같은 방식으로 active 표시를 사용한다.
  */
 let selectedDeptNode = null;
 
@@ -52,16 +57,21 @@ let selectedDeptNode = null;
  * 현재 선택된 부서 ID
  *
  * 트리 리렌더링이나 검색 이후에도 선택 상태를 유지하기 위해 사용한다.
+ *
+ * 전체 조직 보기 상태에서는 특정 부서를 선택한 것이 아니므로 null을 유지한다.
  */
 let selectedDeptId = null;
 
 /*
  * 현재 선택된 부서명
+ *
+ * 특정 부서를 선택하면 해당 부서명이 들어간다.
+ * 전체 조직 보기를 선택하면 "전체 조직"이 들어간다.
  */
 let selectedDeptName = "";
 
 /*
- * 현재 선택한 부서의 전체 사원 목록
+ * 현재 선택한 부서 또는 전체 조직의 전체 사원 목록
  *
  * 검색할 때 API를 다시 호출하지 않고 이 배열에서 필터링한다.
  */
@@ -78,6 +88,18 @@ let currentOrgEmployees = [];
  * - 같은 본부를 다시 클릭해도 접히지 않는다.
  */
 let openedRootDeptId = null;
+
+/*
+ * 전체 조직 보기 선택 여부
+ *
+ * true:
+ * - 왼쪽 조직도에서 "전체 조직 보기"가 선택된 상태
+ * - 오른쪽에는 전체 조직 사원 목록이 출력된다.
+ *
+ * false:
+ * - 특정 본부 또는 팀이 선택된 상태
+ */
+let isAllOrganizationSelected = false;
 
 /*
  * 직급 출력 순서
@@ -128,8 +150,20 @@ function loadDepartmentTree() {
             const departmentTree = document.getElementById("departmentTree");
             departmentTree.innerHTML = "";
 
+            /*
+             * 전체 조직 보기 버튼 추가
+             *
+             * 부서 트리의 맨 위에 표시된다.
+             *
+             * 역할:
+             * - 특정 본부나 팀이 아니라
+             *   전체 조직의 사원 목록을 한 번에 조회한다.
+             */
+            const allOrganizationButton = createAllOrganizationButton();
+            departmentTree.appendChild(allOrganizationButton);
+
             if (data.length === 0) {
-                departmentTree.innerHTML =
+                departmentTree.innerHTML +=
                     "<div class='org-empty-message'>등록된 부서가 없습니다.</div>";
                 return;
             }
@@ -138,7 +172,7 @@ function loadDepartmentTree() {
             departmentTree.appendChild(treeElement);
 
             /*
-             * 이전에 선택한 부서가 있으면 선택 상태 복원
+             * 이전에 선택한 부서 또는 전체 조직 보기가 있으면 선택 상태 복원
              */
             restoreSelectedDepartment();
         })
@@ -146,6 +180,135 @@ function loadDepartmentTree() {
             console.error(error);
             document.getElementById("departmentTree").innerHTML =
                 "<div class='text-danger'>조직도 정보를 불러오지 못했습니다.</div>";
+        });
+}
+
+/*
+ * 전체 조직 보기 버튼 생성
+ *
+ * 조직도 트리 최상단에 표시되는 버튼이다.
+ *
+ * 클릭 시:
+ * - /api/organization/employees/all API를 호출한다.
+ * - 전체 조직 사원 목록을 오른쪽 영역에 출력한다.
+ */
+function createAllOrganizationButton() {
+    const item = document.createElement("div");
+    item.className = "dept-tree-item";
+
+    const button = document.createElement("button");
+    button.type = "button";
+
+    /*
+     * 전체 조직 보기 버튼도 최상위 본부와 비슷하게 보이도록
+     * root-dept 클래스를 사용한다.
+     */
+    button.className = "dept-node root-dept";
+
+    /*
+     * 일반 부서 버튼과 구분하기 위한 값이다.
+     *
+     * restoreSelectedDepartment()에서
+     * 전체 조직 보기 버튼을 다시 찾을 때 사용한다.
+     */
+    button.dataset.allOrganization = "true";
+
+    button.innerHTML = `
+        <span class="dept-toggle-empty">★</span>
+        <span class="dept-label">전체 조직 보기</span>
+    `;
+
+    /*
+     * 전체 조직 보기가 이미 선택된 상태에서
+     * 트리가 다시 렌더링되면 active 상태를 복원한다.
+     */
+    if (isAllOrganizationSelected) {
+        button.classList.add("active");
+        selectedDeptNode = button;
+    }
+
+    button.addEventListener("click", function () {
+        selectAllOrganization(button);
+    });
+
+    item.appendChild(button);
+
+    return item;
+}
+
+/*
+ * 전체 조직 보기 선택 처리
+ *
+ * 특정 부서 선택과 비슷하지만,
+ * deptId가 없고 전체 조직 API를 호출한다는 점이 다르다.
+ */
+function selectAllOrganization(button) {
+    if (selectedDeptNode) {
+        selectedDeptNode.classList.remove("active");
+    }
+
+    selectedDeptNode = button;
+    selectedDeptId = null;
+    selectedDeptName = "전체 조직";
+    isAllOrganizationSelected = true;
+
+    selectedDeptNode.classList.add("active");
+
+    document.getElementById("orgEmployeeTitle").textContent =
+        "전체 조직 사원 목록";
+
+    /*
+     * 전체 조직 보기 상태에서도 오른쪽 내부 검색을 사용할 수 있다.
+     */
+    const searchInput = document.getElementById("orgEmployeeSearchInput");
+
+    if (searchInput) {
+        searchInput.disabled = false;
+        searchInput.value = "";
+    }
+
+    loadAllEmployees();
+}
+
+/*
+ * 전체 조직 사원 목록 조회
+ *
+ * 호출 API:
+ * GET /api/organization/employees/all
+ *
+ * 백엔드 조회 기준:
+ * - 삭제 처리되지 않은 사원
+ * - 퇴사 상태가 아닌 사원
+ *
+ * 화면 출력:
+ * - 기존 부서별 조회와 동일하게 직급별 그룹핑으로 표시한다.
+ */
+function loadAllEmployees() {
+    fetch("/api/organization/employees/all")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("전체 조직 사원 목록 API 호출 실패: " + response.status);
+            }
+
+            return response.json();
+        })
+        .then(employees => {
+            if (!Array.isArray(employees)) {
+                throw new Error("전체 조직 사원 목록 응답 데이터가 배열이 아닙니다.");
+            }
+
+            /*
+             * 전체 조직 사원 목록을 저장한다.
+             * 이후 내부 검색에서 이 배열을 기준으로 필터링한다.
+             */
+            currentOrgEmployees = employees;
+
+            renderGroupedEmployees(currentOrgEmployees, "전체 조직");
+        })
+        .catch(error => {
+            console.error(error);
+            document.getElementById("orgEmployeeArea").innerHTML =
+                "<div class='text-danger'>전체 조직 사원 정보를 불러오지 못했습니다.</div>";
         });
 }
 
@@ -296,6 +459,7 @@ function selectDepartment(button, deptId, deptName) {
     selectedDeptNode = button;
     selectedDeptId = deptId;
     selectedDeptName = deptName;
+    isAllOrganizationSelected = false;
 
     selectedDeptNode.classList.add("active");
 
@@ -318,10 +482,29 @@ function selectDepartment(button, deptId, deptName) {
 /*
  * 선택 상태 복원
  *
- * 트리를 다시 그린 후에도 이전에 선택했던 부서가 있으면
- * 해당 부서 버튼에 active 클래스를 다시 붙인다.
+ * 트리를 다시 그린 후에도 이전에 선택했던 부서 또는 전체 조직 보기가 있으면
+ * 해당 버튼에 active 클래스를 다시 붙인다.
  */
 function restoreSelectedDepartment() {
+    /*
+     * 전체 조직 보기 상태 복원
+     *
+     * 전체 조직 보기는 deptId가 없으므로
+     * data-all-organization 값으로 버튼을 찾는다.
+     */
+    if (isAllOrganizationSelected) {
+        const allButton = document.querySelector(
+            ".dept-node[data-all-organization='true']"
+        );
+
+        if (allButton) {
+            selectedDeptNode = allButton;
+            selectedDeptNode.classList.add("active");
+        }
+
+        return;
+    }
+
     if (!selectedDeptId) {
         return;
     }
@@ -383,7 +566,11 @@ function loadEmployeesByDepartment(deptId, deptName) {
 function filterOrgEmployees(keyword) {
     const trimmedKeyword = keyword.trim().toLowerCase();
 
-    if (!selectedDeptId) {
+    /*
+     * 특정 부서도 선택하지 않았고,
+     * 전체 조직 보기도 선택하지 않았다면 검색하지 않는다.
+     */
+    if (!selectedDeptId && !isAllOrganizationSelected) {
         return;
     }
 

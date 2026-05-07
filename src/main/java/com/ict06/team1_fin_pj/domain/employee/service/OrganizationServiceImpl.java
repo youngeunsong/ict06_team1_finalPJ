@@ -18,6 +18,7 @@ import java.util.*;
  * 핵심 역할:
  * 1. DEPARTMENT 데이터를 조직도 트리 형태로 변환
  * 2. 특정 부서의 사원 목록 조회
+ * 3. 전체 조직도 사원 목록 조회
  */
 @Service
 @RequiredArgsConstructor
@@ -29,23 +30,13 @@ public class OrganizationServiceImpl implements OrganizationService {
 
     /*
      * 전체 부서 조직도 조회
-     *
-     * 처리 방식:
-     * 1. 모든 부서를 한 번에 조회한다.
-     * 2. 부서 ID 기준으로 DTO Map을 만든다.
-     * 3. parentDept가 null이면 최상위 부서로 분류한다.
-     * 4. parentDept가 있으면 부모 부서의 children에 추가한다.
      */
     @Override
     public List<DepartmentTreeDto> getDepartmentTree() {
 
-        // 1. 전체 부서 조회
         List<DepartmentEntity> departments = departmentRepository.findAll();
-
-        // 2. 부서 ID를 기준으로 DTO를 저장할 Map
         Map<Integer, DepartmentTreeDto> dtoMap = new HashMap<>();
 
-        // 3. 모든 부서를 먼저 DTO로 변환
         for (DepartmentEntity department : departments) {
             DepartmentTreeDto dto = DepartmentTreeDto.builder()
                     .deptId(department.getDeptId())
@@ -56,29 +47,14 @@ public class OrganizationServiceImpl implements OrganizationService {
             dtoMap.put(department.getDeptId(), dto);
         }
 
-        // 4. 최상위 부서를 담을 리스트
         List<DepartmentTreeDto> rootDepartments = new ArrayList<>();
 
-        // 5. 부모-자식 관계 연결
         for (DepartmentEntity department : departments) {
-
             DepartmentTreeDto currentDto = dtoMap.get(department.getDeptId());
 
-            /*
-             * parentDept가 null이면 최상위 부서이다.
-             *
-             * 예:
-             * 개발본부, 경영본부
-             */
             if (department.getParentDept() == null) {
                 rootDepartments.add(currentDto);
             } else {
-                /*
-                 * parentDept가 있으면 하위 부서이다.
-                 *
-                 * 예:
-                 * 백엔드팀.parentDept = 개발본부
-                 */
                 Integer parentDeptId = department.getParentDept().getDeptId();
                 DepartmentTreeDto parentDto = dtoMap.get(parentDeptId);
 
@@ -93,34 +69,10 @@ public class OrganizationServiceImpl implements OrganizationService {
 
     /*
      * 특정 부서의 사원 목록 조회
-     *
-     * 조직도에서 부서를 클릭했을 때 오른쪽 영역에 표시할 데이터이다.
-     *
-     * 조회 기준:
-     * - 본부를 클릭한 경우:
-     *   해당 본부 아래의 모든 팀 사원을 조회한다.
-     *
-     * - 팀을 클릭한 경우:
-     *   해당 팀에 소속된 사원만 조회한다.
-     *
-     * 그룹핑은 여기서 하지 않는다.
-     * 백엔드는 단순한 리스트만 내려주고,
-     * 화면의 JavaScript에서 직급별 그룹핑을 처리한다.
      */
     @Override
     public List<OrgEmployeeDto> getEmployeesByDepartment(Integer deptId) {
 
-        /*
-         * 선택한 부서가 하위 부서를 가지고 있는지 확인한다.
-         *
-         * true:
-         * - 본부
-         * - 하위 팀 전체 조회
-         *
-         * false:
-         * - 팀
-         * - 해당 팀만 조회
-         */
         boolean hasChildren = departmentRepository.existsByParentDept_DeptId(deptId);
 
         List<EmpEntity> employees;
@@ -131,6 +83,34 @@ public class OrganizationServiceImpl implements OrganizationService {
             employees = employeeRepository.findOrgEmployeesByDepartmentId(deptId);
         }
 
+        return convertToOrgEmployeeDtos(employees);
+    }
+
+    /*
+     * 전체 조직도 사원 목록 조회
+     *
+     * 조직도에서 "전체 조직 보기"를 클릭했을 때 사용한다.
+     *
+     * 조회 기준:
+     * - 삭제 처리되지 않은 사원
+     * - 퇴사 상태가 아닌 사원
+     *
+     * 정렬은 EmployeeRepository의 findAllOrgEmployees() 쿼리에서 처리한다.
+     */
+    @Override
+    public List<OrgEmployeeDto> getAllEmployees() {
+        List<EmpEntity> employees = employeeRepository.findAllOrgEmployees();
+
+        return convertToOrgEmployeeDtos(employees);
+    }
+
+    /*
+     * EmpEntity 목록을 OrgEmployeeDto 목록으로 변환한다.
+     *
+     * 특정 부서 조회와 전체 조직 조회에서 같은 변환 로직을 사용하므로
+     * 중복을 줄이기 위해 private 메서드로 분리했다.
+     */
+    private List<OrgEmployeeDto> convertToOrgEmployeeDtos(List<EmpEntity> employees) {
         return employees.stream()
                 .map(emp -> OrgEmployeeDto.builder()
                         .empNo(emp.getEmpNo())
