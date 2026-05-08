@@ -51,7 +51,7 @@
                 <!--새 서식 추가 버튼 끝-->
                 <br>
                 <!-- begin::서식 표 시작-->
-                <table class="table">
+                <table class="table table-hover align-middle">
                     <thead>
                     <tr>
                         <th>서식 번호</th>
@@ -138,38 +138,27 @@
                     ? new Date(item.createdAt).toLocaleDateString()
                     : "";
 
+            // event.stopPropagation() : 버튼 클릭 시 기본 이벤트 (row 클릭) 방지
             html += `
-                <tr>
+                <tr onclick="goDetail(${item.templateId})" style="cursor:pointer;">
                     <td>${item.templateId}</td>
-
-                    <td>
-                        <a href="/admin/approval/appLineFormDetail/${item.templateId}">
-                            ${item.templateName}
-                        </a>
-                    </td>
-
+                    <td>${item.templateName}</td>
                     <td>
                         ${item.isDefault
                             ? '<span class="badge bg-primary">기본</span>'
                             : '-'}
                     </td>
-
                     <td>${createdAt}</td>
-
                     <td>${item.createdBy}</td>
-
                     <td>
                         <button
                             class="btn btn-primary btn-sm"
-                            onclick="goEdit(${item.templateId})">
-
+                            onclick="event.stopPropagation();goEdit(${item.templateId})">
                             수정
-
                         </button>
                         <button
                             class="btn btn-danger btn-sm"
-                            onclick="deleteAppLineForm(${item.templateId})">
-
+                            onclick="event.stopPropagation();deleteAppLineForm(${item.templateId})">
                             삭제
                         </button>
                     </td>
@@ -232,10 +221,15 @@
         $("#pagination").html(html);
     }
 
+    // 상세 조회 페이지로 이동
+    function goDetail(formId) {
+        location.href = `/admin/approval/appLineFormDetail/${formId}`;
+    }
+
     // 수정 페이지로 연결
-    function goEdit(templateId) {
+    function goEdit(formId) {
         location.href =
-            `/admin/approval/editAppLineForm/${templateId}`;
+            `/admin/approval/editAppLineForm/${formId}`;
     }
 
 </script>
