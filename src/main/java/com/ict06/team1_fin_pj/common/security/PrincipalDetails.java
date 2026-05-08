@@ -1,13 +1,13 @@
 /**
- * @FileName : SecurityConfig.java
- * @Description :
+ * @FileName : PrincipalDetails.java
+ * @Description : Spring Security의 Authentication 객체에서 사용자 정보를 추출하기 위한 UserDetails 구현체
  * @Author : 김다솜
  * @Date : 2026. 04. 18
  * @Modification_History
  * @
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
- * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ * @ 2026.04.18    김다솜        최초 생성
  */
 
 package com.ict06.team1_fin_pj.common.security;
@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
 * Spring Security 인증 위한 객체
@@ -39,7 +40,7 @@ public class PrincipalDetails implements UserDetails {
             case 2 -> "ROLE_TEAM_LEADER";
             default -> "ROLE_USER";
         };
-        return Collections.singletonList(new SimpleGrantedAuthority(roleName));
+        return List.of(new SimpleGrantedAuthority(roleName));
     }
 
     @Override
@@ -72,4 +73,16 @@ public class PrincipalDetails implements UserDetails {
         return "N".equals(empEntity.getIsDeleted());
     }
 
+    // 추가 정보 조회
+    public String getEmpNo() {
+        return empEntity.getEmpNo();
+    }
+
+    public String getName() {
+        return empEntity.getName();
+    }
+
+    public EmpEntity getEmp() {
+        return empEntity;
+    }
 }

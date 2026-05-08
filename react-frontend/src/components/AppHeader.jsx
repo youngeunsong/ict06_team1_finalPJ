@@ -1,19 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer, CDropdown, CDropdownItem, CDropdownMenu, CDropdownToggle, CHeader, CHeaderNav, CHeaderToggler, CNavLink, CNavItem, useColorModes,
-  CBadge,
-  CDropdownHeader,
-  CModal,
-  CModalHeader,
-  CModalTitle,
-  CModalBody,
-  CListGroup,
-  CListGroupItem, } from '@coreui/react'
+  CContainer, CDropdown, CDropdownItem, CDropdownMenu, CDropdownToggle, CHeader, CHeaderNav, CHeaderToggler, CNavLink, CNavItem,
+  CBadge, CDropdownHeader, CModal, CModalHeader, CModalTitle, CModalBody, CListGroup, CListGroupItem
+} from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilBell, cilMenu, } from '@coreui/icons'
 
-import axios from 'axios'
 import { useDispatch, useSelector } from 'react-redux'
 import AppBreadcrumb from './AppBreadcrumb.jsx'
 import AppHeaderDropdown from './header/AppHeaderDropdown.jsx'
@@ -35,7 +28,7 @@ const AppHeader = () => {
   //2. 초기 알림 개수 가져오기
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
       if(!token)
         return
 
@@ -58,7 +51,7 @@ const AppHeader = () => {
     console.log("클릭된 알림 ID:", notiId); // 이게 undefined면 key나 필드명 문제!
     console.log("이동할 URL:", url);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       if(!token)
         return;
 

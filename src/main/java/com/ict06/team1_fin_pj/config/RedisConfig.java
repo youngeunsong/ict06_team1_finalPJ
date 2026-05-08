@@ -1,3 +1,15 @@
+/**
+ * @FileName : RedisConfig.java
+ * @Description : RedisTemplate 직렬화 설정 클래스
+ * @Author : 김다솜
+ * @Date : 2026. 05. 08
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.08    김다솜        알림 배지 캐시용 String RedisTemplate 설정
+ */
+
 package com.ict06.team1_fin_pj.config;
 
 import org.springframework.context.annotation.Bean;
@@ -10,12 +22,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
+    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // 한글 깨짐 방지
-        // Key-Value를 문자열로 직렬화하여 익스텐션/터미널에서 보기 편하게 설정
+        // Redis CLI에서도 확인하기 쉽도록 key/value를 문자열로 직렬화한다.
         StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
 
         template.setKeySerializer(stringRedisSerializer);

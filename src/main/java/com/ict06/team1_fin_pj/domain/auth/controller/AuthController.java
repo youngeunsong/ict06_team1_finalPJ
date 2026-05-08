@@ -10,6 +10,7 @@
  * @ 2026.04.16    김다솜        최초 생성
  * @ 2026.04.17    김다솜        로그인 처리 메서드 추가 (JWT 연동)
  * @ 2026.05.07    김다솜        토큰 재발급(Refresh) 엔드포인트 추가
+ * @ 2026.05.08    김다솜        Refresh Token 기반 재발급 요청에서 사번 입력 제거 및 /refresh 경로 호환 처리
  */
 
 package com.ict06.team1_fin_pj.domain.auth.controller;
@@ -48,13 +49,10 @@ public class AuthController {
     }
 
     // 토큰 재발급
-    @PostMapping("/reissue")
+    @PostMapping({"/reissue", "/refresh"})
     public ResponseEntity<?> reissue(@RequestBody ReissueRequest reissueRequest) {
         try {
-            Map<String, String> result = authService.reissue(
-                    reissueRequest.getEmpNo(),
-                    reissueRequest.getRefreshToken()
-            );
+            Map<String, String> result = authService.reissue(reissueRequest.getRefreshToken());
             return ResponseEntity.ok(result);
         } catch(RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -71,7 +69,6 @@ public class AuthController {
     // 재발급 요청 DTO
     @Data
     static class ReissueRequest {
-        private String empNo;
         private String refreshToken;
     }
 }
