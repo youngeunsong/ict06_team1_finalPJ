@@ -10,7 +10,7 @@
 
 // 초기화
 $(document).ready(function () {
-    // initializeCreatePage();
+    bindCommonEvents(); 
     renderTargetUI();
 });
 

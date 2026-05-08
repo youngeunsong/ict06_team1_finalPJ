@@ -10,6 +10,7 @@
 
 // 1) 기존 데이터 로딩
 $(document).ready(function () {
+    bindCommonEvents();
     loadDetail(templateId);
 });
 
@@ -23,14 +24,20 @@ function loadDetail(templateId) {
     );
 }
 
-// 2) state preload
+function applyDetailData(detail) {
 
-// 3) 수정 submit
-$(document).ready(async function () {
+    $('#formName').val(detail.formName);
 
-    const data = await loadDetail(templateId);
+    $('#appLineDesc').val(detail.description);
 
-    applyDetailToState(data);
+    $('#checkDefault').prop(
+        'checked',
+        detail.isDefault
+    );
 
-    renderAll();
-});
+    // // 참조 대상 복원
+    // detail.refTargets.forEach(...)
+
+    // // 결재 단계 복원
+    // detail.approvalSteps.forEach(...)
+}
