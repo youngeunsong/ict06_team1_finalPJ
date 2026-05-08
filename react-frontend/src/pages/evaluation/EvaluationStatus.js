@@ -158,7 +158,7 @@ const EvaluationStatus = () => {
                                         // navigate(PATH.EVALUATION.QUIZ_DETAIL(userInfo.empNo, category));
                                     } else if(isLearningCompleted) {
                                         // 미응시 또는 재응시 필요한 경우: 퀴즈 페이지로 이동
-                                        navigate(PATH.EVALUATION.QUIZ + `?categoryName=${encodeURIComponent(category)}`);
+                                        navigate(PATH.EVALUATION.QUIZ(category));
                                     }
                                 }}
                             >

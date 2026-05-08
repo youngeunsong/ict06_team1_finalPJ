@@ -66,7 +66,11 @@ const QuizDetailView = () => {
                             fontWeight: 'bold', 
                             marginTop: '8px' 
                         }}>
-                            {item.isCorrect ? '✨ 정답입니다!' : '❌ 오답입니다.'}
+                            {item.isCorrect === true
+                                ? '✨ 정답입니다!'
+                                : item.isCorrect === false
+                                    ? '❌ 오답입니다.'
+                                    : '🤖 AI 평가 완료'}
                         </p>
                     </div>
                 </div>

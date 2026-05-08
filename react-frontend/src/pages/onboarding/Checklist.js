@@ -77,8 +77,6 @@ const Checklist = () => {
     //완료 처리
     const handleComplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_COMPLETE}`;
-
             await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_COMPLETE, {
                 empNo: userInfo.empNo,
                 checklistId
@@ -100,8 +98,6 @@ const Checklist = () => {
     //미완료 처리
     const handleUncomplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE}`;
-
             await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE,
                 {
                     empNo: userInfo.empNo,

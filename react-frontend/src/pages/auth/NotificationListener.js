@@ -8,6 +8,8 @@ const NotificationListener = ({ children }) => {
 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
+        console.log("[SSE] userInfo:", userInfo);
+        console.log("[SSE] empNo:", userInfo?.empNo);
 
         if(userInfo && userInfo.empNo && token) {
             console.log("알림 구독 시작: ", userInfo.empNo);
@@ -17,8 +19,14 @@ const NotificationListener = ({ children }) => {
 
             eventSource.onopen = () => console.log("SSE 연결 성공");
 
+            eventSource.onmessage = (event) => {
+                console.log("[SSE] onmessage:", event);
+            };
+
             eventSource.addEventListener("notification", (event) => {
+                console.log("[SSE] notification 이벤트 수신:", event.data);
                 const newNoti = JSON.parse(event.data);
+                console.log("[SSE] 파싱된 알림:", newNoti);
 
                 //1. 토스트 띄우기
                 const pushToast = (
@@ -64,11 +72,18 @@ const NotificationListener = ({ children }) => {
 
                 setToasts((prev) => [...prev, pushToast]);
             });
+            
+            eventSource.onerror = (error) => {
+                console.error("[SSE] 에러:", error);
+                eventSource.close();
+            };
 
             return() => {
                 eventSource.close();
                 console.log("SSE 연결 종료");
             };
+        } else {
+            console.log("[SSE] 구독 조건 미충족 - empNo 또는 token 없음");
         }
     }, [userInfo]);
     return (

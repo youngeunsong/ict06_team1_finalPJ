@@ -195,7 +195,7 @@ function MyRoadmap({ userInfo }) {
     // 퀴즈 풀기 버튼
     const handleGoQuiz = (categoryName) => {
         console.log("[MyRoadmap] 퀴즈 페이지 이동 categoryName:", categoryName);
-        navigate(`${PATH.EVALUATION.QUIZ}?categoryName=${encodeURIComponent(categoryName)}`);
+        navigate(PATH.EVALUATION.QUIZ(categoryName));
     };
 
     if(!userInfo) {
