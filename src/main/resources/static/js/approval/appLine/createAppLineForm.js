@@ -14,6 +14,7 @@ $(document).ready(function () {
     renderTargetUI();
 });
 
+// 최종 제출: 결재선 서식 추가 
 // submit 이벤트 발생
 $('#appFormEditor').on('submit', function (e) {
     e.preventDefault(); // 기본 submit 함수 작동 방지
