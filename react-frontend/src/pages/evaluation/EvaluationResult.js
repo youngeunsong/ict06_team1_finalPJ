@@ -28,17 +28,24 @@ const EvaluationResult = () => {
     const { resultId }  = useParams(); // URL에서 :resultId 추출
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [roadmapGroups, setRoadmapGroups] = useState([]);
 
     useEffect(() => {
         if (!userInfo?.empNo) return;
 
         const fetchResults = async () => {
             try {
-                const res = await axiosInstance.get(
-                    PATH.API.EVALUATION.QUIZ_RESULT(userInfo.empNo)
-                );
-                console.log("[EvaluationResult] 결과:", res.data);
-                setResults(res.data);
+                const [resultRes, roadmapRes] = await Promise.all([
+                    axiosInstance.get(PATH.API.EVALUATION.QUIZ_RESULT(userInfo.empNo)),
+                    axiosInstance.get(PATH.API.ROADMAP(userInfo))
+                ]);
+
+                console.log("[EvaluationResult] 결과:", resultRes.data);
+                console.log("[EvaluationResult] 로드맵 그룹:", roadmapRes.data);
+
+                setResults(resultRes.data);
+
+                setRoadmapGroups(roadmapRes.data?.recommended_roadmap || []);
             } catch (err) {
                 console.error("평가 결과 조회 실패", err);
             } finally {
@@ -65,6 +72,7 @@ const EvaluationResult = () => {
             ) : (
                 <SummaryView
                     results={results}
+                    roadmapGroups={roadmapGroups}
                     userName={userInfo?.name}
                     styles={evalResultStyles}
                  />

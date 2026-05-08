@@ -8,6 +8,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.23    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
+ * @ 2026.05.08    김다솜        JWT 필터에서 토큰 검증 후 @AuthenticationPrincipal 사용
  */
 
 package com.ict06.team1_fin_pj.domain.notification.controller;
@@ -34,27 +35,32 @@ public class NotificationController {
 
     private final NotificationServiceImpl notificationService;
 
-    //SSE 구독
+    /**
+     * SSE 구독 (실시간 알림 연결)
+     * - JWT 필터에서 이미 검증됨
+     * - @AuthenticationPrincipal은 검증된 사용자 정보 추출
+     */
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@AuthenticationPrincipal PrincipalDetails principal) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        return notificationService.subscribe(principal.getUsername());
+        System.out.println("[SSE] 구독 요청 - empNo:" + principal.getEmpNo());
+        return notificationService.subscribe(principal.getEmpNo());
     }
 
     //알림 목록 조회
     @GetMapping
     public ResponseEntity<List<NotificationEntity>> getNotifications(
             @AuthenticationPrincipal PrincipalDetails principal) {
-        return ResponseEntity.ok(notificationService.getNotifications(principal.getUsername()));
+        return ResponseEntity.ok(notificationService.getNotifications(principal.getEmpNo()));
     }
 
-    //읽지 않은 알림 개수
+    //읽지 않은 알림 개수 조회
     @GetMapping("/unread-count")
     public ResponseEntity<Long> getUnreadCount(
             @AuthenticationPrincipal PrincipalDetails principal) {
-        return ResponseEntity.ok(notificationService.getUnreadCount(principal.getUsername()));
+        return ResponseEntity.ok(notificationService.getUnreadCount(principal.getEmpNo()));
     }
 
     //읽음 처리

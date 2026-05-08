@@ -8,8 +8,11 @@ const QuizDetailView = React.lazy(() => import('src/pages/evaluation/QuizDetailV
 
 export const  evaluationRoutes = (userInfo) => [
 
-    {path: PATH.EVALUATION.ROOT, element: <Quiz /> },        // 평가 현황
-    {path: PATH.EVALUATION.QUIZ, element: <Quiz /> },               // 퀴즈 응시
+    // 평가 현황(사이드바 진입)
+    {path: PATH.EVALUATION.ROOT, element: <Quiz /> },
+    // 퀴즈 응시(로드맵에서 연결)
+    { path: "/evaluation/quiz", element: <Quiz /> },
+    
     // 기존 결과 페이지
     {path: PATH.EVALUATION.RESULT, element: <EvaluationResult /> },
     // 상세 결과 페이지
