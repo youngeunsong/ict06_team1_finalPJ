@@ -19,19 +19,18 @@ public class AppLineTargetDto {
 
 //    private String type;
 //    private String targetName;
+//    private String targetId;
 //    private String departmentName;
+//    private Integer positionId;
 //    private String positionName;
 //    private String empNo;
-//    private String targetType;
+
+    // TODO: 위의 코드로 인한 오류 발생 시 아래 코드로 롤백
+    private String targetType;
     private String id;
-
     private String name;
-
     private String dept;
-
     private String position;
-
     private Integer positionId;
-
     private String type;
 }

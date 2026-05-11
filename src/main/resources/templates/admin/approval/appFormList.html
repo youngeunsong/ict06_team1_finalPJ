@@ -381,9 +381,9 @@
                     <div class="card-header">
 
                         ${
-                            step.step === 0
+                            step.stepOrder === 0
                             ? '참조'
-                            : `${step.step}단계`
+                            : `${step.stepOrder}단계`
                         }
 
                     </div>
@@ -405,6 +405,14 @@
                         (${target.id})
                     `;
                 }
+                // if(target.type === 'USER'){
+                //     label = `
+                //         ${target.departmentName}
+                //         / ${target.positionName}
+                //         / ${target.targetName}
+                //         (${target.empNo})
+                //     `;
+                // }
 
                 // 부서
                 else if(target.type === 'DEPT'){

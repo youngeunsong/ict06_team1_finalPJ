@@ -43,7 +43,7 @@
                 <div class="card p-3">
                     <h3 th:text="${detail.templateName}"></h3>
                     <div th:each="step : ${detail.steps}" class="mb-3">
-                        <h5 th:text="${step.step == 0 ? '참조' : step.step + '단계'}"></h5>
+                        <h5 th:text="${step.stepOrder == 0 ? '참조' : step.stepOrder + '단계'}"></h5>
                         <div class="d-flex flex-wrap gap-2">
                             <span class="badge bg-primary"
                                   th:each="target : ${step.targets}"

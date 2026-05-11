@@ -546,6 +546,135 @@ function buildPayload() {
 // [8) 상태 preload 함수 (수정 기능 핵심)]---------------------------
 // TODO: applyDetailData(detail)
 // 수정 화면에서 기존 결재선 데이터를 selectedState 에 다시 넣는 역할
+//function applyDetailData(detail){
+//
+//    // 기본 정보
+//    $('#templateName').val(detail.templateName);
+//
+////    $('#appLineDesc').val(detail.description);
+//
+//    $('#checkDefault').prop(
+//        'checked',
+//        detail.isDefault
+//    );
+//
+//    // 상태 초기화
+//    selectedState.ref.clear();
+//
+//    selectedState.approval = {};
+//
+//    approvalRules.minPositionByStep = {};
+//
+//    $('#refList').empty();
+//
+//    $('#approvalList').empty();
+//
+//    state.approvalStep = 0;
+//
+//    // step 순회
+//    detail.steps.forEach(stepData => {
+//
+//        // stepOrder 사용
+//        const step = stepData.stepOrder;
+//
+//        // 참조
+//        if(step === 0){
+//
+//            stepData.targets.forEach(target => {
+//
+//                // selectedState 구조로 변환
+//                const item = {
+//
+//                    id:
+//                        target.empNo || target.targetName,
+//
+//                    name:
+//                        target.targetName,
+//
+//                    dept:
+//                        target.departmentName,
+//
+//                    position:
+//                        target.positionName,
+//
+//                    positionId: 0,
+//
+//                    type:
+//                        target.type
+//                };
+//
+//                const key =
+//                    `${item.type}_${item.id}`;
+//
+//                selectedState.ref.set(key, item);
+//
+//                $('#refList').append(
+//                    renderBadge(item, 'ref')
+//                );
+//            });
+//        }
+//
+//        // 결재 단계
+//        else {
+//
+//            state.approvalStep =
+//                Math.max(state.approvalStep, step);
+//
+//            addApprovalStepUI(step);
+//
+//            if(!selectedState.approval[step]){
+//
+//                selectedState.approval[step] =
+//                    new Map();
+//            }
+//
+//            stepData.targets.forEach(target => {
+//
+//                // selectedState 구조로 변환
+//                const item = {
+//
+//                    id:
+//                        target.empNo || target.targetName,
+//
+//                    name:
+//                        target.targetName,
+//
+//                    dept:
+//                        target.departmentName,
+//
+//                    position:
+//                        target.positionName,
+//
+//                    positionId: 0,
+//
+//                    type:
+//                        target.type
+//                };
+//
+//                const key =
+//                    `${item.type}_${item.id}`;
+//
+//                selectedState.approval[step]
+//                    .set(key, item);
+//            });
+//
+//            // badge 렌더링
+//            const stepDiv =
+//                $(`#approval_${step} .approval-targets`);
+//
+//            selectedState.approval[step]
+//                .forEach(item => {
+//
+//                    stepDiv.append(
+//                        renderBadge(item, 'app', step)
+//                    );
+//                });
+//
+//            // 최소 직급 재계산
+//            recalculateStepMinPosition(step);
+//        }
+//    });
+//}
 function applyDetailData(detail){
 
     // 기본 정보
@@ -575,7 +704,8 @@ function applyDetailData(detail){
     detail.steps.forEach(stepData => {
 
         // 참조(step=0)
-        if(stepData.step === 0){
+//        if(stepData.step === 0){
+        if(stepData.stepOrder === 0){
 
             stepData.targets.forEach(item => {
 
@@ -593,7 +723,8 @@ function applyDetailData(detail){
         // 결재 단계
         else {
 
-            const step = stepData.step;
+//            const step = stepData.step;
+            const step = stepData.stepOrder;
 
             state.approvalStep =
                 Math.max(state.approvalStep, step);

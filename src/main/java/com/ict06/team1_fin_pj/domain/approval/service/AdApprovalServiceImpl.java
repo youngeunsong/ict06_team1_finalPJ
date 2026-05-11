@@ -379,8 +379,8 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                     .toList();
 
                     return AppLineStepDto.builder()
-//                            .stepOrder(entry.getKey())
-                            .step(entry.getKey())
+                            .stepOrder(entry.getKey())
+//                            .step(entry.getKey())
                             .targets(targets)
                             .build();
                 })
@@ -479,6 +479,12 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 .position(position)
                 .positionId(positionId)
                 .type(detail.getApproverType().name())
+//                .targetId(id)
+//                .targetName(name)
+//                .departmentName(dept)
+//                .positionName(position)
+//                .positionId(positionId)
+//                .type(detail.getApproverType().name())
                 .build();
     }
 
