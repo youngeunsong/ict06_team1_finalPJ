@@ -195,6 +195,17 @@ public class AiSecretaryController {
         return ApiResponse.ok("AI 문서 수정 성공", response);
     }
 
+    // AI 템플릿 생성
+    @PostMapping("/assistant/template")
+    public ApiResponse<AssistantTemplateResponseDto> createAssistantTemplate(
+            @Valid @RequestBody AssistantTemplateRequestDto requestDto
+    ) {
+        AssistantTemplateResponseDto response =
+                aiAssistantDraftService.createTemplate(requestDto);
+
+        return ApiResponse.ok("AI 템플릿 생성 성공", response);
+    }
+
     // AI 생성 템플릿을 추천 템플릿 목록 추가 요청
     @PostMapping("/template-request")
     public ApiResponse<TemplateRequestResponseDto> createTemplateRequest(

@@ -27,6 +27,7 @@ import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
 
 import {
+  createAssistantTemplate,
   createTemplateRequest,
   getMyTemplateRequests,
   unwrapApiData,
@@ -47,61 +48,28 @@ import {
  * - 추천 목록 추가 요청은 DB API로 저장한다.
  */
 export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
-  /**
-   * 템플릿 조건 상태
-   *
-   * category:
-   * - 보고 / 회의록 / 결재 / 안내 / 요청 등 문서 카테고리 검색어
-   *
-   * dept:
-   * - 영업 / 인사 / 개발 / 총무 등 부서 또는 업무 영역 검색어
-   *
-   * situation:
-   * - 주간 업무 공유 / 교육 참가 요청 / 프로젝트 킥오프 등 상황 검색어
-   *
-   * tone:
-   * - 문체 선택값
-   * - 추천 템플릿 필터에는 직접 사용하지 않는다.
-   * - AI 템플릿 생성 조건 또는 추후 Gemini 프롬프트 조건으로 활용한다.
-   *
-   * title / paragraphs / signature:
-   * - 템플릿 생성 옵션
-   * - 백엔드에서는 options_json으로 묶어 저장한다.
-   */
+
+  // 템플릿 조건 상태
   const [filters, setFilters] = useState({
-    category: "",
-    dept: "",
-    situation: "",
-    tone: "공식적",
-    title: true,
-    paragraphs: true,
-    signature: true,
+    category: "", // 문서 카테고리 검색어
+    dept: "", // 부서 또는 업무 영역 검색어
+    situation: "", // 상황 검색어
+    tone: "공식적", // 문체 선택값 (AI 템플릿 생성 조건 또는 추후 Gemini 프롬프트 조건으로 활용)
+    title: true,      // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
+    paragraphs: true, // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
+    signature: true,  // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
   });
 
-  /**
-   * 오른쪽 영역 표시 모드
-   *
-   * recommended:
-   * - 기존 정적 추천 템플릿 목록
-   *
-   * generated:
-   * - 내가 AI로 생성했거나 추천 목록 추가 요청한 템플릿 목록
-   */
+  // 오른쪽 영역 표시 모드 (recommended(기존 추천 템플릿)/ generated(내가 AI로 생성한 템플릿))
   const [viewMode, setViewMode] = useState("recommended");
 
-  /**
-   * AI 템플릿 생성 중 상태
-   */
+  // AI 템플릿 생성 중 상태
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
 
-  /**
-   * 템플릿 관련 오류 메시지
-   */
+  // 템플릿 관련 오류 메시지
   const [templateError, setTemplateError] = useState("");
 
-  /**
-   * 추천 템플릿 추가 요청 현황 모달 열림 여부
-   */
+  // 추천 템플릿 추가 요청 현황 모달 열림 여부
   const [requestModalOpen, setRequestModalOpen] = useState(false);
 
   /**
@@ -141,14 +109,7 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
    */
   const safeTemplateCards = Array.isArray(templateCards) ? templateCards : [];
 
-  /**
-   * 문서 유형을 DB/API 기준 대문자로 보정한다.
-   *
-   * 백엔드/DB 기준:
-   * - REPORT
-   * - MINUTES
-   * - APPROVAL
-   */
+  // 문서 유형을 DB/API 기준 대문자로 보정 (REPORT/ MINUTES/ APPROVAL)
   const toDbType = (type) => {
     const normalized = String(type || "").trim().toUpperCase();
 
@@ -157,26 +118,23 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
     return "REPORT";
   };
 
-  /**
-   * 상단 탭 클릭 처리
-   *
-   * template:
-   * - 현재 화면이므로 이동하지 않는다.
-   *
-   * REPORT / MINUTES / APPROVAL:
-   * - StartFormScreen으로 이동한다.
-   */
+  // type이 없을 시, category+situation 에서 특정 단어를 보고 타입 결정
+  const inferTemplateType = (category, situation) => {
+    const joined = `${category || ""} ${situation || ""}`;
+
+    if (joined.includes("회의")) return "MINUTES";
+    if (joined.includes("결재") || joined.includes("승인")) return "APPROVAL";
+
+    return "REPORT";
+  };
+
+  //상단 탭 클릭 처리 (REPORT / MINUTES / APPROVAL/ template(현화면))
   const handleTopTabClick = (tab) => {
     if (tab === "template") return;
     onOpenForm(tab);
   };
 
-  /**
-   * 특정 필드 묶음에 keyword가 포함되어 있는지 검사한다.
-   *
-   * keyword가 비어 있으면 true 처리한다.
-   * 즉, 해당 조건은 필터링에 영향을 주지 않는다.
-   */
+  // 특정 필드 묶음에 keyword 포함 여부 체크
   const includesAnyText = (targets, keyword) => {
     if (!keyword?.trim()) return true;
 
@@ -341,114 +299,97 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
     }
   };
 
-  /**
-   * 화면 진입 또는 empNo 변경 시 내 요청 목록을 DB에서 조회한다.
-   */
+  // 화면 진입 또는 empNo 변경 시 내 요청 목록을 DB에서 조회
   useEffect(() => {
     loadMyTemplateRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empNo]);
 
-  /**
-   * AI 템플릿 생성 버튼 클릭 처리
-   *
-   * 현재 단계:
-   * - 백엔드 /assistant/template API 연결 전
-   * - 프론트 상태 흐름 확인을 위해 임시 AI 생성 템플릿 카드를 만든다.
-   *
-   * 다음 단계:
-   * - 이 함수 안에서 createAssistantTemplate(payload)를 호출하도록 변경
-   */
+  // AI 템플릿 생성 버튼 클릭 처리
   const handleGenerateTemplate = async () => {
     if (generatingTemplate) return;
 
+    // 사용자 정보가 없을 시 돌아가라
+    if(!empNo) {
+      setTemplateError("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
+      return;
+    };
+
+    // 초기화
     setGeneratingTemplate(true);
     setTemplateError("");
 
     try {
-      /**
-       * mock 테스트 단계에서 로딩 상태가 보이도록 잠깐 지연
-       *
-       * 실제 API 연결 후에는 이 delay 제거
-       */
-      await new Promise((resolve) => setTimeout(resolve, 700));
-
       const category = filters.category || "보고";
       const dept = filters.dept || "공통";
       const situation = filters.situation || "업무 문서 작성";
       const tone = filters.tone || "공식적";
+      const inferredType = inferTemplateType(category, situation);
 
-      /**
-       * category 값에 따라 문서 유형 추론
-       */
-      const inferredType = category.includes("회의")
-        ? "MINUTES"
-        : category.includes("결재")
-        ? "APPROVAL"
-        : "REPORT";
-
-      /**
-       * 생성 템플릿 mock 데이터
-       *
-       * generatedContent:
-       * - StartFormScreen의 detail 값으로 넘겨 실제 /assistant/draft 초안 생성에 활용 가능
-       */
-      const generatedCard = {
-        id: `generated-${Date.now()}`,
+      // AI 템플릿 생성 API 호출
+      const response = await createAssistantTemplate({
+        empNo: String(empNo),
         type: inferredType,
         category,
         dept,
         situation,
         tone,
-        title: `${situation} 템플릿`,
-        tag: "AI 생성",
-        desc: `${dept} 부서의 ${situation} 상황에 맞춰 생성된 AI 템플릿입니다.`,
-        preview: [
-          "1. 개요",
-          "2. 주요 내용",
-          "3. 세부 항목",
-          "4. 후속 계획",
-        ],
-        generatedContent: [
-          `${situation} 템플릿`,
-          "",
-          "1. 개요",
-          "문서 작성 목적과 배경을 작성합니다.",
-          "",
-          "2. 주요 내용",
-          "핵심 정보, 진행 상황, 요청 사항 등을 정리합니다.",
-          "",
-          "3. 세부 항목",
-          "필요한 근거, 일정, 담당자, 참고 내용을 작성합니다.",
-          "",
-          "4. 후속 계획",
-          "다음 단계와 확인이 필요한 사항을 작성합니다.",
-          filters.signature ? "" : "",
-          filters.signature ? "작성자: [부서/이름]" : "",
-        ]
-          .filter((line) => line !== null && line !== undefined)
-          .join("\n"),
-        templateFilters: filters,
-      };
+        includeTitle: Boolean(filters.title),
+        includeParagraphs: Boolean(filters.paragraphs),
+        includeSignature: Boolean(filters.signature),
+      });
 
-      /**
-       * 새 AI 생성 템플릿을 목록 맨 앞에 추가하고,
-       * 오른쪽 영역을 내 AI 템플릿 보기로 전환한다.
-       */
-      setGeneratedTemplates((prev) => [generatedCard, ...prev]);
-      setGeneratedPage(1);
-      setViewMode("generated");
+      // API 답변에서 실제 데이터만 추출
+      const data = unwrapApiData(response);
+
+      // 
+      const generatedCard = {
+        id: `generated-${Date.now()}`,
+        type: toDbType(data?.type || inferredType),
+        category: data?.category || category,
+        dept: data?.dept || dept,
+        situation: data?.situation || situation,
+        tone: data?.tone || tone,
+        
+        title: data?.title || `${situation} 템플릿`,
+        tag: data?.fallback ? "AI 대체 생성" : "AI 생성",
+        desc:
+          data?.description ||
+          `${dept} 부서의 ${situation} 상황에 맞춰 생성된 AI 템플릿입니다.`,
+
+        preview: Array.isArray(data?.preview) ? data.preview : [],
+        generatedContent: data?.content || "",
+
+        fallback: Boolean(data?.fallback),
+        modelName: data?.modelName || "gemini",
+
+        templateFilters: {
+          ...filters,
+          category,
+          dept,
+          situation,
+          tone,
+        },
+      }
+
+        setGeneratedTemplates((prev) => [generatedCard, ...prev]);
+        setGeneratedPage(1);
+        setViewMode("generated");
     } catch (error) {
-      console.error("AI 템플릿 생성 실패", error);
-      setTemplateError("AI 템플릿 생성 중 문제가 발생했습니다.");
+        console.error("AI 템플릿 생성 실패", error);
+
+        const message =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "AI 템플릿 생성 중 문제가 발생했습니다.";
+
+        setTemplateError(message);
     } finally {
-      setGeneratingTemplate(false);
+        setGeneratingTemplate(false);
     }
   };
 
-  /**
-   * 요청 상태 라벨
-   */
+  // 요청 상태 라벨
   const getRequestStatusLabel = (status) => {
     switch (status) {
       case "APPROVED":

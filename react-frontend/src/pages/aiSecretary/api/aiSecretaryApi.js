@@ -183,3 +183,10 @@ export const getMyTemplateRequests = (empNo) =>
       empNo: String(empNo),
     },
   });
+
+// AI 템플릿 생성
+export const createAssistantTemplate = (payload) =>
+  api.post("/api/ai-secretary/assistant/template", {
+    ...payload,
+    type: payload?.type ? toApiDocumentType(payload.type) : undefined,
+  });
