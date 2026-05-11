@@ -8,29 +8,23 @@ import java.time.LocalDateTime;
 
 /**
  * @author : 송영은$
- * description : 결재선 목록 조회를 위한 dto
+ * description : 결재서식 목록 화면용 Dto
  * ========================================
  * DATE         AUTHOR      NOTE
- * 2026-05-07   송영은     최초 생성
+ * 2026-05-11   송영은       최초 생성
  **/
 @Getter
 @Builder
 @AllArgsConstructor
-public class AppLineListDto {
+public class AppFormListDto {
 
-    private Integer templateId;
-
-    private String templateName;
+    private Integer formId;
 
     private String formName;
 
-    private String createdBy;
+    private LocalDateTime updatedAt;
 
-    private Boolean isDefault;
-
-    private LocalDateTime createdAt;
-
-    // 결재 서식의 결재선 목록 설정 시
+    // 연결된 결재선 정보
     private Integer lineTemplateId;
 
     private String lineTemplateName;

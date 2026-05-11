@@ -19,6 +19,7 @@ import java.util.List;
 public class AppLineStepDto {
 
     private Integer stepOrder;
+//    private int step; // TODO: 위의 라인으로 인해 오류 발생시 되돌리기
 
     private List<AppLineTargetDto> targets;
 }

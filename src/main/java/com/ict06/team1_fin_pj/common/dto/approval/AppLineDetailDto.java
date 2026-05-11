@@ -26,7 +26,7 @@ public class AppLineDetailDto {
 
     private Boolean isDefault;
 
-    private String description;
+//    private String description;
 
     private List<AppLineStepDto> steps;
 }

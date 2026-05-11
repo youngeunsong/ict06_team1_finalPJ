@@ -526,7 +526,7 @@ function renderBadge(item, type, step = null) {
 function buildPayload() {
 
     return {
-        formName: $('#formName').val(),
+        templateName: $('#templateName').val(),
         description: $('#appLineDesc').val(),
         isDefault: $('#checkDefault').is(':checked'),
 
@@ -548,6 +548,88 @@ function buildPayload() {
 // 수정 화면에서 기존 결재선 데이터를 selectedState 에 다시 넣는 역할
 function applyDetailData(detail){
 
+    // 기본 정보
+    $('#templateName').val(detail.templateName);
+
+//    $('#appLineDesc').val(detail.description);
+
+    $('#checkDefault').prop(
+        'checked',
+        detail.isDefault
+    );
+
+    // 기존 상태 초기화
+    selectedState.ref.clear();
+
+    selectedState.approval = {};
+
+    approvalRules.minPositionByStep = {};
+
+    $('#refList').empty();
+
+    $('#approvalList').empty();
+
+    state.approvalStep = 0;
+
+    // step 순회
+    detail.steps.forEach(stepData => {
+
+        // 참조(step=0)
+        if(stepData.step === 0){
+
+            stepData.targets.forEach(item => {
+
+                const key =
+                    `${item.type}_${item.id}`;
+
+                selectedState.ref.set(key, item);
+
+                $('#refList').append(
+                    renderBadge(item, 'ref')
+                );
+            });
+        }
+
+        // 결재 단계
+        else {
+
+            const step = stepData.step;
+
+            state.approvalStep =
+                Math.max(state.approvalStep, step);
+
+            addApprovalStepUI(step);
+
+            if(!selectedState.approval[step]){
+                selectedState.approval[step] =
+                    new Map();
+            }
+
+            stepData.targets.forEach(item => {
+
+                const key =
+                    `${item.type}_${item.id}`;
+
+                selectedState.approval[step]
+                    .set(key, item);
+            });
+
+            // badge 렌더링
+            const stepDiv =
+                $(`#approval_${step} .approval-targets`);
+
+            selectedState.approval[step]
+                .forEach(item => {
+
+                    stepDiv.append(
+                        renderBadge(item, 'app', step)
+                    );
+                });
+
+            // 최소 직급 재계산
+            recalculateStepMinPosition(step);
+        }
+    });
 }
 
 // [9) 이벤트 바인드] -------------------------

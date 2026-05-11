@@ -20,12 +20,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -75,11 +75,59 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     }
 
     // 페이징 처리된 list로 받기
+//    @Override
+//    public Page<AppFormListDto> getAppFormsWithPaging(int page, int size) {
+//        System.out.println("AdApprovalServiceImpl - getAppFormsWithPaging()");
+//        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending()); // 페이지 번호와 크기 설정. 최신 순 정렬.
+//        return appFormRepository.findAll(pageable); // 페이징된 결과 반환
+//    }
     @Override
-    public Page<AppFormEntity> getAppFormsWithPaging(int page, int size) {
-        System.out.println("AdApprovalServiceImpl - getAppFormsWithPaging()");
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending()); // 페이지 번호와 크기 설정. 최신 순 정렬.
-        return appFormRepository.findAll(pageable); // 페이징된 결과 반환
+    @Transactional(readOnly = true)
+    public Page<AppFormListDto> getAppFormsWithPaging(
+            int page,
+            int size
+    ) {
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("updatedAt").descending()
+        );
+
+        return appFormRepository
+                .findAll(pageable)
+                .map(form -> {
+
+                    Optional<AppLineTemplateEntity>
+                            lineTemplateOpt =
+
+                            appLineTemplateRepository
+                                    .findFirstByForm_FormId(
+                                            form.getFormId()
+                                    );
+
+                    return AppFormListDto.builder()
+
+                            .formId(form.getFormId())
+
+                            .formName(form.getFormName())
+
+                            .updatedAt(form.getUpdatedAt())
+
+                            .lineTemplateId(
+                                    lineTemplateOpt
+                                            .map(AppLineTemplateEntity::getTemplateId)
+                                            .orElse(null)
+                            )
+
+                            .lineTemplateName(
+                                    lineTemplateOpt
+                                            .map(AppLineTemplateEntity::getTemplateName)
+                                            .orElse(null)
+                            )
+
+                            .build();
+                });
     }
 
     // 1건 select (상세 화면)
@@ -117,7 +165,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // insert
     @Transactional
     @Override
-    public void saveAppLineForm(ApprovalLineCreateRequestDto dto, PrincipalDetails principal) {
+    public void saveAppLineForm(AppLineRequestDto dto, PrincipalDetails principal) {
 
         // 로그인 정보에서 작성자 정보 가져오기
         EmpEntity loginEmp = principal.getEmpEntity();
@@ -125,8 +173,12 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         // 1️⃣ 템플릿 생성
         AppLineTemplateEntity template =
                 AppLineTemplateEntity.builder()
-                .templateName(dto.getFormName())
-                .isDefault(false)
+                .templateName(dto.getTemplateName())
+                .isDefault(
+                        dto.getIsDefault() != null
+                                ? dto.getIsDefault()
+                                : false
+                )
                 .createdBy(loginEmp)
                 .build();
         appLineTemplateRepository.save(template);
@@ -230,6 +282,40 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 );
     }
 
+    // 결재선 서식 목록 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppLineListDto> listAllAppLineTemplates(){
+
+        return appLineTemplateRepository.findAll()
+                .stream()
+                .map(entity -> AppLineListDto.builder()
+                        .templateId(entity.getTemplateId())
+                        .templateName(entity.getTemplateName())
+                        .isDefault(entity.getIsDefault())
+                        .build()
+                )
+                .toList();
+    }
+
+    // 결재선 서식과 결재 서식 연결 저장
+    @Transactional
+    @Override
+    public void applyLineTemplate(Integer formId, Integer templateId) {
+        AppFormEntity form =
+                appFormRepository.findById(formId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("서식 없음"));
+
+        AppLineTemplateEntity template =
+                appLineTemplateRepository.findById(templateId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("결재선 없음"));
+
+        // 결재선 서식에 결재 서식 연결
+        template.updateForm(form);
+    }
+
     // 페이징 처리된 list로 받기
     @Override
     @Transactional(readOnly = true)
@@ -293,7 +379,8 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                     .toList();
 
                     return AppLineStepDto.builder()
-                            .stepOrder(entry.getKey())
+//                            .stepOrder(entry.getKey())
+                            .step(entry.getKey())
                             .targets(targets)
                             .build();
                 })
@@ -317,10 +404,15 @@ public class AdApprovalServiceImpl implements AdApprovalService {
             AppLineTemplateDetailEntity detail
     ) {
 
-        String targetName = "-";
-        String departmentName = "";
-        String positionName = "";
-        String empNo = "";
+//        String targetName = "-";
+//        String departmentName = "";
+//        String positionName = "";
+//        String empNo = "";
+        String id = "";
+        String name = "-";
+        String dept = "";
+        String position = "";
+        Integer positionId = 0;
 
         switch (detail.getApproverType()) {
 
@@ -330,44 +422,63 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
                     EmpEntity emp = detail.getApprover();
 
-                    targetName = emp.getName();
-                    empNo = emp.getEmpNo();
+//                    targetName = emp.getName();
+//                    empNo = emp.getEmpNo();
+                    id = emp.getEmpNo();
+                    name = emp.getName();
 
                     if (emp.getDepartment() != null) {
-                        departmentName =
-                                emp.getDepartment().getDeptName();
+//                        departmentName =
+//                                emp.getDepartment().getDeptName();
+                        dept = emp.getDepartment().getDeptName();
                     }
 
                     if (emp.getPosition() != null) {
-                        positionName =
-                                emp.getPosition().getPositionName();
+//                        positionName =
+//                                emp.getPosition().getPositionName();
+                        position = emp.getPosition().getPositionName();
+                        positionId = emp.getPosition().getPositionId(); // 직급 순서 이용하기 위해 id 필요
                     }
                 }
             }
 
             case DEPT -> {
 
-                targetName =
-                        detail.getDepartment() != null
-                                ? detail.getDepartment().getDeptName()
-                                : "-";
+//                targetName =
+//                        detail.getDepartment() != null
+//                                ? detail.getDepartment().getDeptName()
+//                                : "-";
+                id = String.valueOf(detail.getDepartment().getDeptId());
+                name = detail.getDepartment().getDeptName();
             }
 
             case POSITION -> {
-
-                targetName =
-                        detail.getMinPosition() != null
-                                ? detail.getMinPosition().getPositionName()
-                                : "-";
+//                targetName =
+//                        detail.getMinPosition() != null
+//                                ? detail.getMinPosition().getPositionName()
+//                                : "-";
+                if (detail.getMinPosition() != null) {
+                    id = String.valueOf(detail.getMinPosition().getPositionId());
+                    name = detail.getMinPosition().getPositionName();
+                    positionId = detail.getMinPosition().getPositionId();
+                }
             }
         }
 
+//        return AppLineTargetDto.builder()
+//                .type(detail.getApproverType().name())
+//                .targetName(targetName)
+//                .departmentName(departmentName)
+//                .positionName(positionName)
+//                .empNo(empNo)
+//                .build();
         return AppLineTargetDto.builder()
+                .id(id)
+                .name(name)
+                .dept(dept)
+                .position(position)
+                .positionId(positionId)
                 .type(detail.getApproverType().name())
-                .targetName(targetName)
-                .departmentName(departmentName)
-                .positionName(positionName)
-                .empNo(empNo)
                 .build();
     }
 
@@ -385,9 +496,68 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     }
 
     // update
+//    @Override
+//    public void updateAppLineTemplate(AppLineTemplateEntity entity) {
+//
+//    }
+    @Transactional
     @Override
-    public void updateAppLineTemplate(AppLineTemplateEntity entity) {
+    public void updateAppLineForm(
+            Integer templateId,
+            AppLineRequestDto dto,
+            PrincipalDetails principal
+    ) {
 
+        AppLineTemplateEntity template =
+                appLineTemplateRepository.findDetailById(templateId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("결재선 없음"));
+
+        // 1. 기본 정보 수정
+        template.updateNameIsDefault(dto.getTemplateName(), dto.getIsDefault());
+//        template.setTemplateName(dto.getFormName());
+//
+//        template.setDescription(dto.getDescription());
+//
+//        template.setIsDefault(dto.getIsDefault());
+
+        // 2. 기존 detail 제거
+        template.getDetails().clear();
+        // flush 시 orphanRemoval=true 라면 삭제됨
+
+        // 3. 참조 대상 재삽입
+        if (dto.getRefTargets() != null) {
+
+            dto.getRefTargets().forEach(t -> {
+
+                AppLineTemplateDetailEntity detail =
+                        createDetailEntity(
+                                template,
+                                0,
+                                t
+                        );
+
+                template.addDetail(detail);
+            });
+        }
+
+        // 4. 결재 단계 재삽입
+        dto.getApprovalSteps().forEach(stepDto -> {
+
+            int step = stepDto.getStep();
+
+            stepDto.getTargets().forEach(t -> {
+
+                AppLineTemplateDetailEntity detail =
+                        createDetailEntity(
+                                template,
+                                step,
+                                t
+                        );
+
+                template.addDetail(detail);
+            });
+        });
     }
 
 

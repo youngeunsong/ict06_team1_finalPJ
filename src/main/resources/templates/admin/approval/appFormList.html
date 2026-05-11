@@ -77,6 +77,56 @@
                     </nav>
                 </div>
                 <!-- 페이징 코드 끝 -->
+                <!-- 결재선 서식 설정 modal 시작 -->
+                 <div class="modal fade"
+                    id="lineTemplateModal"
+                    tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    결재선 서식 선택
+                                </h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal">
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+
+                                    <!-- 좌측 목록 시작 -->
+                                    <div class="col-4 border-end">
+                                        <div id="lineTemplateList"></div>
+                                    </div>
+                                    <!-- 좌측 목록 끝 -->
+                                    <!-- 우측 상세 시작-->
+                                    <div class="col-8">
+                                        <div id="lineTemplatePreview">
+                                            <div class="text-muted">
+                                                결재선을 선택하세요.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 우측 상세 끝-->
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        data-bs-dismiss="modal">
+                                    취소
+                                </button>
+                                <button type="button"
+                                        class="btn btn-primary"
+                                        id="saveLineTemplateBtn">
+                                    적용
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 결재선 서식 설정 modal 끝 -->
             </div>
             <!--end::Container-->
         </div>
@@ -95,6 +145,9 @@
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
 <script src="/js/approval/deleteAppForm.js"></script> <!-- 서식 삭제 함수 -->
 <script>
+    let currentFormId = null;
+    let selectedTemplateId = null; // modal reopen 시 현재 선택 유지
+
     // [Ajax + 렌더링 js]
     let currentPage = 0;
     const pageSize = 10;
@@ -132,7 +185,9 @@
             let createdAt = new Date(item.updatedAt).toLocaleString();
             // event.stopPropagation() : 버튼 클릭 시 기본 이벤트 (row 클릭) 방지
             html += `
-                <tr onclick="goDetail(${item.formId})" style="cursor:pointer;">
+                <tr class="app-form-row"
+                    data-form-id="${item.formId}"
+                    style="cursor:pointer;">
                     <td><input type="checkbox" class="form-check-input" onclick="event.stopPropagation()"></td>
                     <td>${item.formId}</td>
                     <td>${item.formName}</td>
@@ -143,6 +198,28 @@
                             수정
                         </button>
                         <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAppForm(${item.formId})">삭제</button>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary open-line-modal"
+
+                            data-form-id="${item.formId}"
+                            data-line-template-id="${
+                                item.lineTemplateId ?? ''
+                            }">
+
+                            결재선 설정
+
+                            ${
+                                item.lineTemplateName
+                                ? `
+                                    <span class="badge bg-primary ms-1">
+                                        ${item.lineTemplateName}
+                                    </span>
+                                `
+                                : ''
+                            }
+
+                        </button>
                     </td>
                 </tr>
             `;
@@ -150,6 +227,18 @@
 
         $("#tableBody").html(html);
     }
+
+    // 행 클릭 시 상세 페이지로 이동
+    $(document).on(
+        'click',
+        '.app-form-row',
+        function () {
+            const formId =
+                $(this).data('form-id');
+
+            goDetail(formId);
+        }
+    );
 
     // 페이지 렌더링
     function renderPagination(pageData) {
@@ -200,6 +289,199 @@
     function goEdit(formId) {
         location.href = `/admin/approval/editAppForm/${formId}`;
     }
+
+    // 결재선 서식 목록 조회
+    function loadLineTemplates(){
+        $.get(
+            '/admin/approval/appLineTemplates',
+
+            function(data){
+
+                let html = '';
+
+                data.forEach(item => {
+
+                    html += `
+                        <label class="list-group-item">
+
+                            <input
+                                type="radio"
+                                name="lineTemplate"
+                                value="${item.templateId}"
+                                class="form-check-input me-2"
+                                
+                                ${
+                                    Number(selectedTemplateId)
+                                    === item.templateId
+                                    ? 'checked'
+                                    : ''
+                                }>
+
+                            ${item.templateName}
+
+                            ${
+                                item.isDefault
+                                ? '<span class="badge bg-primary ms-2">기본</span>'
+                                : ''
+                            }
+
+                        </label>
+                    `;
+                });
+
+                $('#lineTemplateList').html(html);
+
+                // 현재 연결된 결재선 서식 preview 자동 출력
+                if(selectedTemplateId){
+                    $(
+                        `input[name="lineTemplate"][value="${selectedTemplateId}"]`
+                    ).trigger('change');
+                }
+            }
+        );
+    }
+
+    // modal 오픈 이벤트
+    $(document).on(
+        'click',
+        '.open-line-modal',
+        function (e) {
+            console.log("결재선 설정 버튼 클릭");
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            currentFormId = $(this).data('form-id'); // 
+            selectedTemplateId = $(this).data('line-template-id'); // 선택된 결재선 서식 id 
+
+            loadLineTemplates();
+
+            const modal =
+                new bootstrap.Modal(
+                    document.getElementById('lineTemplateModal')
+                );
+
+            modal.show();
+        }
+    );
+
+    // 결재선 서식의 상세 미리보기 렌더링
+    function renderLineTemplatePreview(detail){
+        let html = '';
+
+        html += `
+            <h5>${detail.templateName}</h5>
+        `;
+
+        detail.steps.forEach(step => {
+
+            html += `
+                <div class="card mb-2">
+
+                    <div class="card-header">
+
+                        ${
+                            step.step === 0
+                            ? '참조'
+                            : `${step.step}단계`
+                        }
+
+                    </div>
+
+                    <div class="card-body">
+            `;
+
+            step.targets.forEach(target => {
+
+                let label = '';
+
+                // 사용자
+                if(target.type === 'USER'){
+
+                    label = `
+                        ${target.dept}
+                        / ${target.position}
+                        / ${target.name}
+                        (${target.id})
+                    `;
+                }
+
+                // 부서
+                else if(target.type === 'DEPT'){
+
+                    label = target.name;
+                }
+
+                // 직급
+                else if(target.type === 'POSITION'){
+
+                    label = target.name;
+                }
+
+                html += `
+                    <span class="badge bg-primary me-1 mb-1">
+
+                        ${label}
+
+                    </span>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        $('#lineTemplatePreview').html(html);
+    }
+
+    // 결재선 서식 선택 변경 이벤트
+    $(document).on(
+        'change',
+        'input[name="lineTemplate"]',
+        function(){
+            const templateId = $(this).val();
+            $.get(
+                `/admin/approval/appLineFormDetailData/${templateId}`,
+
+                function(detail){
+                    console.log(detail);
+                    renderLineTemplatePreview(detail);
+                }
+            );
+        }
+    );
+
+    // 결재 서식에 결재선 서식 연결 저장
+    $('#saveLineTemplateBtn').on(
+        'click',
+        function(){
+            const templateId =
+                $('input[name="lineTemplate"]:checked')
+                    .val();
+
+            if(!templateId){
+                alert('결재선을 선택하세요.');
+                return;
+            }
+
+            $.ajax({
+                url: `/admin/approval/appForms/${currentFormId}/lineTemplate`,
+                type: 'PUT',
+
+                data: {
+                    templateId: templateId
+                },
+
+                success: function(){
+                    alert('결재선 적용 완료');
+                    $('#lineTemplateModal').modal('hide');
+                    location.reload();
+                }
+            });
+        }
+    );
 </script>
 
 <!--스크립트 끝-->

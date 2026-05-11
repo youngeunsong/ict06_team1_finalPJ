@@ -9,9 +9,7 @@
 
 package com.ict06.team1_fin_pj.domain.approval.controller;
 
-import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
-import com.ict06.team1_fin_pj.common.dto.approval.AppLineListDto;
-import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineCreateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.*;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.common.dto.employee.HrSelectOptionDto;
@@ -29,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -95,8 +92,8 @@ public class AdApprovalController {
     // 페이징 처리된 서식 목록 조회 (Ajax)
     @GetMapping("/getAppForms")
     @ResponseBody
-    public Page<AppFormEntity> getAppForms(@RequestParam(defaultValue = "0") int page,
-                                           @RequestParam(defaultValue = "10") int size) {
+    public Page<AppFormListDto> getAppForms(@RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "10") int size) {
         System.out.println("[AdApprovalController] - getAppForms()");
         return service.getAppFormsWithPaging(page, size);
     }
@@ -111,6 +108,26 @@ public class AdApprovalController {
         model.addAttribute("form", form);
 
         return "admin/approval/viewAppForm"; // thymeleaf 파일
+    }
+
+    // 모든 결재선 서식 목록 조회 (Ajax)
+    @GetMapping("/appLineTemplates")
+    @ResponseBody
+    public List<AppLineListDto> appLineTemplates(){
+        System.out.println("[AdApprovalController] - appLineTemplates()");
+        return service.listAllAppLineTemplates();
+    }
+
+    // 결재선 서식과 결재 서식 연결 저장 (Ajax)
+    @PutMapping("/appForms/{formId}/lineTemplate")
+    @ResponseBody
+    public ResponseEntity<?> applyLineTemplate(
+            @PathVariable Integer formId,
+            @RequestParam Integer templateId
+    ) {
+        System.out.println("[AdApprovalController] - applyLineTemplate()");
+        service.applyLineTemplate(formId,templateId);
+        return ResponseEntity.ok().build();
     }
 
     // [전자 결재 서식 삭제] ----------------------------------------------------------------------------
@@ -145,9 +162,9 @@ public class AdApprovalController {
     }
     
     // ---------------------------------------------------------------
-    // [[ 전자 결재 결재선 관리 ]]
-    // [새 전자 결재선 추가] -------------------------------------
-    // 새 전자 결재선 추가 화면
+    // [[ 전자 결재 결재선 서식 관리 ]]
+    // [새 전자 결재선 서식 추가] -------------------------------------
+    // 새 전자 결재선 서식 추가 화면
     @RequestMapping("/createAppLineForm")
     public String createAppLineForm(HttpServletRequest request, HttpServletResponse response, Model model)
             throws ServletException, IOException {
@@ -181,11 +198,11 @@ public class AdApprovalController {
         return adEmployeeService.findPositions();
     }
 
-    // 새 전자 결재선 추가 처리 (Ajax)
+    // 새 전자 결재선 서식 추가 처리 (Ajax)
     @PostMapping("/createAppLineFormAction")
     @ResponseBody
     public String createAppLineFormAction(
-            @RequestBody ApprovalLineCreateRequestDto requestDto,
+            @RequestBody AppLineRequestDto requestDto,
             @AuthenticationPrincipal PrincipalDetails principal
     ) {
         System.out.println("[AdApprovalController] - createAppLineFormAction()");
@@ -193,8 +210,8 @@ public class AdApprovalController {
         return "ok";
     }
 
-    // [전자 결재선 조회] ---------------------------------------
-    // [전자 결재선 목록 화면 (메인)]
+    // [전자 결재선 서식 조회] ---------------------------------------
+    // [전자 결재선 서식 목록 화면 (메인)]
     @RequestMapping("/appLineFormList")
     public String appLineFormList(HttpServletRequest request, HttpServletResponse response, Model model,
                               @PageableDefault(size = 10,
@@ -212,7 +229,7 @@ public class AdApprovalController {
         return "admin/approval/appLineFormList";
     }
 
-    // 페이징 처리된 결재선 목록 조회 (Ajax)
+    // 페이징 처리된 결재선 서식 목록 조회 (Ajax)
     @GetMapping("/getAppLineForms")
     @ResponseBody
     public Page<AppLineListDto> getAppLineForms(
@@ -224,7 +241,7 @@ public class AdApprovalController {
         return service.getAppLineFormsWithPaging(page, size);
     }
 
-    // 전자 결재선 1건 상세 조회
+    // 전자 결재선 서식 1건 상세 조회
     @GetMapping("/appLineFormDetail/{id}")
     public String appLineFormDetail(
             @PathVariable Integer id,
@@ -239,7 +256,7 @@ public class AdApprovalController {
         return "admin/approval/appLineFormDetail";
     }
 
-    // [전자 결재선 삭제] ----------------------------------------
+    // [전자 결재선 서식 삭제] ----------------------------------------
     @DeleteMapping("/deleteAppLineForm/{templateId}")
     @ResponseBody
     public ResponseEntity<?> deleteAppLineForm(
@@ -253,8 +270,50 @@ public class AdApprovalController {
         return ResponseEntity.ok().build();
     }
 
-    // [전자 결재선 수정] ----------------------------------------
+    // [전자 결재선 서식 수정] ----------------------------------------
+    // 전자 결재선 서식 수정 페이지 get
+    @GetMapping("/editAppLineForm/{templateId}")
+    public String editAppLineForm(
+            @PathVariable Integer templateId,
+            Model model
+    ) {
+        System.out.println("[AdApprovalController] - editAppLineForm()");
 
+        model.addAttribute(
+                "templateId",
+                templateId
+        );
+
+        return "admin/approval/editAppLineForm";
+    }
+
+    // 전자 결재선 서식 수정 preload 전용 JSON API
+    @GetMapping("/appLineFormDetailData/{templateId}")
+    @ResponseBody
+    public AppLineDetailDto appLineFormDetailData(
+            @PathVariable Integer templateId
+    ) {
+        System.out.println("[AdApprovalController] - appLineFormDetailData()");
+        return service.selectAppLineForm(templateId);
+    }
+
+    // 전자 결재선 서식 수정 처리 (Ajax)
+    @PutMapping("/appLineForm/{templateId}")
+    @ResponseBody
+    public ResponseEntity<?> updateAppLineForm(
+            @PathVariable Integer templateId,
+            @RequestBody AppLineRequestDto dto,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        System.out.println("[AdApprovalController] - updateAppLineForm()");
+        service.updateAppLineForm(
+                templateId,
+                dto,
+                principal
+        );
+
+        return ResponseEntity.ok().build();
+    }
 
 
 }

@@ -43,16 +43,25 @@
                 <div class="card p-3">
                     <h3 th:text="${detail.templateName}"></h3>
                     <div th:each="step : ${detail.steps}" class="mb-3">
-                        <h5 th:text="${step.stepOrder == 0 ? '참조' : step.stepOrder + '단계'}"></h5>
+                        <h5 th:text="${step.step == 0 ? '참조' : step.step + '단계'}"></h5>
                         <div class="d-flex flex-wrap gap-2">
                             <span class="badge bg-primary"
                                   th:each="target : ${step.targets}"
                                   th:text="${target.type == 'USER'}
-                                  ? ${target.departmentName + ' · ' + target.positionName + ' · ' + target.targetName + '(' + target.empNo + ')'}
-                                  : ${target.targetName}">
+                                  ? ${target.dept + ' · ' + target.position + ' · ' + target.name + '(' + target.id + ')'}
+                                  : ${target.name}">
                             </span>
+<!--                            ? ${target.departmentName + ' · ' + target.positionName + ' · ' + target.targetName + '(' + target.empNo + ')'}-->
                         </div>
                     </div>
+                    <!--기본 결재선 여부 시작 isDefault-->
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" th:checked="${detail.isDefault}" id="checkDefault" th:disabled="${true}">
+                        <label class="form-check-label" for="checkDefault">
+                            기본 결재선
+                        </label>
+                    </div>
+                    <!--기본 결재선 여부 끝-->
                 </div>
                 <!-- 결재선 서식 상세 내용 끝-->
                 <!-- 목록, 수정, 삭제 버튼 바 시작 -->

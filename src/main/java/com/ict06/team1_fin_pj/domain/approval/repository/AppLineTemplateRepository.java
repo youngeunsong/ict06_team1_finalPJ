@@ -41,4 +41,7 @@ public interface AppLineTemplateRepository extends JpaRepository<AppLineTemplate
     """)
     Optional<AppLineTemplateEntity> findDetailById(@Param("id") Integer id);
 
+    // 기본 템플릿 불러오기
+    Optional<AppLineTemplateEntity> findFirstByForm_FormId(Integer formId); //findFirstByForm_FormId. TODO: isDefault 기준으로 찾기
+
 }

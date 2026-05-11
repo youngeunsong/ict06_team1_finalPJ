@@ -9,14 +9,10 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.common.dto.approval.*;
-import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
-import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
-import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -32,7 +28,7 @@ public interface AdApprovalService {
     public List<AppFormEntity> listAllAppForms();
 
     // 페이징 처리된 list로 받기
-    public Page<AppFormEntity> getAppFormsWithPaging(int page, int size);
+    public Page<AppFormListDto> getAppFormsWithPaging(int page, int size);
 
     // 1건 select (상세 화면)
     public AppFormEntity selectAppForm(int id);
@@ -45,10 +41,16 @@ public interface AdApprovalService {
 
     // [결재선 서식 관리]--------------------------------------------
     // insert
-    public void saveAppLineForm(ApprovalLineCreateRequestDto dto, PrincipalDetails principal);
+    public void saveAppLineForm(AppLineRequestDto dto, PrincipalDetails principal);
 
     // list
     public Page<AppLineListDto> listAppLineForm(Pageable pageable);
+
+    // 결재선 서식 목록 조회
+    List<AppLineListDto> listAllAppLineTemplates();
+
+    // 결재선 서식과 결재 서식 연결 저장
+    void applyLineTemplate(Integer formId, Integer templateId);
 
     // 페이징 처리된 list로 받기
     Page<AppLineListDto> getAppLineFormsWithPaging(int page, int size);
@@ -60,5 +62,10 @@ public interface AdApprovalService {
     public void deleteAppLineTemplate(int id);
 
     // update
-    public void updateAppLineTemplate(AppLineTemplateEntity entity);
+//    public void updateAppLineTemplate(AppLineTemplateEntity entity);
+    void updateAppLineForm(
+            Integer templateId,
+            AppLineRequestDto dto,
+            PrincipalDetails principal
+    );
 }
