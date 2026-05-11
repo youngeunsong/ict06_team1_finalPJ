@@ -150,11 +150,11 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div style={{ padding: "18px 16px", marginTop: "auto" }}>
+      <div style={{ padding: "16px 18px 16px" }}>
         <div
           style={{
             borderTop: `1px solid ${C.border}`,
-            paddingTop: 16,
+            paddingTop: 14,
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 900, color: C.muted }}>
