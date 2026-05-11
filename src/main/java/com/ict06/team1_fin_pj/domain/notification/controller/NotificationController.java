@@ -9,6 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.23    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
  * @ 2026.05.08    김다솜        JWT 필터에서 토큰 검증 후 @AuthenticationPrincipal 사용
+ * @ 2026.05.08    김다솜        알림 전체 읽음 및 삭제 API 추가
  */
 
 package com.ict06.team1_fin_pj.domain.notification.controller;
@@ -65,8 +66,33 @@ public class NotificationController {
 
     //읽음 처리
     @PatchMapping("/{notiId}/read")
-    public ResponseEntity<?> markAsRead(@PathVariable Integer notiId) {
-        notificationService.markAsRead(notiId);
+    public ResponseEntity<?> markAsRead(
+            @AuthenticationPrincipal PrincipalDetails principal,
+            @PathVariable Integer notiId) {
+        notificationService.markAsRead(principal.getEmpNo(), notiId);
         return ResponseEntity.ok("읽음 처리 완료");
+    }
+
+    //전체 읽음 처리
+    @PatchMapping("/read-all")
+    public ResponseEntity<?> markAllAsRead(@AuthenticationPrincipal PrincipalDetails principal) {
+        notificationService.markAllAsRead(principal.getEmpNo());
+        return ResponseEntity.ok("전체 읽음 처리 완료");
+    }
+
+    //단건 삭제
+    @DeleteMapping("/{notiId}")
+    public ResponseEntity<?> deleteNotification(
+            @AuthenticationPrincipal PrincipalDetails principal,
+            @PathVariable Integer notiId) {
+        notificationService.deleteNotification(principal.getEmpNo(), notiId);
+        return ResponseEntity.ok("알림 삭제 완료");
+    }
+
+    //전체 삭제
+    @DeleteMapping
+    public ResponseEntity<?> deleteAllNotifications(@AuthenticationPrincipal PrincipalDetails principal) {
+        notificationService.deleteAllNotifications(principal.getEmpNo());
+        return ResponseEntity.ok("전체 알림 삭제 완료");
     }
 }

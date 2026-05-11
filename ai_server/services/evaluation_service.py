@@ -20,7 +20,13 @@ import json
 from groq import Groq
 from utils.nlp_helper import get_semantic_similarity
 
-from schemas.evaluation_schema import AiEvaluationRequest, AiEvaluationResponse
+from schemas.evaluation_schema import (
+    AiEvaluationRequest,
+    AiEvaluationResponse,
+    AiQuizGenerationRequest,
+    AiQuizDraftItem,
+    AiQuizGenerationResponse
+)
 
 # 주관식(단답형/서술형) 답변 AI 채점 함수
 # Groq API 호출하여 기준 답안과 사용자 답변 비교 -> 점수, 유사도, 피드백을 JSON 형식으로 반환
@@ -142,3 +148,106 @@ def evaluate_answer(req: AiEvaluationRequest) -> AiEvaluationResponse:
     #     feedback=feedback,
     #     similarity=similarity
     # )
+
+
+def generate_quiz_drafts(req: AiQuizGenerationRequest) -> AiQuizGenerationResponse:
+    prompt = f"""
+당신은 기업 온보딩 교육용 객관식 문제 출제 도우미입니다.
+아래 콘텐츠 정보를 기준으로 한국어 4지선다 객관식 문제 {req.question_count}개를 만들어 주세요.
+
+[콘텐츠 정보]
+- 제목: {req.title}
+- 카테고리: {req.category or "공통"}
+- 세부 카테고리: {req.sub_category or "없음"}
+- 콘텐츠 유형: {req.content_type or "LINK"}
+- 난이도: {req.difficulty or "EASY"}
+- 태그: {req.tags or "없음"}
+- 경로: {req.path or "없음"}
+
+[출제 규칙]
+1. 각 문제는 보기 4개를 제공하세요.
+2. 정답은 하나만 고르세요.
+3. 실무 온보딩/학습 확인용으로 자연스럽고 이해 가능한 문제로 만드세요.
+4. 콘텐츠 제목만 반복하지 말고, 학습 후 이해했는지 확인할 수 있게 출제하세요.
+5. JSON만 반환하세요.
+
+반환 형식:
+{{
+  "questions": [
+    {{
+      "questionText": "문제 내용",
+      "option1": "보기 1",
+      "option2": "보기 2",
+      "option3": "보기 3",
+      "option4": "보기 4",
+      "answerNo": 1,
+      "explanation": "정답 해설"
+    }}
+  ]
+}}
+"""
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "당신은 온보딩 퀴즈 출제 도우미입니다. 반드시 JSON 형식으로만 답변하세요."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.4,
+            response_format={"type": "json_object"}
+        )
+
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        parsed = json.loads(raw)
+        questions = [
+            AiQuizDraftItem(**question)
+            for question in parsed.get("questions", [])
+        ]
+
+        if not questions:
+            raise ValueError("생성된 문제가 없습니다.")
+
+        return AiQuizGenerationResponse(questions=questions)
+
+    except Exception as e:
+        print(f"[Quiz generation fallback] {e}")
+        return AiQuizGenerationResponse(
+            questions=_build_fallback_quiz_drafts(req)
+        )
+
+
+def _build_fallback_quiz_drafts(req: AiQuizGenerationRequest) -> list[AiQuizDraftItem]:
+    category = req.category or "공통"
+    sub_category = req.sub_category or "기본"
+    title = req.title
+    count = max(1, min(req.question_count, 5))
+
+    drafts: list[AiQuizDraftItem] = []
+    for index in range(count):
+        drafts.append(
+            AiQuizDraftItem(
+                questionText=f"[{category}] {title} 학습과 가장 관련된 설명은 무엇인가요?",
+                option1=f"{sub_category}와 무관한 임의의 정보만 확인하면 된다",
+                option2=f"{title}를 통해 {category} 학습 목적과 핵심 개념을 이해하는 것이 중요하다",
+                option3="문서를 읽지 않고도 바로 평가만 통과하면 된다",
+                option4="콘텐츠 제목만 외우면 학습이 완료된다",
+                answerNo=2,
+                explanation=f"{title}는 {category} 학습 이해도를 높이기 위한 콘텐츠이므로 목적과 핵심 개념을 이해하는 것이 중요합니다."
+            )
+        )
+
+    return drafts

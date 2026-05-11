@@ -130,6 +130,7 @@ export const PATH = {
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
       PROGRESS_COMPLETE: "/onboarding/progress/complete",
+      PROGRESS_UNCOMPLETE: "/onboarding/progress/uncomplete",
     },
     EVALUATION: {
       QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,

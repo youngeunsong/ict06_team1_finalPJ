@@ -18,6 +18,7 @@ import {
 import CIcon from '@coreui/icons-react'
 
 import { AppSidebarNav } from './AppSidebarNav'
+import AppLogo from './AppLogo'
 
 import navigation from '../_nav'
 import { cilSearch } from '@coreui/icons'
@@ -64,17 +65,9 @@ const AppSidebar = ({ userInfo }) => {
       }}
     >
 
-      {/* 임시 로고: 수정 필요 */}
-      <CSidebarBrand className='d-flex align-items-center justify-content-center'>
-        <div
-          className='sidebar-logo'
-          onClick={() => navigate(PATH.AUTH.USERHOME)}
-          style={{ cursor: 'pointer' }}
-        >
-          <span className='sidebar-logo-main'>
-            🏢 함께UP 그룹웨어
-          </span>
-        </div>
+      <CSidebarBrand className="d-flex align-items-center border-bottom">
+        {/* 사이드바가 아이콘만 보이는 상태(unfoldable)일 때 로고 텍스트 숨기기 */}
+        <AppLogo collapsed={unfoldable} />
       </CSidebarBrand>
 
       {/* 2. 프로필 및 검색 영역 */}

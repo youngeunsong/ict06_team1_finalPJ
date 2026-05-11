@@ -11,6 +11,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.06    김다솜        최초 생성 및 온보딩 대시보드 집계 로직 구현
+ * @ 2026.05.08    김다솜        체크리스트 진행률 집계 추가
  */
 
 package com.ict06.team1_fin_pj.domain.onboarding.service;
@@ -23,6 +24,8 @@ import com.ict06.team1_fin_pj.domain.onboarding.entity.RoadProgressEntity;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadItemRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadProgressRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadmapRepository;
+import com.ict06.team1_fin_pj.domain.onboarding.repository.ChecklistProgressRepository;
+import com.ict06.team1_fin_pj.domain.onboarding.repository.ChecklistRepository;
 import com.ict06.team1_fin_pj.domain.evaluation.entity.QuizResultEntity;
 import com.ict06.team1_fin_pj.domain.evaluation.repository.EvaluationResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,8 @@ public class OnboardingDashboardServiceImpl {
     private final RoadmapRepository roadmapRepository;
     private final RoadItemRepository roadItemRepository;
     private final EvaluationResultRepository evaluationResultRepository;
+    private final ChecklistRepository checklistRepository;
+    private final ChecklistProgressRepository checklistProgressRepository;
 
     /**
      * @MethodName : getDashboard
@@ -113,6 +118,13 @@ public class OnboardingDashboardServiceImpl {
                 ? 0
                 : (int) Math.round((completedCategoryCount * 100.0) / totalCategoryCount);
 
+        int totalChecklistCount = (int) checklistRepository.count();
+        int completedChecklistCount = (int) checklistProgressRepository
+                .countByEmployee_EmpNoAndStatus(empNo, ProgressStatus.COMPLETED);
+        int checklistProgressPercent = totalChecklistCount == 0
+                ? 0
+                : (int) Math.round((completedChecklistCount * 100.0) / totalChecklistCount);
+
         List<QuizResultEntity> quizResults =
                 evaluationResultRepository.findByEmployee_EmpNo(empNo);
 
@@ -146,6 +158,9 @@ public class OnboardingDashboardServiceImpl {
         return OnboardingDashboardResponse.builder()
                 .totalLearningCount(totalLearningCount)
                 .completedLearningCount(completedLearningCount)
+                .totalChecklistCount(totalChecklistCount)
+                .completedChecklistCount(completedChecklistCount)
+                .checklistProgressPercent(checklistProgressPercent)
                 .totalCategoryCount(totalCategoryCount)
                 .completedCategoryCount(completedCategoryCount)
                 .learningProgressPercent(learningProgressPercent)

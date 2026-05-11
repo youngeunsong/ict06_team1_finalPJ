@@ -1,3 +1,14 @@
+/**
+ * @FileName : DocumentEntity.java
+ * @Description : 온보딩 문서/RAG 원천 문서 Entity
+ * @Author : 김다솜
+ * @Date : 2026. 05. 10
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.10    김다솜        관리자 문서/RAG 데이터 수정 처리를 위한 update 메서드 추가
+ */
 package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
@@ -28,6 +39,9 @@ public class DocumentEntity extends BaseTimeEntity {
     @Column(name = "file_path", nullable = false, length = 500)
     private String filePath;
 
+    @Column(name = "summary_preview", columnDefinition = "TEXT")
+    private String summaryPreview;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id")
     private DepartmentEntity department;
@@ -53,5 +67,31 @@ public class DocumentEntity extends BaseTimeEntity {
     public void addChunk(DocChunkEntity chunk) {
         this.chunks.add(chunk);
         chunk.setDocument(this);
+    }
+
+    public void clearChunks() {
+        this.chunks.clear();
+    }
+
+    public void updateStage(DocumentStage currentStage) {
+        this.currentStage = currentStage;
+    }
+
+    public void updateSummaryPreview(String summaryPreview) {
+        this.summaryPreview = summaryPreview;
+    }
+
+    public void updateDocument(
+            String title,
+            String filePath,
+            DepartmentEntity department,
+            AccessLevel accessLevel,
+            DocumentStage currentStage
+    ) {
+        this.title = title;
+        this.filePath = filePath;
+        this.department = department;
+        this.accessLevel = accessLevel;
+        this.currentStage = currentStage;
     }
 }

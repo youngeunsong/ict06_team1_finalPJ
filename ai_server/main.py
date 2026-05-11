@@ -25,6 +25,7 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.documents.ai_documents import router as documents_router
 from api.evaluation.ai_evaluation import router as evaluation_router
 from api.roadmap.ai_roadmap import router as roadmap_router
 from services.evaluation_service import evaluate_answer
@@ -66,6 +67,12 @@ app.include_router(
     roadmap_router,
     prefix="/api/ai",
     tags=["AI Roadmap"]
+)
+
+app.include_router(
+    documents_router,
+    prefix="/api/ai/documents",
+    tags=["AI Documents"]
 )
 
 

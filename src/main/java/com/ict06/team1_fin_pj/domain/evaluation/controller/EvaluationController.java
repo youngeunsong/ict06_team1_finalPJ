@@ -13,6 +13,7 @@
  * @ 2026.04.30    김다솜        최초 생성 및 퀴즈 조회/제출 API 구현
  * @ 2026.05.01    김다솜        카테고리별 퀴즈 조회 및 일괄 제출 구조로 수정
  * @ 2026.05.06    김다솜        카테고리별 퀴즈 상세 결과 조회 API 추가
+ * @ 2026.05.08    김다솜        퀴즈 중복 제출 오류 응답 처리 추가
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.controller;
@@ -43,10 +44,14 @@ public class EvaluationController {
 
     //퀴즈 답안 제출 및 채점
     @PostMapping("/quiz/submit")
-    public ResponseEntity<EvaluationSubmitResponse> submitQuiz(
+    public ResponseEntity<?> submitQuiz(
             @RequestBody EvaluationSubmitRequest request) {
 
-        return ResponseEntity.ok(evaluationService.submitQuiz(request));
+        try {
+            return ResponseEntity.ok(evaluationService.submitQuiz(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     //카테고리별 평가 결과 조회

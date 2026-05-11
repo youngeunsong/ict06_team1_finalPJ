@@ -13,6 +13,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.06    김다솜        최초 생성 및 온보딩 대시보드 요약 응답 구조 정의
+ * @ 2026.05.08    김다솜        체크리스트 완료 현황 응답 필드 추가
  */
 
 package com.ict06.team1_fin_pj.common.dto.onboarding;
@@ -28,6 +29,9 @@ public class OnboardingDashboardResponse {
 
     private Integer totalLearningCount;
     private Integer completedLearningCount;
+    private Integer totalChecklistCount;
+    private Integer completedChecklistCount;
+    private Integer checklistProgressPercent;
     private Integer totalCategoryCount;
     private Integer completedCategoryCount;
     private Integer learningProgressPercent;
