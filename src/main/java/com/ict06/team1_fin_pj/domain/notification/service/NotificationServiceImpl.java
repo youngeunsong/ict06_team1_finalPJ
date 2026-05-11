@@ -9,7 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.23    김다솜        최초 생성
  * @ 2026.04.23    김다솜        SSE 연결 관리 및 알림 저장·전송 로직/더티 체킹 이용한 알림 읽음 처리 로직 추가
- * @ 2026.05.08    김다솜        Redis 장애 시 DB 기반 안 읽은 알림 수 조회로 fallback 처리
+ * @ 2026.05.08    김다솜        Redis 장애 시 DB 기반 안 읽은 알림 수 조회로 fallback 처리/알림 전체 읽음, 단건 삭제, 전체 삭제 기능 추가
  */
 
 package com.ict06.team1_fin_pj.domain.notification.service;
@@ -120,18 +120,60 @@ public class NotificationServiceImpl {
 
     //알림 읽음 처리 -> Redis 개수 감소 추가
     @Transactional
-    public void markAsRead(Integer notiId) {
+    public void markAsRead(String empNo, Integer notiId) {
         //1. DB에서 해당 알림 조회
         //persistence context에 스냅샷 저장
         NotificationEntity noti = notificationRepository.findById(notiId)
                 .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
 
+        if(!noti.getEmployee().getEmpNo().equals(empNo)) {
+            throw new RuntimeException("본인의 알림만 처리할 수 있습니다.");
+        }
+
         //추가
         if(Boolean.FALSE.equals(noti.getIsRead())) {
             noti.markRead();
 
-            decrementUnreadCount(noti.getEmployee().getEmpNo());
+            decrementUnreadCount(empNo);
         }
+    }
+
+    @Transactional
+    public void markAsRead(Integer notiId) {
+        NotificationEntity noti = notificationRepository.findById(notiId)
+                .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
+        markAsRead(noti.getEmployee().getEmpNo(), notiId);
+    }
+
+    @Transactional
+    public void markAllAsRead(String empNo) {
+        List<NotificationEntity> unreadNotifications =
+                notificationRepository.findByEmployee_EmpNoAndIsRead(empNo, false);
+
+        unreadNotifications.forEach(NotificationEntity::markRead);
+        cacheUnreadCount(empNo, 0);
+    }
+
+    @Transactional
+    public void deleteNotification(String empNo, Integer notiId) {
+        NotificationEntity noti = notificationRepository.findById(notiId)
+                .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
+
+        if(!noti.getEmployee().getEmpNo().equals(empNo)) {
+            throw new RuntimeException("본인의 알림만 삭제할 수 있습니다.");
+        }
+
+        if(Boolean.FALSE.equals(noti.getIsRead())) {
+            decrementUnreadCount(empNo);
+        }
+        notificationRepository.delete(noti);
+    }
+
+    @Transactional
+    public void deleteAllNotifications(String empNo) {
+        List<NotificationEntity> notifications = notificationRepository.findByEmployee_EmpNo(empNo);
+        notificationRepository.deleteAll(notifications);
+        cacheUnreadCount(empNo, 0);
     }
 
     private String unreadCountKey(String empNo) {

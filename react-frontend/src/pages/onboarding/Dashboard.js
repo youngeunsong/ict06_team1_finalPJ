@@ -9,6 +9,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.06    김다솜        최초 생성 및 온보딩 대시보드 기본 구조 작성
+ * @ 2026.05.08    김다솜        체크리스트 진행률 요약 표시 추가
  */
 
 import React, { useEffect, useState } from 'react';
@@ -60,6 +61,8 @@ const Dashboard = () => {
                             완료 카테고리 {dashboard.completedCategoryCount} / {dashboard.totalCategoryCount}
                             {' · '}
                             완료 콘텐츠 {dashboard.completedLearningCount} / {dashboard.totalLearningCount}
+                            {' · '}
+                            체크리스트 {dashboard.completedChecklistCount ?? 0} / {dashboard.totalChecklistCount ?? 0}
                         </div>
                     </div>
 
@@ -91,6 +94,14 @@ const Dashboard = () => {
                 <div style={summaryCard}>
                     <div style={summaryItemLabel}>완료한 콘텐츠</div>
                     <h4>{dashboard.completedLearningCount} / {dashboard.totalLearningCount}</h4>
+                </div>
+
+                <div style={summaryCard}>
+                    <div style={summaryItemLabel}>체크리스트 진행률</div>
+                    <h4>{dashboard.checklistProgressPercent ?? 0}%</h4>
+                    <small style={summaryDesc}>
+                        {dashboard.completedChecklistCount ?? 0} / {dashboard.totalChecklistCount ?? 0} 완료
+                    </small>
                 </div>
 
                 <div style={summaryCard}>
