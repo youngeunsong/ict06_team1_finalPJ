@@ -23,6 +23,9 @@
 
     <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
+        <!--전자결재용 서브 헤더 시작-->
+        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <!--전자결재용 서브 헤더 끝-->
         <!--begin::App Content-->
         <div class="app-content">
             <!--begin::Container-->
@@ -68,13 +71,13 @@
                 <!-- end::Row-->
                 <!-- 목록, 수정, 삭제 버튼 바 시작 -->
                 <div class="d-flex justify-content-end gap-2">
-                    <a th:href="@{/admin/approval/templateList}" class="btn btn-secondary">목록</a>
+                    <a th:href="@{/admin/approval/appFormList}" class="btn btn-secondary">목록</a>
 
-                    <a th:href="@{/admin/approval/edit/{formId}(formId=${form.formId})}"
+                    <a th:href="@{/admin/approval/editAppForm/{formId}(formId=${form.formId})}"
                        class="btn btn-primary">
                         수정
                     </a>
-                    <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
+                    <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
                 </div>
                 <!-- 목록, 수정, 삭제 버튼 바 끝 -->
             </div>
@@ -92,7 +95,7 @@
 <th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
-<script src="/js/approval/deleteForm.js"></script> <!-- 서식 삭제 함수 -->
+<script src="/js/approval/deleteAppForm.js"></script> <!-- 서식 삭제 함수 -->
 <script>
     // DB에 저장된 json 타입 서식을 HTML로 렌더링
     function renderForm(templateJson) {

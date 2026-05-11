@@ -34,6 +34,7 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
      * - parentDeptId: 본부
      * - deptId: 팀
      * - positionId: 직급
+     * - minPositionId: 최소 직급 (예: '주임'보다 높은 직급 보유 사원)
      * - roleId: 권한
      * - status: 상태
      *
@@ -57,6 +58,7 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
         e.phone,
         d.deptName,
         p.positionName,
+        p.positionId,
         r.roleName,
         e.bank,
         e.accountNo,
@@ -87,6 +89,9 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
             ))
       )
       and (:positionId is null or p.positionId = :positionId)
+      
+      and (:minPositionId is null or p.positionId > :minPositionId)
+      
       and (:roleId is null or r.roleId = :roleId)
       and (
             :status is null
@@ -102,6 +107,7 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
             Integer parentDeptId,
             Integer deptId,
             Integer positionId,
+            Integer minPositionId, // 최소 직급 (예: '주임'보다 높은 직급 보유 사원)
             Integer roleId,
             String status,
             Pageable pageable

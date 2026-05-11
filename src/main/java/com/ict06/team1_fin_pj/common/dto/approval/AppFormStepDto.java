@@ -3,16 +3,20 @@ package com.ict06.team1_fin_pj.common.dto.approval;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 /**
  * @author : 송영은$
- * description : 앱 서식 관리용 dto
+ * description : 전자결재 단계 DTO
  * ========================================
  * DATE         AUTHOR      NOTE
- * 2026-05-01   송영은     최초 생성
+ * 2026-05-06   송영은       최초 생성
  **/
 @Getter
 @Setter
-public class AppFormDto {
-    private String formName; // 서식명
-    private String template; // 서식 내용
+public class AppFormStepDto {
+
+    private int step;
+
+    private List<AppFormTargetDto> targets;
 }
