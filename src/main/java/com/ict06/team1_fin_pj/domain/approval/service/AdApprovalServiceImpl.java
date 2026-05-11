@@ -165,7 +165,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // insert
     @Transactional
     @Override
-    public void saveAppLineForm(AppLineRequestDto dto, PrincipalDetails principal) {
+    public void saveAppLineForm(AppLineFormRequestDto dto, PrincipalDetails principal) {
 
         // 로그인 정보에서 작성자 정보 가져오기
         EmpEntity loginEmp = principal.getEmpEntity();
@@ -219,7 +219,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     private AppLineTemplateDetailEntity createDetailEntity(
             AppLineTemplateEntity template,
             int step,
-            ApprovalTargetDto t
+            AppFormTargetDto t
     ) {
 
         ApproverType type = ApproverType.valueOf(t.getType());
@@ -258,9 +258,9 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // list
     @Override
     @Transactional(readOnly = true)
-    public Page<AppLineListDto> listAppLineForm(Pageable pageable) {
+    public Page<AppLineFormListDto> listAppLineForm(Pageable pageable) {
         return appLineTemplateRepository.findAll(pageable)
-                .map(t -> AppLineListDto.builder()
+                .map(t -> AppLineFormListDto.builder()
                         .templateId(t.getTemplateId())
                         .templateName(t.getTemplateName())
                         .formName(
@@ -285,11 +285,11 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // 결재선 서식 목록 조회
     @Override
     @Transactional(readOnly = true)
-    public List<AppLineListDto> listAllAppLineTemplates(){
+    public List<AppLineFormListDto> listAllAppLineTemplates(){
 
         return appLineTemplateRepository.findAll()
                 .stream()
-                .map(entity -> AppLineListDto.builder()
+                .map(entity -> AppLineFormListDto.builder()
                         .templateId(entity.getTemplateId())
                         .templateName(entity.getTemplateName())
                         .isDefault(entity.getIsDefault())
@@ -319,7 +319,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // 페이징 처리된 list로 받기
     @Override
     @Transactional(readOnly = true)
-    public Page<AppLineListDto> getAppLineFormsWithPaging(
+    public Page<AppLineFormListDto> getAppLineFormsWithPaging(
             int page,
             int size
     ) {
@@ -333,7 +333,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         Page<AppLineTemplateEntity> result =
                 appLineTemplateRepository.findAll(pageable);
 
-        return result.map(entity -> AppLineListDto.builder()
+        return result.map(entity -> AppLineFormListDto.builder()
                 .templateId(entity.getTemplateId())
                 .templateName(entity.getTemplateName())
                 .formName(
@@ -357,7 +357,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     // 1건 select (상세 화면)
     @Override
     @Transactional(readOnly = true)
-    public AppLineDetailDto selectAppLineForm(Integer id) {
+    public AppLineFormDetailDto selectAppLineForm(Integer id) {
         AppLineTemplateEntity template =
                 appLineTemplateRepository.findDetailById(id)
                         .orElseThrow(() -> new IllegalArgumentException("결재선 없음"));
@@ -369,16 +369,16 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                 AppLineTemplateDetailEntity::getStepOrder
                         ));
 
-        List<AppLineStepDto> steps = grouped.entrySet().stream()
+        List<AppLineFormStepDto> steps = grouped.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> {
 
-                    List<AppLineTargetDto> targets =
+                    List<AppLineFormTargetDto> targets =
                             entry.getValue().stream()
                                     .map(this::convertTargetDto)
                                     .toList();
 
-                    return AppLineStepDto.builder()
+                    return AppLineFormStepDto.builder()
                             .stepOrder(entry.getKey())
 //                            .step(entry.getKey())
                             .targets(targets)
@@ -386,7 +386,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 })
                 .toList();
 
-        return AppLineDetailDto.builder()
+        return AppLineFormDetailDto.builder()
                 .templateId(template.getTemplateId())
                 .templateName(template.getTemplateName())
                 .formName(
@@ -400,7 +400,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     }
 
     // 대상 DTO로 변환
-    private AppLineTargetDto convertTargetDto(
+    private AppLineFormTargetDto convertTargetDto(
             AppLineTemplateDetailEntity detail
     ) {
 
@@ -472,7 +472,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 //                .positionName(positionName)
 //                .empNo(empNo)
 //                .build();
-        return AppLineTargetDto.builder()
+        return AppLineFormTargetDto.builder()
                 .id(id)
                 .name(name)
                 .dept(dept)
@@ -510,7 +510,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     @Override
     public void updateAppLineForm(
             Integer templateId,
-            AppLineRequestDto dto,
+            AppLineFormRequestDto dto,
             PrincipalDetails principal
     ) {
 

@@ -15,7 +15,7 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
-public class AppLineTargetDto {
+public class AppLineFormTargetDto {
 
 //    private String type;
 //    private String targetName;

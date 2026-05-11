@@ -113,7 +113,7 @@ public class AdApprovalController {
     // 모든 결재선 서식 목록 조회 (Ajax)
     @GetMapping("/appLineTemplates")
     @ResponseBody
-    public List<AppLineListDto> appLineTemplates(){
+    public List<AppLineFormListDto> appLineTemplates(){
         System.out.println("[AdApprovalController] - appLineTemplates()");
         return service.listAllAppLineTemplates();
     }
@@ -202,7 +202,7 @@ public class AdApprovalController {
     @PostMapping("/createAppLineFormAction")
     @ResponseBody
     public String createAppLineFormAction(
-            @RequestBody AppLineRequestDto requestDto,
+            @RequestBody AppLineFormRequestDto requestDto,
             @AuthenticationPrincipal PrincipalDetails principal
     ) {
         System.out.println("[AdApprovalController] - createAppLineFormAction()");
@@ -232,7 +232,7 @@ public class AdApprovalController {
     // 페이징 처리된 결재선 서식 목록 조회 (Ajax)
     @GetMapping("/getAppLineForms")
     @ResponseBody
-    public Page<AppLineListDto> getAppLineForms(
+    public Page<AppLineFormListDto> getAppLineForms(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
@@ -290,7 +290,7 @@ public class AdApprovalController {
     // 전자 결재선 서식 수정 preload 전용 JSON API
     @GetMapping("/appLineFormDetailData/{templateId}")
     @ResponseBody
-    public AppLineDetailDto appLineFormDetailData(
+    public AppLineFormDetailDto appLineFormDetailData(
             @PathVariable Integer templateId
     ) {
         System.out.println("[AdApprovalController] - appLineFormDetailData()");
@@ -302,7 +302,7 @@ public class AdApprovalController {
     @ResponseBody
     public ResponseEntity<?> updateAppLineForm(
             @PathVariable Integer templateId,
-            @RequestBody AppLineRequestDto dto,
+            @RequestBody AppLineFormRequestDto dto,
             @AuthenticationPrincipal PrincipalDetails principal
     ) {
         System.out.println("[AdApprovalController] - updateAppLineForm()");

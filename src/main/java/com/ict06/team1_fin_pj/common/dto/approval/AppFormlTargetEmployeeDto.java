@@ -2,7 +2,6 @@ package com.ict06.team1_fin_pj.common.dto.approval;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 /**
  * @author : 송영은$
@@ -13,7 +12,7 @@ import lombok.Setter;
  **/
 @Getter
 @AllArgsConstructor
-public class ApprovalTargetEmployeeDto {
+public class AppFormlTargetEmployeeDto {
     private String empNo;
     private String name;
     private String deptName;

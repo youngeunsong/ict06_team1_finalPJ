@@ -16,7 +16,7 @@ import java.util.List;
 @Getter
 @Builder
 @AllArgsConstructor
-public class AppLineDetailDto {
+public class AppLineFormDetailDto {
 
     private Integer templateId;
 
@@ -28,5 +28,5 @@ public class AppLineDetailDto {
 
 //    private String description;
 
-    private List<AppLineStepDto> steps;
+    private List<AppLineFormStepDto> steps;
 }

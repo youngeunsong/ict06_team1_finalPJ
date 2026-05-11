@@ -14,12 +14,12 @@ import java.util.List;
  **/
 @Getter
 @Setter
-public class AppLineRequestDto {
+public class AppLineFormRequestDto {
     private String templateName; // 결재선 서식 이름
 
     private Boolean isDefault; // 기본 결재선 서식 여부
 
-    private List<ApprovalTargetDto> refTargets;
+    private List<AppFormTargetDto> refTargets;
 
-    private List<ApprovalStepDto> approvalSteps; // 결재 단계
+    private List<AppFormStepDto> approvalSteps; // 결재 단계
 }

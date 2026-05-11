@@ -41,22 +41,22 @@ public interface AdApprovalService {
 
     // [결재선 서식 관리]--------------------------------------------
     // insert
-    public void saveAppLineForm(AppLineRequestDto dto, PrincipalDetails principal);
+    public void saveAppLineForm(AppLineFormRequestDto dto, PrincipalDetails principal);
 
     // list
-    public Page<AppLineListDto> listAppLineForm(Pageable pageable);
+    public Page<AppLineFormListDto> listAppLineForm(Pageable pageable);
 
     // 결재선 서식 목록 조회
-    List<AppLineListDto> listAllAppLineTemplates();
+    List<AppLineFormListDto> listAllAppLineTemplates();
 
     // 결재선 서식과 결재 서식 연결 저장
     void applyLineTemplate(Integer formId, Integer templateId);
 
     // 페이징 처리된 list로 받기
-    Page<AppLineListDto> getAppLineFormsWithPaging(int page, int size);
+    Page<AppLineFormListDto> getAppLineFormsWithPaging(int page, int size);
 
     // 1건 select (상세 화면)
-    public AppLineDetailDto selectAppLineForm(Integer id);
+    public AppLineFormDetailDto selectAppLineForm(Integer id);
 
     // delete
     public void deleteAppLineTemplate(int id);
@@ -65,7 +65,7 @@ public interface AdApprovalService {
 //    public void updateAppLineTemplate(AppLineTemplateEntity entity);
     void updateAppLineForm(
             Integer templateId,
-            AppLineRequestDto dto,
+            AppLineFormRequestDto dto,
             PrincipalDetails principal
     );
 }

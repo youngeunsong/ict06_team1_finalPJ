@@ -16,10 +16,10 @@ import java.util.List;
 @Getter
 @Builder
 @AllArgsConstructor
-public class AppLineStepDto {
+public class AppLineFormStepDto {
 
     private Integer stepOrder;
 //    private int step; // TODO: 위의 라인으로 인해 오류 발생시 되돌리기
 
-    private List<AppLineTargetDto> targets;
+    private List<AppLineFormTargetDto> targets;
 }

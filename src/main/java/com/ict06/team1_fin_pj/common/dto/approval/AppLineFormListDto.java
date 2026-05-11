@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class AppLineListDto {
+public class AppLineFormListDto {
 
     private Integer templateId;
 
