@@ -54,4 +54,7 @@ public class PayrollBaseSalaryResponseDTO {
     // 저장된 급여대장 수정일
     private LocalDateTime payrollUpdatedAt;
 
+    // 기본급 정책 등록일
+    private LocalDateTime policyCreatedAt;
+
 }

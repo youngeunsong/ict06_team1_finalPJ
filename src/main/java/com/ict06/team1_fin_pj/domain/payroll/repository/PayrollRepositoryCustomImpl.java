@@ -264,6 +264,7 @@ public class PayrollRepositoryCustomImpl implements PayrollRepositoryCustom {
                         salaryPolicyEntity.grade.gradeId.as("gradeId"),
 
                         // 정책 변경 감지용
+                        salaryPolicyEntity.createdAt.as("policyCreatedAt"),
                         salaryPolicyEntity.updatedAt.as("policyUpdatedAt")
                 ))
                 .from(empEntity)

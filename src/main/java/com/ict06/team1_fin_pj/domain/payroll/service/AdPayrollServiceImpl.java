@@ -2,7 +2,7 @@ package com.ict06.team1_fin_pj.domain.payroll.service;
 
 import com.ict06.team1_fin_pj.common.dto.payroll.*;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
-import com.ict06.team1_fin_pj.domain.payroll.config.PayrollRateProperties;
+import com.ict06.team1_fin_pj.domain.payroll.config.PayrollRateConstants;
 import com.ict06.team1_fin_pj.domain.payroll.entity.*;
 import com.ict06.team1_fin_pj.domain.payroll.repository.PayrollRepository;
 import jakarta.persistence.EntityManager;
@@ -25,7 +25,7 @@ public class AdPayrollServiceImpl implements AdPayrollService  {
 
     private final PayrollRepository payrollRepository;
     private final EntityManager entityManager;
-    private final PayrollRateProperties payrollRateProperties;
+
 
     // 사원 검색 autocomplete
     @Override
@@ -162,6 +162,38 @@ public class AdPayrollServiceImpl implements AdPayrollService  {
                 // 현재 정책 기본급 비교 표시용
                 savedSalary.setPolicyBaseSalary(currentPolicySalary.getBaseSalary());
                 savedSalary.setPolicyUpdatedAt(currentPolicySalary.getPolicyUpdatedAt());
+
+                /*
+                 * 현재 정책이 새로 등록된 경우
+                 *
+                 * 기준:
+                 * - createdAt == updatedAt
+                 * - 정책 생성일이 저장된 DRAFT 이후
+                 *
+                 * 즉:
+                 * 저장 당시에는 정책이 없었고
+                 * 이후 새 정책이 등록된 상황
+                 */
+                if (currentPolicySalary.getPolicyCreatedAt() != null
+                        && currentPolicySalary.getPolicyUpdatedAt() != null
+                        && savedSalary.getPayrollUpdatedAt() != null
+                        && currentPolicySalary.getPolicyCreatedAt()
+                        .isEqual(currentPolicySalary.getPolicyUpdatedAt())
+                        && currentPolicySalary.getPolicyCreatedAt()
+                        .isAfter(savedSalary.getPayrollUpdatedAt())) {
+
+                    savedSalary.setPolicyExists(true);
+                    savedSalary.setPolicyChanged(false);
+                    savedSalary.setWarningRequired(true);
+                    savedSalary.setPolicyDecisionRequired(true);
+                    savedSalary.setPolicyDecisionCompleted(false);
+
+                    savedSalary.setWarningMessage(
+                            "새 기본급 정책이 등록되었습니다. 등록된 기본급 정책을 적용하시겠습니까?"
+                    );
+
+                    return savedSalary;
+                }
 
                 // 현재 기준 정책이 저장된 DRAFT 이후에 수정된 경우
                 if (currentPolicySalary.getPolicyUpdatedAt() != null
@@ -1214,13 +1246,14 @@ public class AdPayrollServiceImpl implements AdPayrollService  {
          */
         BigDecimal insuranceBase = baseSalary;
 
-        BigDecimal nationalPension = calc(insuranceBase, payrollRateProperties.getNationalPension());
-        BigDecimal healthInsurance = calc(insuranceBase, payrollRateProperties.getHealthInsurance());
+
+        BigDecimal nationalPension = calc(insuranceBase, PayrollRateConstants.NATIONAL_PENSION);
+        BigDecimal healthInsurance = calc(insuranceBase, PayrollRateConstants.HEALTH_INSURANCE);
 
         // 장기요양보험은 건강보험료 기준
-        BigDecimal longTermCare = calc(healthInsurance, payrollRateProperties.getLongTermCare());
+        BigDecimal longTermCare = calc(healthInsurance, PayrollRateConstants.LONG_TERM_CARE);
+        BigDecimal employmentInsurance = calc(insuranceBase, PayrollRateConstants.EMPLOYMENT_INSURANCE);
 
-        BigDecimal employmentInsurance = calc(insuranceBase, payrollRateProperties.getEmploymentInsurance());
 
         BigDecimal totalInsurance = nationalPension
                 .add(healthInsurance)
@@ -1228,10 +1261,11 @@ public class AdPayrollServiceImpl implements AdPayrollService  {
                 .add(employmentInsurance);
 
         // 원천징수: 단일 고정세율
-        BigDecimal incomeTax = calc(taxableIncome, payrollRateProperties.getIncomeTax());
+        BigDecimal incomeTax = calc(taxableIncome, PayrollRateConstants.INCOME_TAX);
 
         // 지방소득세: 소득세 기준
-        BigDecimal localIncomeTax = calc(incomeTax, payrollRateProperties.getLocalIncomeTax());
+        BigDecimal localIncomeTax = calc(incomeTax, PayrollRateConstants.LOCAL_INCOME_TAX);
+
 
         BigDecimal totalDeduction = totalInsurance
                 .add(incomeTax)
@@ -1241,10 +1275,10 @@ public class AdPayrollServiceImpl implements AdPayrollService  {
         BigDecimal netSalary = totalGross.subtract(totalDeduction);
 
         List<PayrollPreviewResponseDTO.InsuranceRow> insuranceRows = List.of(
-                makeInsuranceRow("국민연금", insuranceBase, payrollRateProperties.getNationalPension(), nationalPension),
-                makeInsuranceRow("건강보험", insuranceBase, payrollRateProperties.getHealthInsurance(), healthInsurance),
-                makeInsuranceRow("장기요양보험", healthInsurance, payrollRateProperties.getLongTermCare(), longTermCare),
-                makeInsuranceRow("고용보험", insuranceBase, payrollRateProperties.getEmploymentInsurance(), employmentInsurance)
+                makeInsuranceRow("국민연금", insuranceBase, PayrollRateConstants.NATIONAL_PENSION, nationalPension),
+                makeInsuranceRow("건강보험", insuranceBase, PayrollRateConstants.HEALTH_INSURANCE, healthInsurance),
+                makeInsuranceRow("장기요양보험", healthInsurance, PayrollRateConstants.LONG_TERM_CARE, longTermCare),
+                makeInsuranceRow("고용보험", insuranceBase, PayrollRateConstants.EMPLOYMENT_INSURANCE, employmentInsurance)
         );
 
         return PayrollPreviewResponseDTO.builder()
