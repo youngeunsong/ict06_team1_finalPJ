@@ -82,6 +82,34 @@ public class ApprovalApiController {
     }
 
     /**
+     * 결재 대기 문서함 목록 조회 API
+     *
+     * - 로그인한 사용자가 지금 승인/반려해야 하는 문서를 조회합니다.
+     * - 현재 결재자가 로그인 사용자이고, 문서 상태가 IN_PROGRESS인 문서만 반환합니다.
+     */
+    @GetMapping("/pending-documents")
+    public Page<ApprovalListResponseDto> getPendingApprovals(
+            @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.getPendingApprovals(principal, pageable);
+    }
+
+    /**
+     * 결재 예정 문서함 목록 조회 API
+     *
+     * - 로그인한 사용자가 결재선에는 포함되어 있지만 아직 본인 차례가 아닌 문서를 조회합니다.
+     * - stepOrder=0인 참조자는 결재자가 아니므로 예정 문서함에서 제외합니다.
+     */
+    @GetMapping("/upcoming-documents")
+    public Page<ApprovalListResponseDto> getUpcomingApprovals(
+            @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.getUpcomingApprovals(principal, pageable);
+    }
+
+    /**
      * 결재 문서 상세 조회 API
      *
      * - 목록에서 문서를 클릭했을 때 호출합니다.

@@ -21,7 +21,7 @@ public interface ApprovalService {
 
     /**
      * 새 결재 문서를 임시저장합니다.
-     * 첨부파일이 없는 JSON 요청과 첨부파일이 있는 multipart 요청이 모두 이 메서드를 사용합니다.
+     * 첨부파일이 없는 JSON 요청과 첨부파일이 있는 multipart 요청 모두 이 메서드를 사용합니다.
      */
     ApprovalCreateResponseDto saveDraft(
             ApprovalCreateRequestDto requestDto,
@@ -82,10 +82,27 @@ public interface ApprovalService {
     /**
      * 로그인한 사용자가 참조자로 지정된 결재 문서 목록을 조회합니다.
      *
-     * 참조자는 APP_LINE.stepOrder=0으로 저장된 대상이며, 결재 승인/반려 권한은 없고 열람 권한만 가집니다.
+     * 참조자는 APP_LINE.stepOrder=0으로 저장된 대상이며,
+     * 결재 승인/반려 권한은 없고 열람 권한만 가집니다.
      */
     Page<ApprovalListResponseDto> getMyReferencedDocuments(
             String status,
+            PrincipalDetails principal,
+            Pageable pageable
+    );
+
+    /**
+     * 현재 로그인 사용자가 지금 결재해야 하는 문서 목록을 조회합니다.
+     */
+    Page<ApprovalListResponseDto> getPendingApprovals(
+            PrincipalDetails principal,
+            Pageable pageable
+    );
+
+    /**
+     * 로그인 사용자가 결재선에 포함되어 있지만 아직 차례가 오지 않은 문서 목록을 조회합니다.
+     */
+    Page<ApprovalListResponseDto> getUpcomingApprovals(
             PrincipalDetails principal,
             Pageable pageable
     );

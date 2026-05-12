@@ -214,6 +214,40 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 현재 로그인 사용자가 지금 결재해야 하는 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getPendingApprovals(
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        return approvalRepository.findPendingApprovals(
+                principal.getEmpNo(),
+                pageable
+        );
+    }
+
+    /**
+     * 로그인 사용자가 결재선에는 포함되어 있지만 아직 차례가 오지 않은 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getUpcomingApprovals(
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        return approvalRepository.findUpcomingApprovals(
+                principal.getEmpNo(),
+                pageable
+        );
+    }
+
+    /**
      * 결재 문서 상세 정보를 조회합니다.
      *
      * 작성자는 자신의 문서를 볼 수 있고, 결재자와 참조자는 상신 이후 문서만 볼 수 있습니다.
