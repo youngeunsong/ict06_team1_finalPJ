@@ -12,6 +12,7 @@
  * @ 2026.04.17    김다솜        최초 생성
  * @ 2026.04.30    김다솜        스타일 코드 분리(LoginStyle.js) 및 UI 정리
  * @ 2026.05.07    김다솜        관리자도 동일 로그인 페이지 사용하도록, 대시보드 입장 시 백엔드 세션 로그인(/admin/login-process) 브릿지 처리 추가
+ * @ 2026.05.08    김다솜        관리자 세션 브릿지 실패 시 관리자 전용 로그인 대신 공용 로그인 페이지로 이동하도록 수정
  */
 
 import React from 'react';
@@ -99,8 +100,8 @@ function WelcomePage() {
           }
         }
 
-        // 임시 정보가 없으면 관리자 로그인 페이지로 이동
-        window.location.href = `${serverOrigin}/admin/login`;
+        // 임시 정보가 없으면 공용 로그인 페이지로 이동
+        navigate(PATH.AUTH.LOGIN);
       } else {
         // 그 외(일반 사원/팀 리더)인 경우 사용자 홈으로 이동
         navigate(PATH.AUTH.USERHOME);

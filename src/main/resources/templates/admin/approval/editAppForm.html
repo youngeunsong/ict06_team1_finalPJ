@@ -4,6 +4,7 @@
  * ========================================
  * DATE         AUTHOR      NOTE
  * 2026-05-01   송영은       최초 생성
+ * 2026-05-04   송영은       서식 수정 오류 해결
 -->
 <!doctype html>
 <html xmlns:th="http://www.thymleaf.org">
@@ -26,6 +27,9 @@
 
     <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
+        <!--전자결재용 서브 헤더 시작-->
+        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <!--전자결재용 서브 헤더 끝-->
         <!--begin::App Content-->
         <div class="app-content">
             <!--begin::Container-->
@@ -110,9 +114,9 @@
                             <!-- 목록, 수정, 삭제 버튼 바 시작 -->
                             <br>
                             <div class="d-flex justify-content-end gap-2">
-                                <a th:href="@{/admin/approval/viewForm/{id}(id=${form.formId})}" class="btn btn-secondary">돌아가기</a>
+                                <a th:href="@{/admin/approval/viewAppForm/{id}(id=${form.formId})}" class="btn btn-secondary">돌아가기</a>
                                 <button type="submit" id="" class="btn btn-primary">수정 완료</button>
-                                <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
+                                <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
                             </div>
                             <!-- 목록, 수정, 삭제 버튼 바 끝 -->
                         </form>
@@ -139,7 +143,7 @@
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
 <!-- 템플릿 추가: 동적 필드 추가 메서드 활용 -->
 <script src="/js/approval/createTemplate.js"></script>  
-<script src="/js/approval/deleteForm.js"></script> <!-- 서식 삭제 함수 -->
+<script src="/js/approval/deleteAppForm.js"></script> <!-- 서식 삭제 함수 -->
 <script th:inline="javascript">
     const formId = /*[[${form.formId}]]*/ 0; // Thymeleaf로 주입
 
@@ -173,23 +177,31 @@
             fileRequired: $('#isFileRequired').val() === 'yes'
         };
 
-        // fields 배열 → JSON 변환
-        for (let field of fields) {
-            const labelValue = $(`#${field.nameId}`).val();
+
+        // DOM 기준으로 직접 수집
+        $('#dynamicFields .field-item').each(function () {
+
+            const field = $(this);
+
+            const id = field.data('id');              // data-id
+            const type = field.data('type');          // data-type
+            const label = field.find('.field-label').val();
+            const input = field.find('.field-placeholder');
+            const placeholder = input.attr('placeholder') || '';
 
             formData.fields.push({
-                id: field.id,                   // input 태그 id
-                type: field.type,               // input 태그 type
-                label: labelValue,              // input 태그와 연결될 label의 필드명
-                placeholder: field.placeholder  // input 태그 placeholder
+                id: id,
+                type: type,
+                label: label,
+                placeholder: placeholder
             });
-        }
+        });
 
         console.log("전송 JSON:", formData);
 
         // Ajax 방식으로 보내기
         $.ajax({
-            url: `/admin/approval/update/${formId}`,
+            url: `/admin/approval/updateAppForm/${formId}`,
             type: 'PUT',
             contentType: 'application/json; charset=UTF-8',
             data: JSON.stringify({
@@ -199,7 +211,7 @@
             }),
             success: function () {
                 alert("성공적으로 수정됐습니다.");
-                location.href = "/admin/approval/viewForm/" + formId; // 수정 성공 시 서식 목록으로 돌아가기
+                location.href = "/admin/approval/viewAppForm/" + formId; // 수정 성공 시 서식 목록으로 돌아가기
             },
             error: function (err) {
                 console.error('에러:', err);
@@ -207,25 +219,6 @@
             }
         });
     });
-
-    // 서식 삭제 Ajax 
-    // function deleteForm() {
-
-    //     if (!confirm("정말 삭제하시겠습니까?")) return;
-
-    //     $.ajax({
-    //         url: `/admin/approval/deleteForm/${formId}`,
-    //         type: 'DELETE',
-    //         success: function () {
-    //             alert("삭제되었습니다.");
-    //             location.href = "/admin/approval/templateList";
-    //         },
-    //         error: function (err) {
-    //             console.error(err);
-    //             alert("삭제 실패");
-    //         }
-    //     });
-    // }
 </script>
 <!--스크립트 끝-->
 </body>

@@ -10,4 +10,5 @@ public interface RoadProgressRepository extends JpaRepository<RoadProgressEntity
 
     Optional<RoadProgressEntity> findByEmployee_EmpNoAndItem_ItemId(String empNo, Integer itemId);
     List<RoadProgressEntity> findByEmployee_EmpNo(String empNo);
+    void deleteByItem_Roadmap_RoadmapId(Integer roadmapId);
 }

@@ -61,11 +61,18 @@ export const PATH = {
 
   // 대분류 : 인사평가 - AI 퀴즈 및 평가
   EVALUATION: {
-    ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
-    QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
-    RESULT: "/evaluation/result", // 평가 결과 조회
-    QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`, // 평가 결과 상세 조회
-    QUIZ_DETAIL_PATTERN: "/evaluation/result/detail/:empNo/:categoryName", // 평가 결과 상세 조회(라우트 등록용)
+    // 사이드바 진입(평가 현황)
+    ROOT: "/evaluation",
+    // 퀴즈 응시(로드맵에서 연결)
+    QUIZ: (categoryName) => `/evaluation/quiz?categoryName=${encodeURIComponent(categoryName)}`,
+
+    // 평가 결과 조회(평가 현황에서 연결)
+    RESULT: "/evaluation/result",
+    
+    // 평가 결과 상세 조회(함수형)
+    QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`,
+    // 평가 결과 상세 조회(라우트 등록용)
+    QUIZ_DETAIL_PATTERN: "/evaluation/result/detail/:empNo/:categoryName",
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
@@ -114,6 +121,7 @@ export const PATH = {
   API: {
     BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
     USER_ME: '/user/me',
+    USER_UPDATE: '/user/update',
 
     ONBOARDING: {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
@@ -122,6 +130,7 @@ export const PATH = {
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
       PROGRESS_COMPLETE: "/onboarding/progress/complete",
+      PROGRESS_UNCOMPLETE: "/onboarding/progress/uncomplete",
     },
     EVALUATION: {
       QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,

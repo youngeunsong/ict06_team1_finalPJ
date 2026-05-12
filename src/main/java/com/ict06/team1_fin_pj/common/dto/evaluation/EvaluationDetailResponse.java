@@ -24,6 +24,11 @@ import java.util.List;
 public class EvaluationDetailResponse {
     private String categoryName;
     private String empNo;
+
+    private Integer totalScore;
+    private Integer maxScore;
+    private Boolean passed;
+
     private List<QuestionDetail> questions;
 
     @Getter
@@ -34,6 +39,7 @@ public class EvaluationDetailResponse {
         private String userAnswer;
         private String correctAnswer;
         private Boolean isCorrect;
+        private Integer score;
         private BigDecimal aiScore;
         private String aiFeedback;
         private BigDecimal similarityScore;

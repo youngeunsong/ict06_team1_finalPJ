@@ -13,6 +13,7 @@ import lombok.Setter;
  * - 본부
  * - 팀
  * - 직급
+ * - 최소 직급 (예: 주임보다 높은 직급 보유 사원)
  * - 권한
  * - 상태
  */
@@ -57,6 +58,11 @@ public class EmployeeSearchConditionDto {
      * 선택한 직급 ID
      */
     private Integer positionId;
+
+    /*
+     * 최소 직급 ID
+     */
+    private Integer minPositionId;
 
     /*
      * 선택한 권한 ID

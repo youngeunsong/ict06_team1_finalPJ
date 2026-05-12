@@ -1,29 +1,36 @@
 # 
 #  @FileName : ai_evaluation.py
-#  @Description : AI 온보딩 평가 API Router
-#                 - 주관식/서술형 답변 AI 채점 요청 처리
-#                 - 답변 유사도, AI 점수, 피드백 반환
+#  @Description : AI 평가 API Router
+#                 - 주관식 답변 AI 채점 요청 처리
+#                 - 콘텐츠 기준 객관식 퀴즈 초안 생성 요청 처리
 #  @Author : 김다솜
 #  @Date : 2026. 05. 02
 #  @Modification_History
 #  @
-#  @ 수정일         수정자        수정내용
+#  @ 수정일자        수정자        수정내용
 #  @ ----------    ---------    -------------------------------
-#  @ 2026.05.02    김다솜        최초 생성 및 AI 평가 API 라우터 분리
-#  @ 2026.05.06    김다솜        evaluate_answer 실제 호출로 연결 (mock 하드코딩 제거)
+#  @ 2026.05.02    김다솜        최초 생성 및 AI 채점 API 분리
+#  @ 2026.05.11    김다솜        AI 퀴즈 자동 생성 API 추가
 # 
-
 from fastapi import APIRouter
-from schemas.evaluation_schema import AiEvaluationRequest, AiEvaluationResponse
-from services.evaluation_service import evaluate_answer
+
+from schemas.evaluation_schema import (
+    AiEvaluationRequest,
+    AiEvaluationResponse,
+    AiQuizGenerationRequest,
+    AiQuizGenerationResponse
+)
+from services.evaluation_service import evaluate_answer, generate_quiz_drafts
 
 router = APIRouter()
 
-@router.post("/evaluate")
+
+@router.post("/evaluate", response_model=AiEvaluationResponse)
 def evaluate(req: AiEvaluationRequest):
     return evaluate_answer(req)
-    # return {
-    #     "score": 70,
-    #     "feedback": "좋은 답변입니다",
-    #     "similarity": 0.8
-    # }
+
+
+# 콘텐츠 기준 AI 퀴즈 초안 생성
+@router.post("/generate", response_model=AiQuizGenerationResponse)
+def generate(req: AiQuizGenerationRequest):
+    return generate_quiz_drafts(req)

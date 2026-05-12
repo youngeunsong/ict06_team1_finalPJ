@@ -1,78 +1,106 @@
-/**
- * @FileName : QuizDetailView.js
- * @Description : 평가 결과 상세 조회 화면
- *                - 특정 카테고리의 질문, 사용자 답변, 정답 및 AI 피드백 표시
- *                - URL 파라미터(categoryName)를 통한 상세 데이터 로드
- * @Author : 김다솜
- * @Date : 2026. 05. 06
- * @Modification_History
- * @
- * @ 수정일          수정자        수정내용
- * @ ----------    ---------    -------------------------------
- * @ 2026.05.06    김다솜        useParams 기반의 상세 데이터 조회 로직 구현 및 AI 피드백 UI 추가
- */
-
 import React, { useEffect, useState } from 'react';
-import axiosInstance from 'src/api/axiosInstance';
-import { evalResultStyles } from 'src/styles/js/evaluation/QuizStyle';
-import { useUser } from 'src/api/UserContext';
-import { PATH } from 'src/constants/path';
 import { useParams } from 'react-router-dom';
 
+import axiosInstance from 'src/api/axiosInstance';
+import { useUser } from 'src/api/UserContext';
+import { PATH } from 'src/constants/path';
+import { evalResultStyles } from 'src/styles/js/evaluation/QuizStyle';
+
 const QuizDetailView = () => {
-    const { userInfo } = useUser();
-    const { categoryName } = useParams(); // URL에서 empNo와 categoryName 추출
-    const decodedCategory = decodeURIComponent(categoryName); // URL 인코딩된 카테고리 이름 디코딩
-    const [detail, setDetail] = useState(null);
+  const { userInfo } = useUser();
+  const { categoryName } = useParams();
+  const decodedCategory = decodeURIComponent(categoryName);
+  const [detail, setDetail] = useState(null);
 
-    useEffect(() => {
-        if(!userInfo?.empNo || !categoryName) return;
+  useEffect(() => {
+    if (!userInfo?.empNo || !categoryName) return;
 
-        // 특정 결과의 상세 질문/답변 데이터 가져오는 API 호출
-        const fetchDetail = async () => {
-            try {
-                const apiUrl = PATH.API.EVALUATION.QUIZ_DETAIL(userInfo.empNo, decodedCategory);
-                console.log("[QuizDetailView] API 요청 URL:", apiUrl);
-                const res = await axiosInstance.get(apiUrl);
-                setDetail(res.data);
-            } catch(err) {
-                console.error("상세 결과 조회 실패", err);
-            }
-        };
-        fetchDetail();
-    }, [userInfo?.empNo, categoryName]);
+    const fetchDetail = async () => {
+      try {
+        const apiUrl = PATH.API.EVALUATION.QUIZ_DETAIL(userInfo.empNo, decodedCategory);
+        const res = await axiosInstance.get(apiUrl);
+        setDetail(res.data);
+      } catch (err) {
+        console.error('quiz detail load failed', err);
+      }
+    };
 
-    if(!detail) return <p>상세 결과를 불러오는 중...</p>
+    fetchDetail();
+  }, [userInfo?.empNo, categoryName, decodedCategory]);
 
-    return (
-        <div>
-            <h4 style={{ marginBottom: '20px' }}>📝 {detail.categoryName} 상세 결과</h4>
-            {detail.questions.map((item, idx) => (
-                <div key={idx} style={evalResultStyles.detailCard}>
-                    <div style={evalResultStyles.questionText}>Q{idx + 1}. {item.questionText}</div>
-                    <div style={evalResultStyles.answerBox}>
-                        <p><strong>내 답변:</strong> {item.userAnswer}</p>
-                        <p><strong>정답:</strong> {item.correctAnswer}</p>
+  if (!detail) return <p>상세 결과를 불러오는 중입니다.</p>;
 
-                        {/* 5. AI 피드백 표시 */}
-                        {item.aiFeedback && (
-                            <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                                <small>🤖 <strong>AI 피드백:</strong> {item.aiFeedback}</small>
-                            </div>
-                        )}
+  const getResultMeta = (item) => {
+    if (item.isCorrect === true) {
+      return { text: '정답입니다.', color: '#28a745' };
+    }
 
-                        <p style={{ 
-                            color: item.isCorrect ? '#28a745' : '#dc3545', 
-                            fontWeight: 'bold', 
-                            marginTop: '8px' 
-                        }}>
-                            {item.isCorrect ? '✨ 정답입니다!' : '❌ 오답입니다.'}
-                        </p>
-                    </div>
+    if (item.isCorrect === false) {
+      return { text: '오답입니다.', color: '#dc3545' };
+    }
+
+    return { text: 'AI 평가 완료', color: '#321fdb' };
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ marginBottom: '8px' }}>{detail.categoryName} 카테고리 평가 상세 결과</h4>
+        <p style={{ margin: 0, color: '#6c757d' }}>
+          총점 {detail.totalScore} / {detail.maxScore} · {detail.passed ? '통과' : '미통과'}
+        </p>
+      </div>
+
+      {detail.questions.map((item, idx) => {
+        const resultMeta = getResultMeta(item);
+
+        return (
+          <div key={idx} style={evalResultStyles.detailCard}>
+            <div style={evalResultStyles.questionText}>
+              Q{idx + 1}. {item.questionText}
+            </div>
+            <div style={evalResultStyles.answerBox}>
+              <p><strong>내 답변:</strong> {item.userAnswer}</p>
+              <p><strong>정답:</strong> {item.correctAnswer}</p>
+
+              {item.aiScore !== null && item.aiScore !== undefined && (
+                <p>
+                  <strong>AI 점수:</strong> {item.aiScore} / 100
+                  {item.score !== null && item.score !== undefined ? ` · 반영 점수 ${item.score}점` : ''}
+                  {item.similarityScore !== null && item.similarityScore !== undefined
+                    ? ` · 유사도 ${item.similarityScore}`
+                    : ''}
+                </p>
+              )}
+
+              {item.aiFeedback && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '6px',
+                  }}
+                >
+                  <small><strong>AI 피드백:</strong> {item.aiFeedback}</small>
                 </div>
-            ))}
-        </div>
-    );
+              )}
+
+              <p
+                style={{
+                  color: resultMeta.color,
+                  fontWeight: 'bold',
+                  marginTop: '8px',
+                }}
+              >
+                {resultMeta.text}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 export default QuizDetailView;

@@ -15,6 +15,7 @@
  *                              AI 평가 결과 UI 개선(점수와 유사도 강조, 피드백 구분)
  * @ 2026.05.07    김다솜        AI 유사도 스케일(0~1 vs 0~100) 정규화하여 % 표시 수정
  *                              aiFeedbackBox 참조 오류(import 누락) 수정
+ * @ 2026.05.08    김다솜        중복 제출 차단 응답 메시지 표시 추가
  */
 
 import React, { useEffect, useState } from 'react';
@@ -52,6 +53,7 @@ const QuizForm = ({ categoryName }) => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitResult, setSubmitResult] = useState(null);
+    const [submitError, setSubmitError] = useState(null);
 
     // 퀴즈 문항 조회
     useEffect(() => {
@@ -114,6 +116,7 @@ const QuizForm = ({ categoryName }) => {
     // 응답 전체 제출
     const handleSubmit = async () => {
         setIsSubmitting(true);
+        setSubmitError(null);
         const payload = {
             empNo: userInfo.empNo,
             categoryName,
@@ -136,6 +139,7 @@ const QuizForm = ({ categoryName }) => {
             setResults(resultMap);
         } catch (err) {
             console.error("퀴즈 제출 실패", err);
+            setSubmitError(err.response?.data || '퀴즈 제출에 실패했습니다.');
         } finally {
             setIsSubmitting(false);
         }
@@ -159,9 +163,6 @@ const QuizForm = ({ categoryName }) => {
                     <div style={questionGrid}>
                         {questions.map((q, index) => {
                             const questionResult = results[q.questionId];
-                            const isSubjective =
-                                q.questionType === 'SHORT_ANSWER' ||
-                                q.questionType === 'ESSAY';
 
                             return (
 
@@ -283,6 +284,12 @@ const QuizForm = ({ categoryName }) => {
                         <div style={answerCountText}>
                             {Object.keys(answers).length} / {questions.length} 문항 응답 완료
                         </div>
+
+                        {submitError && (
+                            <div className='text-danger mt-2'>
+                                {submitError}
+                            </div>
+                        )}
                     </div>
 
                     {/* 평가 결과 화면 연동 */}

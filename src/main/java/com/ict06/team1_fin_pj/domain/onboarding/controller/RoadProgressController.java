@@ -9,6 +9,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.29    김다솜        최초 생성/학습 완료 처리 API 구현
+ * @ 2026.05.10    김다솜        로드맵 목록 즉시 반영을 위한 학습 완료 취소 API 추가
  */
 
 package com.ict06.team1_fin_pj.domain.onboarding.controller;
@@ -30,6 +31,15 @@ public class RoadProgressController {
     public void complete(@RequestBody ProgressCompleteRequest request) {
 
         progressService.completeLearning(
+                request.getEmpNo(),
+                request.getItemId()
+        );
+    }
+
+    @PostMapping("/uncomplete")
+    public void uncomplete(@RequestBody ProgressCompleteRequest request) {
+
+        progressService.uncompleteLearning(
                 request.getEmpNo(),
                 request.getItemId()
         );
