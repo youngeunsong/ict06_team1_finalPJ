@@ -10,8 +10,10 @@ import lombok.Setter;
  *
  * 검색 조건:
  * - 키워드
- * - 부서
+ * - 본부
+ * - 팀
  * - 직급
+ * - 최소 직급 (예: 주임보다 높은 직급 보유 사원)
  * - 권한
  * - 상태
  */
@@ -26,13 +28,45 @@ public class EmployeeSearchConditionDto {
      */
     private String keyword;
 
-    // 선택한 부서 ID
+    /*
+     * 선택한 본부 ID
+     *
+     * 사원 목록 검색 화면에서 첫 번째 부서 select로 사용한다.
+     *
+     * 예:
+     * parentDeptId = 개발본부 ID
+     *
+     * 동작:
+     * - 본부만 선택하면 해당 본부 아래 모든 팀 사원을 조회한다.
+     */
+    private Integer parentDeptId;
+
+    /*
+     * 선택한 팀 ID
+     *
+     * 사원 목록 검색 화면에서 두 번째 부서 select로 사용한다.
+     *
+     * 예:
+     * deptId = 개발1팀 ID
+     *
+     * 동작:
+     * - 팀까지 선택하면 해당 팀 사원만 조회한다.
+     */
     private Integer deptId;
 
-    // 선택한 직급 ID
+    /*
+     * 선택한 직급 ID
+     */
     private Integer positionId;
 
-    // 선택한 권한 ID
+    /*
+     * 최소 직급 ID
+     */
+    private Integer minPositionId;
+
+    /*
+     * 선택한 권한 ID
+     */
     private Integer roleId;
 
     /*

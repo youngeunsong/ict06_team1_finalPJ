@@ -13,6 +13,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class AppFormDto {
-    private String formName;
-    private String template;
+    private String formName; // 서식명
+    private String template; // 서식 내용
 }

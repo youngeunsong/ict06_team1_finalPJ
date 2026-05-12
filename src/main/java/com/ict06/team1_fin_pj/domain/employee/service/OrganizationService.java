@@ -22,4 +22,11 @@ public interface OrganizationService {
      * 특정 부서에 소속된 사원 목록을 조회한다.
      */
     List<OrgEmployeeDto> getEmployeesByDepartment(Integer deptId);
+
+    /*
+     * 전체 조직도 사원 목록을 조회한다.
+     *
+     * 조직도에서 "전체 조직 보기"를 눌렀을 때 사용한다.
+     */
+    List<OrgEmployeeDto> getAllEmployees();
 }

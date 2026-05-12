@@ -20,8 +20,12 @@ const DefaultLayout = React.lazy(() => import("./layout/DefaultLayout"));
 
 function AppContent() {
 
-  const { userInfo, setUserInfo } = useUser();
+  const { userInfo, setUserInfo, userLoading } = useUser();
   const appRoutes = getAppRoutes(userInfo, setUserInfo);
+
+  if(userLoading) {
+    return <div className='pt-3 text-center'>Loading...</div>
+  }
 
   return (
     <NotificationListener>
@@ -36,9 +40,13 @@ function AppContent() {
           {/* 3. [그룹 B] 사이드바/헤더 있는 메인 서비스 레이아웃 */}
           {/* 메인 : routes/index.js에 정리된 모든 경로 지원*/}
           {/* 앞으로 생성할 페이지는 routes/의 각 대분류 별 파일에 Route만 추가하면 사이드바가 자동으로 적용됨 */}
-          <Route element={<DefaultLayout userInfo={userInfo} />}>
+          <Route path={PATH.ROOT} element={<DefaultLayout userInfo={userInfo} />}>
             {appRoutes.map((route, idx) => (
-              <Route key={idx} path={route.path} element={route.element} />
+              <Route
+                key={idx}
+                path={route.path?.startsWith('/') ? route.path.slice(1) : route.path}
+                element={route.element}
+              />
             ))}
           </Route>
           {/* 3. 예외 처리: 없는 페이지 접근 시 로그인 화면으로(404 예외 처리) */}

@@ -18,6 +18,7 @@ import {
 import CIcon from '@coreui/icons-react'
 
 import { AppSidebarNav } from './AppSidebarNav'
+import AppLogo from './AppLogo'
 
 import navigation from '../_nav'
 import { cilSearch } from '@coreui/icons'
@@ -27,6 +28,16 @@ import { cilSearch } from '@coreui/icons'
 import avatar8 from 'src/assets/images/avatars/8.jpg'
 import { PATH } from 'src/constants/path';
 
+const normalizeRole = (roleValue) => {
+  if (typeof roleValue === 'string') return roleValue.toUpperCase();
+  if (Array.isArray(roleValue) && roleValue.length > 0) return normalizeRole(roleValue[0]);
+  if (roleValue && typeof roleValue === 'object') {
+    const candidate = roleValue.roleName || roleValue.authority || roleValue.name;
+    return typeof candidate === 'string' ? candidate.toUpperCase() : '';
+  }
+  return '';
+};
+
 //DefaultLayout에서 전달한 userInfo를 props로 받음
 const AppSidebar = ({ userInfo }) => {
   const navigate = useNavigate();
@@ -35,7 +46,7 @@ const AppSidebar = ({ userInfo }) => {
   const sidebarShow = useSelector((state) => state.sidebarShow);
 
   //1. 권한 필터링 로직: userInfo가 없으면 기본 ROLE_USER로 설정
-  const userRole = userInfo?.role || 'ROLE_USER';
+  const userRole = normalizeRole(userInfo?.role) || 'ROLE_USER';
 
   const filteredNav = navigation.filter((item) => {
     //메뉴 아이템에 roles가 정의되어 있지 않으면 모든 계정에 노출
@@ -54,17 +65,9 @@ const AppSidebar = ({ userInfo }) => {
       }}
     >
 
-      {/* 임시 로고: 수정 필요 */}
-      <CSidebarBrand className='d-flex align-items-center justify-content-center'>
-        <div
-          className='sidebar-logo'
-          onClick={() => navigate(PATH.AUTH.USERHOME)}
-          style={{ cursor: 'pointer' }}
-        >
-          <span className='sidebar-logo-main'>
-            🏢 함께UP 그룹웨어
-          </span>
-        </div>
+      <CSidebarBrand className="d-flex align-items-center border-bottom">
+        {/* 사이드바가 아이콘만 보이는 상태(unfoldable)일 때 로고 텍스트 숨기기 */}
+        <AppLogo collapsed={unfoldable} />
       </CSidebarBrand>
 
       {/* 2. 프로필 및 검색 영역 */}

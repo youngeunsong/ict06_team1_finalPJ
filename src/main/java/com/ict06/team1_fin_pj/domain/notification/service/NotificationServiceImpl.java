@@ -9,6 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.23    김다솜        최초 생성
  * @ 2026.04.23    김다솜        SSE 연결 관리 및 알림 저장·전송 로직/더티 체킹 이용한 알림 읽음 처리 로직 추가
+ * @ 2026.05.08    김다솜        Redis 장애 시 DB 기반 안 읽은 알림 수 조회로 fallback 처리/알림 전체 읽음, 단건 삭제, 전체 삭제 기능 추가
  */
 
 package com.ict06.team1_fin_pj.domain.notification.service;
@@ -20,11 +21,16 @@ import com.ict06.team1_fin_pj.domain.auth.repository.EmpRepository;
 import com.ict06.team1_fin_pj.domain.notification.repository.NotificationRepository;
 import com.ict06.team1_fin_pj.domain.notification.sse.SseEmitterManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +39,7 @@ public class NotificationServiceImpl {
     private final NotificationRepository notificationRepository;
     private final SseEmitterManager sseEmitterManager;
     private final EmpRepository empRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     //SSE 구독(프론트에서 처음 연결 시 추출)
     public SseEmitter subscribe(String empNo) {
@@ -71,8 +78,38 @@ public class NotificationServiceImpl {
                 .build();
         notificationRepository.save(noti);
 
-        //2. SSE로 실시간 전송
-        sseEmitterManager.sendToEmp(empNo, noti);
+        incrementUnreadCount(empNo);
+
+        //3. SSE로 실시간 전송
+        Map<String, Object> payload = Map.of(
+                "notiId", noti.getNotiId(),
+                "title", noti.getTitle(),
+                "content", noti.getContent(),
+                "url", noti.getUrl() != null ? noti.getUrl() : ""
+        );
+        sseEmitterManager.sendToEmp(empNo, payload);
+    }
+
+    // 읽지 않은 알림 개수 조회: Redis 장애 또는 캐시 누락 시 DB 조회로 대체
+    public long getUnreadCount(String empNo) {
+        try {
+            String redisKey = unreadCountKey(empNo);
+            String count = redisTemplate.opsForValue().get(redisKey);
+
+            if(count == null) {
+                long dbCount = getUnreadCountFromDb(empNo);
+                cacheUnreadCount(empNo, dbCount);
+                return dbCount;
+            }
+
+            return Long.parseLong(count);
+        } catch (NumberFormatException e) {
+            long dbCount = getUnreadCountFromDb(empNo);
+            cacheUnreadCount(empNo, dbCount);
+            return dbCount;
+        } catch (RedisConnectionFailureException | RedisSystemException e) {
+            return getUnreadCountFromDb(empNo);
+        }
     }
 
     //알림 목록 조회
@@ -80,20 +117,102 @@ public class NotificationServiceImpl {
         return notificationRepository.findByEmployee_EmpNoOrderByCreatedAtDesc(empNo);
     }
 
-    //읽지 않은 알림 개수
-    public long getUnreadCount(String empNo) {
-        return notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
-    }
 
-    //알림 읽음 처리
+    //알림 읽음 처리 -> Redis 개수 감소 추가
     @Transactional
-    public void markAsRead(Integer notiId) {
+    public void markAsRead(String empNo, Integer notiId) {
         //1. DB에서 해당 알림 조회
         //persistence context에 스냅샷 저장
         NotificationEntity noti = notificationRepository.findById(notiId)
                 .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
-        //2. Entity 상태 변경(NotificationEntity 하단 markRead() 메서드 참고)
-        noti.markRead();
-        //@Transactional에 의해 메서드 끝날 때 자동으로 update 쿼리 실행하여 DB 업데이트
+
+        if(!noti.getEmployee().getEmpNo().equals(empNo)) {
+            throw new RuntimeException("본인의 알림만 처리할 수 있습니다.");
+        }
+
+        //추가
+        if(Boolean.FALSE.equals(noti.getIsRead())) {
+            noti.markRead();
+
+            decrementUnreadCount(empNo);
+        }
+    }
+
+    @Transactional
+    public void markAsRead(Integer notiId) {
+        NotificationEntity noti = notificationRepository.findById(notiId)
+                .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
+        markAsRead(noti.getEmployee().getEmpNo(), notiId);
+    }
+
+    @Transactional
+    public void markAllAsRead(String empNo) {
+        List<NotificationEntity> unreadNotifications =
+                notificationRepository.findByEmployee_EmpNoAndIsRead(empNo, false);
+
+        unreadNotifications.forEach(NotificationEntity::markRead);
+        cacheUnreadCount(empNo, 0);
+    }
+
+    @Transactional
+    public void deleteNotification(String empNo, Integer notiId) {
+        NotificationEntity noti = notificationRepository.findById(notiId)
+                .orElseThrow(() -> new RuntimeException("알림을 찾을 수 없습니다."));
+
+        if(!noti.getEmployee().getEmpNo().equals(empNo)) {
+            throw new RuntimeException("본인의 알림만 삭제할 수 있습니다.");
+        }
+
+        if(Boolean.FALSE.equals(noti.getIsRead())) {
+            decrementUnreadCount(empNo);
+        }
+        notificationRepository.delete(noti);
+    }
+
+    @Transactional
+    public void deleteAllNotifications(String empNo) {
+        List<NotificationEntity> notifications = notificationRepository.findByEmployee_EmpNo(empNo);
+        notificationRepository.deleteAll(notifications);
+        cacheUnreadCount(empNo, 0);
+    }
+
+    private String unreadCountKey(String empNo) {
+        return "unread:count:" + empNo;
+    }
+
+    private long getUnreadCountFromDb(String empNo) {
+        return notificationRepository.countByEmployee_EmpNoAndIsRead(empNo, false);
+    }
+
+    private void cacheUnreadCount(String empNo, long count) {
+        try {
+            String redisKey = unreadCountKey(empNo);
+            redisTemplate.opsForValue().set(redisKey, String.valueOf(count));
+            redisTemplate.expire(redisKey, 30, TimeUnit.DAYS);
+        } catch (RedisConnectionFailureException | RedisSystemException ignored) {
+            // Redis 캐시는 보조 수단이므로 장애 시 DB 값을 그대로 사용한다.
+        }
+    }
+
+    private void incrementUnreadCount(String empNo) {
+        try {
+            String redisKey = unreadCountKey(empNo);
+            redisTemplate.opsForValue().increment(redisKey);
+            redisTemplate.expire(redisKey, 30, TimeUnit.DAYS);
+        } catch (RedisConnectionFailureException | RedisSystemException ignored) {
+            // 알림 저장은 DB가 기준이므로 Redis 증가 실패는 무시한다.
+        }
+    }
+
+    private void decrementUnreadCount(String empNo) {
+        try {
+            String redisKey = unreadCountKey(empNo);
+            Long count = redisTemplate.opsForValue().decrement(redisKey);
+            if(count != null && count < 0) {
+                redisTemplate.opsForValue().set(redisKey, "0");
+            }
+        } catch (RedisConnectionFailureException | RedisSystemException ignored) {
+            // 읽음 처리는 DB가 기준이므로 Redis 감소 실패는 무시한다.
+        }
     }
 }

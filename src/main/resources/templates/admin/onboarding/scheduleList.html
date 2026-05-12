@@ -1,0 +1,194 @@
+<!--
+    @FileName : scheduleList.html
+    @Description : 관리자 온보딩 일정 목록 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 11
+    @Modification_History
+    @
+    @ 수정일자        수정자       수정내용
+    @ ----------    ---------    -------------------------------
+    @ 2026.05.11    김다솜        최초 생성 및 직원별 로드맵 일정/진행 상태 조회 기능 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title">온보딩 일정 관리</title>
+</head>
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid">
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>온보딩 일정 관리</h3>
+                        <p class="text-muted mb-0">직원별 로드맵 학습 일정과 진행 상태를 확인합니다.</p>
+                    </div>
+                    <div class="col text-end">
+                        <a th:href="@{/admin/onboarding/roadmaps}" class="btn btn-outline-primary">로드맵 관리</a>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control" id="scheduleSearchInput" placeholder="사번, 직원명, 로드맵, 항목명 검색">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="scheduleCategoryFilter">
+                                    <option value="">전체 카테고리</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="scheduleStatusFilter">
+                                    <option value="">전체 상태</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select mb-2" id="scheduleSortOrder">
+                                    <option value="emp-asc">정렬: 사번 오름차순</option>
+                                    <option value="employee-asc">정렬: 직원명 가나다순</option>
+                                    <option value="category-asc">정렬: 카테고리 가나다순</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary w-100" id="scheduleFilterReset">초기화</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        <table class="table table-hover align-middle" id="scheduleTable">
+                            <thead>
+                            <tr>
+                                <th>사번</th>
+                                <th>직원명</th>
+                                <th>로드맵</th>
+                                <th>카테고리</th>
+                                <th>학습 항목</th>
+                                <th>연결 콘텐츠</th>
+                                <th>시작일</th>
+                                <th>마감일</th>
+                                <th>진행 상태</th>
+                                <th>관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="schedule : ${schedules}" class="schedule-row">
+                                <td th:text="${schedule.empNo}" class="schedule-emp-no">20260001</td>
+                                <td th:text="${schedule.employeeName}" class="schedule-employee-name">홍길동</td>
+                                <td th:text="${schedule.roadmapTitle}" class="schedule-roadmap-title">온보딩 로드맵</td>
+                                <td th:text="${schedule.categoryName}" class="schedule-category">근태</td>
+                                <td th:text="${schedule.itemTitle}" class="schedule-item-title">근태 시스템 이해</td>
+                                <td th:text="${schedule.contentTitle}">콘텐츠</td>
+                                <td th:text="${schedule.startDate != null ? schedule.startDate : '-'}">-</td>
+                                <td th:text="${schedule.dueDate != null ? schedule.dueDate : '-'}">-</td>
+                                <td class="schedule-status">
+                                    <span class="badge bg-secondary" th:text="${schedule.status}">NOT_STARTED</span>
+                                </td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       th:href="@{/admin/onboarding/roadmaps/{roadmapId}/items/{itemId}/edit(
+                                            roadmapId=${schedule.roadmapId},
+                                            itemId=${schedule.itemId}
+                                       )}">
+                                        일정 수정
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(schedules)}">
+                                <td colspan="10" class="text-center text-muted">등록된 온보딩 일정이 없습니다.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = Array.from(document.querySelectorAll('#scheduleTable tbody .schedule-row'));
+        const searchInput = document.getElementById('scheduleSearchInput');
+        const categoryFilter = document.getElementById('scheduleCategoryFilter');
+        const statusFilter = document.getElementById('scheduleStatusFilter');
+        const sortOrder = document.getElementById('scheduleSortOrder');
+        const resetButton = document.getElementById('scheduleFilterReset');
+        const tbody = document.querySelector('#scheduleTable tbody');
+
+        const fillOptions = (selector, values, placeholder) => {
+            selector.innerHTML = `<option value="">${placeholder}</option>` +
+                [...new Set(values.filter(Boolean))].map((value) => `<option value="${value}">${value}</option>`).join('');
+        };
+
+        fillOptions(categoryFilter, rows.map((row) => row.querySelector('.schedule-category')?.innerText.trim()), '전체 카테고리');
+        fillOptions(statusFilter, rows.map((row) => row.querySelector('.schedule-status')?.innerText.trim()), '전체 상태');
+
+        const sortRows = () => {
+            const sortValue = sortOrder.value;
+            const sortedRows = [...rows].sort((a, b) => {
+                if (sortValue === 'emp-asc') {
+                    return (a.querySelector('.schedule-emp-no')?.innerText || '').localeCompare(b.querySelector('.schedule-emp-no')?.innerText || '', 'ko');
+                }
+
+                if (sortValue === 'employee-asc') {
+                    return (a.querySelector('.schedule-employee-name')?.innerText || '').localeCompare(b.querySelector('.schedule-employee-name')?.innerText || '', 'ko');
+                }
+
+                if (sortValue === 'category-asc') {
+                    return (a.querySelector('.schedule-category')?.innerText || '').localeCompare(b.querySelector('.schedule-category')?.innerText || '', 'ko');
+                }
+
+                return 0;
+            });
+
+            sortedRows.forEach((row) => tbody.appendChild(row));
+        };
+
+        const applyFilters = () => {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const categoryValue = categoryFilter.value;
+            const statusValue = statusFilter.value;
+
+            rows.forEach((row) => {
+                const rowText = row.innerText.toLowerCase();
+                const rowCategory = row.querySelector('.schedule-category')?.innerText.trim() || '';
+                const rowStatus = row.querySelector('.schedule-status')?.innerText.trim() || '';
+
+                const matchesSearch = !searchValue || rowText.includes(searchValue);
+                const matchesCategory = !categoryValue || rowCategory === categoryValue;
+                const matchesStatus = !statusValue || rowStatus === statusValue;
+
+                row.style.display = matchesSearch && matchesCategory && matchesStatus ? '' : 'none';
+            });
+        };
+
+        [searchInput, categoryFilter, statusFilter].forEach((element) => {
+            element.addEventListener('input', applyFilters);
+            element.addEventListener('change', applyFilters);
+        });
+        sortOrder.addEventListener('change', sortRows);
+
+        resetButton.addEventListener('click', function () {
+            searchInput.value = '';
+            categoryFilter.value = '';
+            statusFilter.value = '';
+            sortOrder.value = 'emp-asc';
+            sortRows();
+            applyFilters();
+        });
+
+        sortRows();
+    });
+</script>
+</body>
+</html>

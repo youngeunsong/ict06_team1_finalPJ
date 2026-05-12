@@ -9,6 +9,8 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.18    김다솜        최초 생성/SSE 구독, 알림 조회, 읽음 처리 API 구현
  * @ 2026.04.23    김다솜        SSE 지원 위한 쿼리 파라미터 토큰 추출 로직 추가
+ * @ 2026.05.08    김다솜        관리자 페이지(/admin) 경로는 JWT 검사 제외
+ *                              쿼리 파라미터 토큰 인증을 SSE 구독 API로 제한
  */
 
 package com.ict06.team1_fin_pj.common.security;
@@ -43,28 +45,34 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String uri = httpRequest.getRequestURI();
 
-        // ✅ 1. 관리자 페이지는 JWT 검사 건너뛰고 세션/폼로그인에서 검사 (핵심🔥)
+        // 1. 관리자 페이지는 JWT 검사 제외(세션/폼로그인에서 처리)
         if (uri.startsWith("/admin")) {
             chain.doFilter(request, response);
             return;
         }
 
-        // ✅ 2. 그 외 url은 JWT 검사
-        else {
-            // 2-1. Request Header에서 JWT 토큰 추출
-            String token = jwtTokenProvider.resolveToken((HttpServletRequest) request);
+        // 2. API 요청은 JWT 검증
+        String token = null;
 
-            // 2-2. 헤더에 토큰 없는 경우 URL 파라미터("token")에서 추출(SSE 대응)
-            if(!StringUtils.hasText(token)) {
-                token = httpRequest.getParameter("token");
-            }
+        // 2-1. Authorization 헤더에서 토큰 추출
+        token = jwtTokenProvider.resolveToken(httpRequest);
 
-            // 2-3. 토큰 유효성 검증
-            if (token != null && jwtTokenProvider.validateToken(token)) {
-                // 토큰이 유효하면 인증 객체(Authentication) 생성해 SecurityContext에 저장
-                Authentication authentication = jwtTokenProvider.getAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        // 2-2. 헤더에 없으면 쿼리 파라미터에서 추출
+        if(!StringUtils.hasText(token) && "/api/noti/subscribe".equals(uri)) {
+            token = httpRequest.getParameter("token");
+        }
+
+        // 2-3. 토큰 유효성 검증
+        if(token != null && jwtTokenProvider.validateToken(token)) {
+            // 유효하면 Authentication 객체 생성 -> SecurityContext에 저장
+            Authentication authentication = jwtTokenProvider.getAuthentication(token);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            System.out.println("[JWT Filter] 인증 성공 - empNo:" + authentication.getName());
+        } else if(token != null) {
+            System.out.println("[JWT Filter] 토큰 유효하지 않음");
+        } else {
+            System.out.println("[JWT Filter] 토큰 없음 - URI:" + uri);
         }
 
         // 원본: 관리자 페이지 세션 처리 안 한 경우

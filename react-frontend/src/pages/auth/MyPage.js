@@ -32,6 +32,7 @@ const MyPage = () => {
         phone: '',
     });
 
+    // 사용자 정보가 로드되면 폼 데이터 초기화
     useEffect(() => {
         if (userInfo) {
             setFormData({
@@ -42,15 +43,18 @@ const MyPage = () => {
         }
     }, [userInfo]);
 
+    // Input 핸들러: 입력값 변경 시 formData 상태 업데이트
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
     }
 
+    // 수정 처리: API 호출 성공 시 사용자 정보 업데이트하고 전역 상태에 반영
     const handleUpdate = async() => {
         try {
-            const token = localStorage.getItem('token');
+            // axiosInstance를 통해 인증 토큰 포함하여 API 호출(PUT 요청)
             const response = await axiosInstance.put('/user/update', formData);
             if(response.status === 200) {
+                // DB 수정 성공 시 전역 컨테스트(UserContext) 정보 동기화
                 updateUserInfo(formData);
                 setIsEditing(false);
             }
@@ -60,6 +64,7 @@ const MyPage = () => {
         }
     };
 
+    // 사용자 정보 없을 경우 로딩 메시지 표시
     if(!userInfo)
         return <div className='p-4 text-center'>Loading...</div>
 
@@ -85,6 +90,7 @@ const MyPage = () => {
                                     {userInfo?.name || '사용자'}
                                 </h4>
 
+                                {/* 부서 및 직급 정보 */}
                                 <div className='text-secondary small fw-semibold'>
                                     {userInfo?.department?.deptName || userInfo?.dept_name || '부서 없음'} · 
                                     {userInfo?.position?.positionName || userInfo?.position_name || '직급 없음'}
@@ -96,7 +102,7 @@ const MyPage = () => {
                             </div>
                         </div>
 
-                        {/* 탭 메뉴 영역 */}
+                        {/* 개인 메뉴 탭 */}
                         <CNav variant='tabs' className='mt-4 border-bottom-0'>
                             <CNavItem><CNavLink active href='#'>정보</CNavLink></CNavItem>
                             <CNavItem><CNavLink href='#'>목표</CNavLink></CNavItem>
@@ -161,6 +167,7 @@ const MyPage = () => {
                             </CCol>
                         </CRow>
 
+                        {/* 인사 정보 섹션 */}
                         <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>입사 정보</CCol>
                             <CCol sm={9}>
@@ -203,6 +210,7 @@ const MyPage = () => {
                             </CCol>
                             </CRow>
 
+                            {/* 급여/계좌 정보 섹션 */}
                             <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>급여 등급</CCol>
                             <CCol sm={9}>
@@ -229,6 +237,7 @@ const MyPage = () => {
                             </CCol>
                         </CRow>
 
+                        {/* 연락처 정보 섹션 */}
                         <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>휴대전화번호</CCol>
                             <CCol sm={9}>

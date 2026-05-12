@@ -1,58 +1,73 @@
 <!--
-[ 관리자용 페이지 템플릿 사용 방법]
-1. 핵심 콘텐츠 작성법
-<div class="container-fluid">
-    이 사이에 넣을 핵심콘텐츠에 필요한 타임리프 코드를 작성해주세요
-</div>
-
-2. 모든 관리자용 페이지에 반드시 포함시킬 파일: header, head, sidebar, commonJs.html (이 파일들은 수정 시 반드시 팀원들과 협의해주세요)
+    @FileName : onboardingMain.html
+    @Description : 관리자 온보딩 메인 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 08
+    @Modification_History
+    @
+    @ 수정일자        수정자        수정내용
+    @ ----------    ---------    -------------------------------
+    @ 2026.05.08    김다솜        최초 생성
+    @ 2026.05.11    김다솜        콘텐츠, 문서/RAG, 로드맵, 일정 관리 진입 버튼 정리 및 미구현 메뉴 표시 추가
 -->
 <!doctype html>
-<html xmlns:th="http://www.thymleaf.org">
-<!--begin::Head-->
+<html xmlns:th="http://www.thymeleaf.org">
 <head th:include="/admin/common/head.html :: common_header">
-    <title id="page_title">온보딩 메인</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+    <meta charset="UTF-8">
+    <title id="page_title">온보딩 메인</title>
 </head>
-<!--end::Head-->
-<!--begin::Body-->
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
-<!--begin::App Wrapper-->
 <div class="app-wrapper">
-    <!-- 헤더 시작 -->
     <th:block th:replace="~{/admin/common/header}"></th:block>
-    <!-- 헤더 끝 -->
-
-    <!-- 사이드바 시작-->
     <th:block th:replace="~{/admin/common/sidebar}"></th:block>
-    <!-- 사이드바 끝-->
 
-    <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
-        <!--begin::App Content-->
         <div class="app-content">
-            <!--begin::Container-->
             <div class="container-fluid">
-                <br>
-                <!-- begin::Row-->
-                <div class="row">
-                    <h3>온보딩 메인</h3>
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>온보딩 관리</h3>
+                    </div>
+                    <div class="col text-end">
+                        <a th:href="@{/admin/onboarding/contents/new}" class="btn btn-primary">
+                            콘텐츠 등록
+                        </a>
+                    </div>
                 </div>
-                <!-- end::Row-->
+
+                <div class="card">
+                    <div class="card-body d-flex flex-wrap gap-2">
+                        <a th:href="@{/admin/onboarding/contents}" class="btn btn-primary">
+                            콘텐츠 관리
+                        </a>
+
+                        <a th:href="@{/admin/onboarding/documents}" class="btn btn-outline-primary">
+                            문서/RAG 관리
+                        </a>
+
+                        <a th:href="@{/admin/onboarding/roadmaps}" class="btn btn-outline-primary">
+                            로드맵 관리
+                        </a>
+
+                        <a th:href="@{/admin/onboarding/schedules}" class="btn btn-outline-primary">
+                            일정 관리
+                        </a>
+
+                        <a th:href="@{/admin/onboarding/checklists}" class="btn btn-outline-primary">
+                            체크리스트 관리 (구현 중)
+                        </a>
+
+                        <a th:href="@{/admin/onboarding/progress}" class="btn btn-outline-primary">
+                            진행 현황 (구현 중)
+                        </a>
+                    </div>
+                </div>
             </div>
-            <!--end::Container-->
         </div>
-        <!--end::App Content-->
     </main>
-    <!-- 메인 콘텐츠 끝 -->
-    <!-- 푸터 시작 -->
+
     <th:block th:replace="~{/admin/common/footer}"></th:block>
-    <!-- 푸터 끝 -->
 </div>
-<!--end::App Wrapper-->
-<!--스크립트 시작-->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
-<!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
-<!--스크립트 끝-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
 </body>
-<!--end::Body-->
 </html>

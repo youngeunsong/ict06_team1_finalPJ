@@ -1,0 +1,261 @@
+<!--
+    @FileName : contentList.html
+    @Description : 관리자 온보딩 콘텐츠 목록 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 08
+    @Modification_History
+    @
+    @ 수정일자        수정자       수정내용
+    @ ----------    ---------    -------------------------------
+    @ 2026.05.08    김다솜        최초 생성 및 콘텐츠 삭제 버튼/빈 목록 안내 추가
+    @ 2026.05.10    김다솜        콘텐츠 대상 직급/부서 표시 컬럼 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title">온보딩 관리</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+    <!-- 헤더 시작 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <!-- 헤더 끝 -->
+
+    <!-- 사이드바 시작-->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <!-- 사이드바 끝-->
+
+    <!-- 메인 콘텐츠 시작 -->
+    <main class="app-main">
+        <!--begin::App Content-->
+        <div class="app-content">
+            <!--begin::Container-->
+            <div class="container-fluid">
+                <!--페이지 제목 영역-->
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>온보딩 콘텐츠 관리</h3>
+                    </div>
+                    <div class="col text-end">
+                        <a th:href="@{/admin/onboarding/contents/new}" class="btn btn-primary">
+                            콘텐츠 등록
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 처리 결과 메시지 영역 -->
+                <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control" id="contentSearchInput" placeholder="제목, 카테고리, 부서, 직급 검색">
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-2">
+                                    <div class="small text-muted mb-1">콘텐츠 유형</div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input content-type-filter" type="checkbox" value="VIDEO" id="contentTypeVideo">
+                                            <label class="form-check-label" for="contentTypeVideo">VIDEO</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input content-type-filter" type="checkbox" value="PDF" id="contentTypePdf">
+                                            <label class="form-check-label" for="contentTypePdf">PDF</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input content-type-filter" type="checkbox" value="QUIZ" id="contentTypeQuiz">
+                                            <label class="form-check-label" for="contentTypeQuiz">QUIZ</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input content-type-filter" type="checkbox" value="LINK" id="contentTypeLink">
+                                            <label class="form-check-label" for="contentTypeLink">LINK</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="contentMandatoryFilter">
+                                    <option value="">전체 구분</option>
+                                    <option value="필수">필수</option>
+                                    <option value="선택">선택</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select mb-2" id="contentSortOrder">
+                                    <option value="id-desc">정렬: 최신 등록순</option>
+                                    <option value="id-asc">정렬: ID 오름차순</option>
+                                    <option value="title-asc">정렬: 제목 가나다순</option>
+                                    <option value="category-asc">정렬: 카테고리 가나다순</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary w-100" id="contentFilterReset">초기화</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        <!-- 콘텐츠 목록 테이블 영역 -->
+                        <table class="table table-hover" id="contentTable">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>카테고리</th>
+                                <th>제목</th>
+                                <th>유형</th>
+                                <th>대상 부서</th>
+                                <th>대상 직급</th>
+                                <th>난이도</th>
+                                <th>필수 여부</th>
+                                <th>관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="content : ${contents}" class="content-row">
+                                <td th:text="${content.contentId}"></td>
+                                <td th:text="${content.category}" class="content-category"></td>
+                                <td th:text="${content.title}" class="content-title"></td>
+                                <td th:text="${content.type}" class="content-type"></td>
+                                <td class="content-department">
+                                    <span th:if="${content.targetDepartments == null or content.targetDepartments.isEmpty()}" class="text-muted">공통</span>
+                                    <span th:unless="${content.targetDepartments == null or content.targetDepartments.isEmpty()}"
+                                          th:each="department, departmentStat : ${content.targetDepartments}">
+                                        <span th:if="${department.parentDept != null}"
+                                              th:text="|${department.parentDept.deptName} > ${department.deptName}|"></span>
+                                        <span th:unless="${department.parentDept != null}"
+                                              th:text="${department.deptName}"></span><span th:unless="${departmentStat.last}">, </span>
+                                    </span>
+                                </td>
+                                <td class="content-position">
+                                    <span th:if="${content.targetPositions == null or content.targetPositions.isEmpty()}" class="text-muted">공통</span>
+                                    <span th:unless="${content.targetPositions == null or content.targetPositions.isEmpty()}"
+                                          th:each="position, positionStat : ${content.targetPositions}">
+                                        <span th:text="${position.positionName}"></span><span th:unless="${positionStat.last}">, </span>
+                                    </span>
+                                </td>
+                                <td th:text="${content.difficulty}" class="content-difficulty"></td>
+                                <td class="content-mandatory">
+                                    <span th:if="${content.isMandatory}" class="badge bg-danger">필수</span>
+                                    <span th:unless="${content.isMandatory}" class="badge bg-secondary">선택</span>
+                                </td>
+                                <td>
+                                    <!-- 콘텐츠 관리 버튼 영역 -->
+                                    <div class="d-flex gap-1">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           th:href="@{/admin/onboarding/contents/{id}/edit(id=${content.contentId})}">
+                                            수정
+                                        </a>
+                                        <form th:action="@{/admin/onboarding/contents/{id}/delete(id=${content.contentId})}"
+                                              method="post"
+                                              onsubmit="return confirm('콘텐츠를 삭제하시겠습니까?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                삭제
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(contents)}">
+                                <td colspan="9" class="text-center text-muted">
+                                    등록된 콘텐츠가 없습니다.
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+    </main>
+    <!-- 메인 콘텐츠 끝 -->
+    <!-- 푸터 시작 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!--스크립트 시작-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = Array.from(document.querySelectorAll('#contentTable tbody .content-row'));
+        const searchInput = document.getElementById('contentSearchInput');
+        const typeFilters = Array.from(document.querySelectorAll('.content-type-filter'));
+        const mandatoryFilter = document.getElementById('contentMandatoryFilter');
+        const sortOrder = document.getElementById('contentSortOrder');
+        const resetButton = document.getElementById('contentFilterReset');
+        const tbody = document.querySelector('#contentTable tbody');
+
+        const sortRows = () => {
+            const sortValue = sortOrder.value;
+            const sortedRows = [...rows].sort((a, b) => {
+                if (sortValue === 'id-asc' || sortValue === 'id-desc') {
+                    const aId = Number(a.children[0]?.innerText.trim() || 0);
+                    const bId = Number(b.children[0]?.innerText.trim() || 0);
+                    return sortValue === 'id-asc' ? aId - bId : bId - aId;
+                }
+
+                if (sortValue === 'title-asc') {
+                    return (a.querySelector('.content-title')?.innerText || '').localeCompare(b.querySelector('.content-title')?.innerText || '', 'ko');
+                }
+
+                if (sortValue === 'category-asc') {
+                    return (a.querySelector('.content-category')?.innerText || '').localeCompare(b.querySelector('.content-category')?.innerText || '', 'ko');
+                }
+
+                return 0;
+            });
+
+            sortedRows.forEach((row) => tbody.appendChild(row));
+        };
+
+        const applyFilters = () => {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const typeValues = typeFilters.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
+            const mandatoryValue = mandatoryFilter.value;
+
+            rows.forEach((row) => {
+                const rowText = row.innerText.toLowerCase();
+                const rowType = row.querySelector('.content-type')?.innerText.trim() || '';
+                const rowMandatory = row.querySelector('.content-mandatory')?.innerText.trim() || '';
+
+                const matchesSearch = !searchValue || rowText.includes(searchValue);
+                const matchesType = typeValues.length === 0 || typeValues.includes(rowType);
+                const matchesMandatory = !mandatoryValue || rowMandatory.includes(mandatoryValue);
+
+                row.style.display = matchesSearch && matchesType && matchesMandatory ? '' : 'none';
+            });
+        };
+
+        [searchInput, mandatoryFilter, sortOrder].forEach((element) => {
+            element.addEventListener('input', applyFilters);
+            element.addEventListener('change', applyFilters);
+        });
+        typeFilters.forEach((checkbox) => checkbox.addEventListener('change', applyFilters));
+        sortOrder.addEventListener('change', sortRows);
+
+        resetButton.addEventListener('click', function () {
+            searchInput.value = '';
+            typeFilters.forEach((checkbox) => { checkbox.checked = false; });
+            mandatoryFilter.value = '';
+            sortOrder.value = 'id-desc';
+            sortRows();
+            applyFilters();
+        });
+
+        sortRows();
+    });
+</script>
+<!--스크립트 끝-->
+</body>
+<!--end::Body-->
+</html>

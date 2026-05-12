@@ -7,6 +7,7 @@ public enum NotificationType {
     APPROVAL("결재"),
     ATTENDANCE("근태"),
     AI("AI"),
+    EVALUATION("평가"),
     NOTICE("공지"),
     MYPAGE("정보 수정");
 
