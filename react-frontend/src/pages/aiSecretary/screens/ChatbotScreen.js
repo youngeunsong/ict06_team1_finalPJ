@@ -89,8 +89,8 @@ export default function ChatbotScreen() {
   const ensureUserInfo = useCallback(async () => {
     if (resolvedUserInfo) return resolvedUserInfo;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
       setError("로그인 정보가 없습니다. 다시 로그인해 주세요.");
       return null;
     }
@@ -99,9 +99,13 @@ export default function ChatbotScreen() {
     setError("");
 
     try {
+      const authorization = accessToken.startsWith("Bearer ")
+        ? accessToken
+        : `Bearer ${accessToken}`;
+
       const response = await axios.get("http://localhost:8081/api/user/welcome", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: authorization,
         },
       });
 

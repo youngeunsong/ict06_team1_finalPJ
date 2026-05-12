@@ -192,9 +192,6 @@ export default function CorrectionScreen() {
     } catch (err) {
       console.error("문장 다듬기 실패", err);
 
-      /**
-       * Gemini 원본 에러나 서버 내부 에러를 사용자에게 그대로 노출하지 않는다.
-       */
       setError("문장 다듬기 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setLoadingCorrection(false);
