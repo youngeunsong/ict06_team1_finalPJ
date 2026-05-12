@@ -55,7 +55,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     /**
      * 새 결재 문서를 임시저장합니다.
      *
-     * 임시저장은 아직 결재 진행을 시작하지 않은 상태이므로 currentStep은 0,
+     * 임시저장은 아직 결재 진행이 시작되지 않은 상태이므로 currentStep은 0,
      * currentApprover는 null로 저장합니다.
      */
     @Override
@@ -97,7 +97,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     /**
      * 새 결재 문서를 상신합니다.
      *
-     * stepOrder=0은 참조자이므로 실제 결재자 계산에서는 제외하고,
+     * stepOrder=0은 참조자이므로 실제 결재 단계 계산에서는 제외하고,
      * stepOrder가 1 이상인 대상 중 가장 앞 순서의 사람을 현재 결재자로 지정합니다.
      */
     @Override
@@ -216,7 +216,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     /**
      * 결재 문서 상세 정보를 조회합니다.
      *
-     * 작성자는 자신의 문서를 볼 수 있고, 결재자/참조자는 상신 이후 문서만 볼 수 있습니다.
+     * 작성자는 자신의 문서를 볼 수 있고, 결재자와 참조자는 상신 이후 문서만 볼 수 있습니다.
      */
     @Override
     @Transactional(readOnly = true)
@@ -242,7 +242,7 @@ public class ApprovalServiceImpl implements ApprovalService {
      * 요청 DTO를 ApprovalEntity로 변환합니다.
      *
      * 작성자(writer)는 요청 body에서 받지 않고 JWT 인증 정보에서 가져옵니다.
-     * 이렇게 해야 사용자가 다른 사람 사번을 임의로 보내 대리 상신하는 문제를 막을 수 있습니다.
+     * 이렇게 해야 사용자가 다른 사원 번호를 임의로 보내 대리 상신하는 문제를 막을 수 있습니다.
      */
     private ApprovalEntity createApproval(
             ApprovalCreateRequestDto requestDto,
@@ -360,7 +360,7 @@ public class ApprovalServiceImpl implements ApprovalService {
                 .filter(line -> line.getStepOrder() != null && line.getStepOrder() > 0)
                 .min(Comparator.comparing(ApprovalLineRequestDto::getStepOrder))
                 .map(ApprovalLineRequestDto::getApproverNo)
-                .orElseThrow(() -> new IllegalArgumentException("결재선은 최소 1명 이상의 실제 결재자가 필요합니다."));
+                .orElseThrow(() -> new IllegalArgumentException("결재선에 최소 1명 이상의 실제 결재자가 필요합니다."));
 
         return employeeRepository.findByEmpNo(firstApproverNo)
                 .orElseThrow(() -> new IllegalArgumentException("첫 번째 결재자를 찾을 수 없습니다."));
@@ -416,14 +416,13 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
-     * 임시저장/상신에 공통으로 필요한 필수값을 검증합니다.
+     * 임시저장과 상신에 공통으로 필요한 필수값을 검증합니다.
      */
     private void validateCommonRequest(
             ApprovalCreateRequestDto requestDto,
             PrincipalDetails principal
     ) {
         validatePrincipal(principal);
-
         validateDraftRequestFields(requestDto);
     }
 
