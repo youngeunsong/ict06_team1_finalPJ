@@ -10,6 +10,18 @@
   4. 각 수정 결과를 versions에 content와 함께 저장
   5. 버전 미리보기 / 복원 / 복사 / 다운로드 기능 제공
 
+  문서 유형 기준
+  --------------------------------------------------
+  백엔드 / DB / 프론트 문서 유형값은 대문자로 통일한다.
+
+  - REPORT   : 보고서 초안
+  - MINUTES  : 회의록 정리
+  - APPROVAL : 결재 사유
+
+  주의
+  --------------------------------------------------
+  - template은 문서 유형이 아니다.
+  - correction은 문장 다듬기 독립 기능이다.
 */
 
 import React, { useRef, useState } from "react";
@@ -26,25 +38,48 @@ import { reviseAssistantDraft, unwrapApiData } from "../api/aiSecretaryApi";
  * 실제 Gemini 초안 생성이 연결된 이후에는 chipLabel, fallbackTitle 정도만 필요하다.
  */
 const DOCUMENT_META_MAP = {
-  report: {
+  REPORT: {
     chipLabel: "보고서 초안",
     fallbackTitle: "보고서 초안",
   },
-  minutes: {
+
+  MINUTES: {
     chipLabel: "회의록 정리",
     fallbackTitle: "회의록",
   },
-  approval: {
+
+  APPROVAL: {
     chipLabel: "결재 사유",
     fallbackTitle: "결재 사유",
   },
 };
 
+/**
+ * WriterScreen 내부 문서 유형 정규화
+ *
+ * 목적:
+ * - 혹시 과거 데이터나 URL에서 소문자 값이 들어와도
+ *   화면 내부에서는 REPORT / MINUTES / APPROVAL 기준으로 통일한다.
+ */
+const normalizeWriterType = (type) => {
+  const normalized = String(type || "").trim().toUpperCase();
+
+  if (normalized === "MINUTES") return "MINUTES";
+  if (normalized === "APPROVAL") return "APPROVAL";
+
+  return "REPORT";
+};
+
 export default function WriterScreen({
   writerState = {},
   setWriterState,
-  writerType = "report",
+  writerType = "REPORT",
 }) {
+  /**
+   * writerType 안전 보정
+   */
+  const safeWriterType = normalizeWriterType(writerType);
+
   /**
    * writerState 안전 처리
    * --------------------------------------------------
@@ -67,7 +102,7 @@ export default function WriterScreen({
    * - 아무 버전도 없으면 null
    */
   const [previewVersionId, setPreviewVersionId] = useState(
-    versions.find((v) => v.current)?.id ||
+    versions.find((version) => version.current)?.id ||
       versions[versions.length - 1]?.id ||
       null
   );
@@ -77,14 +112,21 @@ export default function WriterScreen({
 
   /**
    * 안내 메시지 타이머 관리
-   * --------------------------------------------------
+   *
    * 기존 showActionMessage._timer 방식은 렌더링마다 함수가 새로 생성되어
    * 타이머 관리가 불안정할 수 있으므로 useRef로 관리한다.
    */
   const actionTimerRef = useRef(null);
 
-  const currentDoc = DOCUMENT_META_MAP[writerType] || DOCUMENT_META_MAP.report;
-  const isApprovalDocument = writerType === "approval";
+  const currentDoc =
+    DOCUMENT_META_MAP[safeWriterType] || DOCUMENT_META_MAP.REPORT;
+
+  /**
+   * 결재 사유 문서 여부
+   *
+   * APPROVAL 문서일 때만 전자결재로 내보내기 버튼을 노출한다.
+   */
+  const isApprovalDocument = safeWriterType === "APPROVAL";
 
   /**
    * 실제 문서 표시 데이터 계산
@@ -103,8 +145,7 @@ export default function WriterScreen({
   const draftTitle =
     writerState?.title || currentDoc.fallbackTitle || "AI 초안";
 
-  const draftContent =
-    writerState?.content || fallbackContent;
+  const draftContent = writerState?.content || fallbackContent;
 
   /**
    * 버전 미리보기 계산
@@ -114,16 +155,17 @@ export default function WriterScreen({
    *
    * 없으면 현재 writerState.content를 보여준다.
    */
-  const previewVersion = versions.find((v) => v.id === previewVersionId);
+  const previewVersion = versions.find(
+    (version) => version.id === previewVersionId
+  );
 
-  const displayContent =
-    previewVersion?.content || draftContent;
+  const displayContent = previewVersion?.content || draftContent;
 
-  const displayTitle =
-    writerState?.title || draftTitle;
+  const displayTitle = writerState?.title || draftTitle;
 
-  const displayStats =
-    `글자 수 ${(displayContent || "").length.toLocaleString()}자`;
+  const displayStats = `글자 수 ${(
+    displayContent || ""
+  ).length.toLocaleString()}자`;
 
   /**
    * 상단/하단 액션 메시지 표시
@@ -142,7 +184,7 @@ export default function WriterScreen({
 
   /**
    * 버전 미리보기
-   * --------------------------------------------------
+   *
    * 실제 writerState.content를 바꾸지는 않고,
    * 오른쪽 본문 표시만 해당 버전 content로 변경한다.
    */
@@ -152,7 +194,7 @@ export default function WriterScreen({
 
   /**
    * 버전 복원
-   * --------------------------------------------------
+   *
    * 선택한 버전의 content를 writerState.content에 반영한다.
    * 즉, 복원은 미리보기와 달리 실제 현재 문서 상태를 바꾼다.
    */
@@ -162,14 +204,17 @@ export default function WriterScreen({
         ? prev.versions
         : [];
 
-      const selectedVersion = safeVersions.find((v) => v.id === versionId);
+      const selectedVersion = safeVersions.find(
+        (version) => version.id === versionId
+      );
 
       return {
         ...prev,
         content: selectedVersion?.content ?? prev.content,
-        versions: safeVersions.map((v) => ({
-          ...v,
-          current: v.id === versionId,
+        type: safeWriterType,
+        versions: safeVersions.map((version) => ({
+          ...version,
+          current: version.id === versionId,
         })),
       };
     });
@@ -180,7 +225,7 @@ export default function WriterScreen({
 
   /**
    * AI 추가 수정 요청
-   * --------------------------------------------------
+   *
    * 사용자가 "더 간결하게", "표로 정리해줘" 등을 입력하면
    * 현재 화면에 표시 중인 문서(displayContent)를 기준으로 /assistant/revise API 호출.
    *
@@ -230,7 +275,12 @@ export default function WriterScreen({
     try {
       const response = await reviseAssistantDraft({
         sessionId: writerState.sessionId,
-        type: writerType,
+
+        /**
+         * API에는 REPORT / MINUTES / APPROVAL 대문자 기준으로 전달한다.
+         */
+        type: safeWriterType,
+
         title: displayTitle,
         currentContent: displayContent,
         instruction,
@@ -269,12 +319,16 @@ export default function WriterScreen({
         return {
           ...prev,
           content: revisedContent,
+          type: safeWriterType,
           aiMessageId: data?.aiMessageId ?? prev.aiMessageId,
           modelName: data?.modelName ?? prev.modelName,
           fallback: data?.fallback ?? prev.fallback,
           chat: [...safeChat, aiMessage],
           versions: [
-            ...safeVersions.map((v) => ({ ...v, current: false })),
+            ...safeVersions.map((version) => ({
+              ...version,
+              current: false,
+            })),
             nextVersion,
           ],
         };
@@ -305,7 +359,7 @@ export default function WriterScreen({
 
   /**
    * 현재 표시 중인 문서 복사
-   * --------------------------------------------------
+   *
    * 미리보기 중인 버전이 있으면 해당 버전 content를 복사한다.
    */
   const handleCopy = async () => {
@@ -346,10 +400,12 @@ export default function WriterScreen({
     });
 
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${displayTitle || "AI_초안"}.txt`;
-    a.click();
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${displayTitle || "AI_초안"}.txt`;
+    anchor.click();
+
     URL.revokeObjectURL(url);
 
     showActionMessage("문서 다운로드가 시작되었습니다.");
@@ -357,7 +413,7 @@ export default function WriterScreen({
 
   /**
    * 전자결재 내보내기
-   * --------------------------------------------------
+   *
    * 아직 실제 전자결재 API와 연결하지 않았으므로,
    * 현재는 버전 기록에 내보내기 기록만 남긴다.
    */
@@ -378,9 +434,13 @@ export default function WriterScreen({
       return {
         ...prev,
         content: displayContent,
+        type: safeWriterType,
         showHistory: true,
         versions: [
-          ...safeVersions.map((v) => ({ ...v, current: false })),
+          ...safeVersions.map((version) => ({
+            ...version,
+            current: false,
+          })),
           nextVersion,
         ],
       };
@@ -470,12 +530,12 @@ export default function WriterScreen({
               alignContent: "start",
             }}
           >
-            {chatMessages.map((msg, idx) => (
+            {chatMessages.map((message, index) => (
               <Bubble
-                key={`${msg.time}-${idx}`}
-                role={msg.role}
-                text={msg.text}
-                time={msg.time}
+                key={`${message.time}-${index}`}
+                role={message.role}
+                text={message.text}
+                time={message.time}
               />
             ))}
 
@@ -483,9 +543,11 @@ export default function WriterScreen({
               <div style={{ fontSize: 14, fontWeight: 800 }}>
                 {displayTitle}
               </div>
+
               <div style={{ marginTop: 8, fontSize: 12, color: C.sub }}>
                 최근 수정 · 방금
               </div>
+
               <div
                 style={{
                   marginTop: 8,
@@ -513,15 +575,15 @@ export default function WriterScreen({
             >
               <input
                 value={writerState?.prompt || ""}
-                onChange={(e) =>
+                onChange={(event) =>
                   setWriterState((prev) => ({
                     ...prev,
-                    prompt: e.target.value,
+                    prompt: event.target.value,
                   }))
                 }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
                     addMessage();
                   }
                 }}
@@ -804,6 +866,7 @@ export default function WriterScreen({
                     <div style={{ marginTop: 12, fontWeight: 900 }}>
                       {version.title}
                     </div>
+
                     <div
                       style={{
                         marginTop: 8,

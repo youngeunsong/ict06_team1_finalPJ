@@ -129,7 +129,7 @@ function LoginPage() {
     <div style={containerStyle}>
       <div style={cardStyle}>
         {/* 로고 영역 */}
-        <h1 style={{ color: '#1877f2', marginBottom: '8px', fontSize: '28px' }}>스마트 그룹웨어</h1>
+        <h1 style={{ color: '#1877f2', marginBottom: '8px', fontSize: '28px' }}>COREWORK</h1>
         <p style={{ color: '#606770', marginBottom: '32px', fontSize: '16px' }}>통합 관리 시스템 로그인</p>
 
         <form onSubmit={handleLogin}>

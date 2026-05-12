@@ -4,30 +4,18 @@
     <!--begin::Sidebar Brand-->
     <div class="sidebar-brand">
         <!--begin::Brand Link-->
-        <a th:href="@{/admin/home}" class="brand-link d-flex align-items-center text-decoration-none py-2 px-3">
-            <!--begin::Brand Image (SVG 로고)-->
-            <svg
-                width="34"
-                height="34"
-                viewBox="0 0 40 40"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                class="me-2"
-            >
-                <path d="M20 3L35.5 11.5V28.5L20 37L4.5 28.5V11.5L20 3Z" fill="#321fdb" />
-                <path d="M20 12V28M13 16L27 24M13 24L27 16" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.8" />
-                <circle cx="20" cy="20" r="3" fill="white" />
-            </svg>
+        <a href="#" class="brand-link">
+            <!--begin::Brand Image-->
+            <img
+                    src="/images/AdminLTELogo.png"
+                    alt="AdminLTE Logo"
+                    class="brand-image opacity-75 shadow"
+            />
             <!--end::Brand Image-->
-            <!--begin::Brand Text (COREWORK AI-BASED GROUPWARE)-->
-            <div class="d-flex flex-column" style="user-select: none;">
-                <span style="font-size: 1.15rem; font-weight: 800; color: #fff; line-height: 1;">
-                    CORE<span style="color: #321fdb;">WORK</span>
-                </span>
-                <small class="text-white-50" style="font-size: 0.6rem; font-weight: 700; letter-spacing: 0.5px; margin-top: 2px;">
-                    AI-BASED GROUPWARE
-                </small>
-            </div>
+            <!--begin::Brand Text-->
+            <span class="brand-text fw-light">
+                그룹웨어
+            </span>
             <!--end::Brand Text-->
         </a>
         <!--end::Brand Link-->
@@ -63,16 +51,6 @@
                 </li>
                 <!-- 끝: 구분선 -->
 
-                <!-- 시작: 사내 AI 포털 --> <!-- TODO: 혜진님의 페이지 설정에 따라 이 구조 변경-->
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
-                        <p>사내 AI 포털</p>
-                        <span class="badge ms-auto" style="background-color: #eef2ff; color: #321fdb; border: 1px solid #c7d2fe; font-weight: 700;">AI</span>
-                    </a>
-                </li>
-                <!-- 끝: 사내 AI 포털 -->
-
                 <!-- 시작: 홈피드 -->
                 <li class="nav-item">
                     <a th:href="@{/admin/home}" class="nav-link">
@@ -99,6 +77,33 @@
                     </a>
                 </li>
                 <!-- 끝: 전자결재 -->
+
+                <!-- 시작: 사내 AI 포털 --> <!-- TODO: 혜진님의 페이지 설정에 따라 이 구조 변경-->
+                <li class="nav-header">
+                    <hr>
+                    사내 AI 포털
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/dashboard" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>AI 데이터 운영 대시보드</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/rag" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>지식 베이스 및 RAG 관리</p>
+                        <span class="badge ms-auto" style="background-color: #eef2ff; color: #321fdb; border: 1px solid #c7d2fe; font-weight: 700;">AI</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/security" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>보안 및 권한 제어</p>
+                        <span class="badge ms-auto" style="background-color: #eef2ff; color: #321fdb; border: 1px solid #c7d2fe; font-weight: 700;">AI</span>
+                    </a>
+                </li>
+                <!-- 끝: 사내 AI 포털 -->
 
                 <!-- 시작: 인사 관리 -->
                 <li class="nav-header">
