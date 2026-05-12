@@ -81,7 +81,6 @@ const CalendarDetailAdd = ({
         location: '',
         content: '',
         participants: [],
-        repeatYn: 'N',
         repeatRule: '',
         visibility: 'PRIVATE',
     });
@@ -113,7 +112,6 @@ const CalendarDetailAdd = ({
                 location: initialSchedule.location || '',
                 content: initialSchedule.content || '',
                 participants: [],
-                repeatYn: initialSchedule.repeatRule ? 'Y' : 'N',
                 repeatRule: initialSchedule.repeatRule || '',
                 visibility: initialSchedule.isPublic ? 'COMPANY' : 'PRIVATE',
             });
@@ -142,7 +140,6 @@ const CalendarDetailAdd = ({
             location: '',
             content: '',
             participants: [],
-            repeatYn: 'N',
             repeatRule: '',
             visibility: 'PRIVATE',
         });
@@ -308,9 +305,20 @@ const CalendarDetailAdd = ({
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        setFormData({
-            ...formData,
-            [name]: value,
+        setFormData((prev) => {
+            // 반복 일정은 1차 구현에서 개인일정만 허용한다.
+            if (name === 'type' && value !== 'PERSONAL') {
+                return {
+                    ...prev,
+                    type: value,
+                    repeatRule: '',
+                };
+            }
+
+            return {
+                ...prev,
+                [name]: value,
+            };
         });
     };
 
@@ -405,7 +413,7 @@ const CalendarDetailAdd = ({
             location: formData.location,
             isAllDay: allDay,
             isPublic: formData.visibility !== 'PRIVATE',
-            repeatRule: formData.repeatYn === 'Y' ? formData.repeatRule : null,
+            repeatRule: formData.type === 'PERSONAL' && formData.repeatRule ? formData.repeatRule : null,
         };
 
         try {
@@ -665,23 +673,13 @@ const CalendarDetailAdd = ({
                                 rows={4}
                             />
 
-                            {/* 상세등록 확장 항목: 반복 여부, 반복 규칙, 공개 범위 */}
+                            {/* 상세등록 확장 항목: 반복, 공개 범위 */}
                             <CFormSelect
-                                label="반복 여부"
-                                name="repeatYn"
-                                value={formData.repeatYn}
-                                onChange={handleChange}
-                                style={selectInputStyle}
-                            >
-                                <option value="N">반복 없음</option>
-                                <option value="Y">반복 사용</option>
-                            </CFormSelect>
-
-                            <CFormSelect
-                                label="반복 규칙"
+                                label="반복"
                                 name="repeatRule"
                                 value={formData.repeatRule}
                                 onChange={handleChange}
+                                disabled={formData.type !== 'PERSONAL'}
                                 style={selectInputStyle}
                             >
                                 <option value="">반복 없음</option>

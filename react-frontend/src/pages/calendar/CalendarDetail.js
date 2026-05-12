@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+import { request } from 'src/helpers/axios_helper';
+
 // CoreUI
 import { CButton, CCard, CCardBody, CCardHeader, CFormInput, CFormSelect, CFormTextarea } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
@@ -12,6 +14,7 @@ const CalendarDetail = ({
     schedule,
     popupPosition,
     onDelete,
+    onUpdateSuccess,
 }) => {
 
     // 팝업 영역 참조
@@ -37,7 +40,6 @@ const CalendarDetail = ({
         endTime: '',
         location: '',
         content: '',
-        repeatYn: 'N',
         repeatRule: '',
         visibility: 'PRIVATE',
     });
@@ -52,19 +54,27 @@ const CalendarDetail = ({
 
             setAllDay(Boolean(schedule.isAllDay));
 
+            // 반복 일정 수정 기준 시간
+            // 화면에 자동 표시된 반복 날짜가 아니라 DB에 저장된 원본 일정 시간을 수정 기준 사용.
+            const editStartTime = schedule.isRepeatGenerated
+                ? schedule.originalStartTime
+                : schedule.startTime || schedule.start || '';
+
+            const editEndTime = schedule.isRepeatGenerated
+                ? schedule.originalEndTime
+                : schedule.endTime || schedule.end || '';
+
             setFormData({
                 title: schedule.title || '',
                 type: schedule.type || 'PERSONAL',
                 category: schedule.category || 'MEETING',
-                startTime: schedule.startTime || schedule.start || '',
-                endTime: schedule.endTime || schedule.end || '',
+                startTime: editStartTime || '',
+                endTime: editEndTime || '',
                 location: schedule.location || '',
                 content: schedule.content || '',
-                repeatYn: schedule.repeatRule ? 'Y' : 'N',
                 repeatRule: schedule.repeatRule || '',
                 visibility: schedule.isPublic ? 'COMPANY' : 'PRIVATE',
             });
-
         }
     }, [visible, schedule]);
 
@@ -93,10 +103,21 @@ const CalendarDetail = ({
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        setFormData((prev) => {
+            // 반복 일정은 개인일정만 허용한다.
+            if (name === 'type' && value !== 'PERSONAL') {
+                return {
+                    ...prev,
+                    type: value,
+                    repeatRule: '',
+                };
+            }
+
+            return {
+                ...prev,
+                [name]: value,
+            };
+        });
     };
 
     // 일정 날짜 추출
@@ -117,6 +138,73 @@ const CalendarDetail = ({
         }
 
         return dateTimeValue.slice(11, 16);
+    };
+
+    // 일정 표시 시간 포맷
+    // 서버/FullCalendar datetime 값을 사용자가 보기 쉬운 방식으로 바꿈
+    const getDisplayTimeText = (dateTimeValue) => {
+        if (!dateTimeValue) {
+            return '';
+        }
+
+        const timeText = dateTimeValue.slice(11, 16);
+        const hour = Number(timeText.slice(0, 2));
+        const minute = timeText.slice(3, 5);
+        const period = hour < 12 ? '오전' : '오후';
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+
+        return `${period} ${String(displayHour).padStart(2, '0')}:${minute}`;
+    };
+
+    const getDisplayDateTimeRange = (startValue, endValue) => {
+        if (!startValue || !endValue) {
+            return '-';
+        }
+
+        const startDate = getDateText(startValue);
+        const endDate = getDateText(endValue);
+        const startTime = getDisplayTimeText(startValue);
+        const endTime = getDisplayTimeText(endValue);
+
+        if (startDate === endDate) {
+            return `${startDate} ${startTime} ~ ${endTime}`;
+        }
+
+        return `${startDate} ${startTime} ~ ${endDate} ${endTime}`;
+    };
+
+    // 일정 코드 표시명
+    // DB 코드값을 상세 팝업에서 읽기 쉬운 한글 이름으로 보여준다.
+    const getCategoryLabel = (category) => {
+        const labels = {
+            MEETING: '회의',
+            WORK: '업무',
+            NOTICE: '공지',
+            EDUCATION: '교육',
+            ETC: '기타',
+        };
+
+        return labels[category] || category || '회의';
+    };
+
+    const getTypeLabel = (type) => {
+        const labels = {
+            PERSONAL: '개인일정',
+            DEPARTMENT: '부서일정',
+            COMPANY: '전사일정',
+        };
+
+        return labels[type] || type || '개인일정';
+    };
+
+    // 백엔드 LocalDateTime 요청 형식으로 변환
+    // FUllcalendar 값에 붙는 +09:00 시간대 정보는 LocalDateTime이 받을 수 없어서 제거한다.
+    const toRequestDateTime = (dateTimeValue) => {
+        if (!dateTimeValue) {
+            return '';
+        }
+
+        return dateTimeValue.slice(0, 19);
     };
 
     // 종료 시간 자동 계산
@@ -154,28 +242,34 @@ const CalendarDetail = ({
         }));
     };
 
-    // 수정 저장 데이터 확인
-    // 실제 update API 연결 전에 수정할 값이 제대로 모이는지 먼저 확인한다
-    const handleUpdateSubmit = () => {
+    // 일정 수정 저장
+    // 수정 팝업의 입력값을 백엔드 PUT API로 보낸다.
+    const handleUpdateSubmit = async () => {
         if (!formData.title.trim()) {
             return;
         }
 
         const payload = {
-            scheduleId: schedule.scheduleId,
             title: formData.title.trim(),
-            startTime: formData.startTime,
-            endTime: formData.endTime,
+            startTime: toRequestDateTime(formData.startTime),
+            endTime: toRequestDateTime(formData.endTime),
             location: formData.location,
             content: formData.content,
             type: formData.type,
             category: formData.category,
             isAllDay: allDay,
             isPublic: formData.visibility !== 'PRIVATE',
-            repeatRule: formData.repeatYn === 'Y' ? formData.repeatRule : null,
+            repeatRule: formData.type === 'PERSONAL' && formData.repeatRule ? formData.repeatRule : null,
         };
 
-        console.log('수정 요청 데이터:', payload);
+        try {
+            await request('PUT', `/calendar/${schedule.scheduleId}`, payload);
+
+            await onUpdateSuccess?.();
+            onClose?.();
+        } catch (error) {
+            console.error('일정 수정 실패:', error);
+        }
     };
 
     if (!visible || !schedule) {
@@ -466,8 +560,29 @@ const CalendarDetail = ({
                             </div>
 
                             <div style={{ marginTop: '10px', fontSize: '14px', color: '#374151' }}>
-                                {schedule.startTime || schedule.start || '-'} ~ {schedule.endTime || schedule.end || '-'}
+                                {getDisplayDateTimeRange(
+                                    schedule.startTime || schedule.start,
+                                    schedule.endTime || schedule.end
+                                )}
                             </div>
+
+                            {schedule.repeatRule && (
+                                <div
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        marginTop: '10px',
+                                        padding: '4px 8px',
+                                        borderRadius: '999px',
+                                        backgroundColor: '#e7f1ff',
+                                        color: '#0D6EFD',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                    }}
+                                >
+                                    반복일정
+                                </div>
+                            )}
 
                             <div style={{ marginTop: '14px', borderTop: '1px solid #e5e7eb' }} />
 
@@ -480,14 +595,14 @@ const CalendarDetail = ({
 
                             <div style={{ marginTop: '14px', fontSize: '14px', color: '#374151' }}>
                                 <strong style={{ marginRight: '8px' }}>분류</strong>
-                                {schedule.category || 'MEETING'}
+                                {getCategoryLabel(schedule.category)}
                             </div>
 
                             <div style={{ marginTop: '14px', borderTop: '1px solid #e5e7eb' }} />
 
                             <div style={{ marginTop: '14px', fontSize: '14px', color: '#374151' }}>
                                 <strong style={{ marginRight: '8px' }}>구분</strong>
-                                {schedule.type || 'PERSONAL'}
+                                {getTypeLabel(schedule.type)}
                             </div>
 
                             {schedule.content && (
@@ -607,23 +722,13 @@ const CalendarDetail = ({
                                 placeholder="일정 내용을 입력하세요"
                                 rows={4}
                             />
-                            {/* 상세 수정 확장 항목: 반복 여부, 반복 규칙, 공개 범위 */}
+                            {/* 상세 수정 확장 항목: 반복, 공개 범위 */}
                             <CFormSelect
-                                label="반복 여부"
-                                name="repeatYn"
-                                value={formData.repeatYn}
-                                onChange={handleChange}
-                                style={selectInputStyle}
-                            >
-                                <option value="N">반복 없음</option>
-                                <option value="Y">반복 사용</option>
-                            </CFormSelect>
-
-                            <CFormSelect
-                                label="반복 규칙"
+                                label="반복"
                                 name="repeatRule"
                                 value={formData.repeatRule}
                                 onChange={handleChange}
+                                disabled={formData.type !== 'PERSONAL'}
                                 style={selectInputStyle}
                             >
                                 <option value="">반복 없음</option>
@@ -668,7 +773,7 @@ const CalendarDetail = ({
                     )}
                 </CCardBody>
 
-            </CCard>
+            </CCard >
         </>
     );
 };

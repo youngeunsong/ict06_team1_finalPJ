@@ -14,6 +14,7 @@ const CalendarSimpleAdd = ({
     visible = true,
     onClose,
     selectedDateProp,
+    selectedDateTimeProp,
     popupPosition,
     onCreateSuccess,
     onOpenDetailAdd,
@@ -72,8 +73,37 @@ const CalendarSimpleAdd = ({
         return `${dateStr}T${formattedHour}:00`;
     };
 
-    const defaultStart = getDefaultDateTime(selectedDate, 0);
-    const defaultEnd = getDefaultDateTime(selectedDate, 1);
+    // 종료 시간 자동 계산
+    // 시작 시간을 바꾸면 종료 시간을 시작 시간 +1시간 배정
+    const addOneHour = (dateTimeValue) => {
+        if (!dateTimeValue) return '';
+
+        const date = new Date(dateTimeValue);
+        date.setHours(date.getHours() + 1);
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+    };
+
+    // 기본 시작/종료 시간
+    // 주/일 보기에서 클릭한 시간이 있으면 그 시간을 우선 사용.
+    const getInitialDateTime = (plusHour = 0) => {
+        if (selectedDateTimeProp) {
+            return plusHour === 0
+                ? selectedDateTimeProp
+                : addOneHour(selectedDateTimeProp);
+        }
+
+        return getDefaultDateTime(selectedDate, plusHour);
+    };
+
+    const defaultStart = getInitialDateTime(0);
+    const defaultEnd = getInitialDateTime(1);
 
     // 퀵 팝업 초기화
     // 닫을 때 이전 입력값을 비운다
@@ -82,8 +112,8 @@ const CalendarSimpleAdd = ({
             title: '',
             type: 'PERSONAL',
             category: 'MEETING',
-            start: getDefaultDateTime(selectedDate, 0),
-            end: getDefaultDateTime(selectedDate, 1),
+            start: getInitialDateTime(0),
+            end: getInitialDateTime(1),
             location: '',
             content: '',
             participants: [],
@@ -129,12 +159,12 @@ const CalendarSimpleAdd = ({
             type: 'PERSONAL',
             start: allDay
                 ? `${selectedDate}T00:00`
-                : getDefaultDateTime(selectedDate, 0),
+                : getInitialDateTime(0),
             end: allDay
                 ? `${selectedDate}T23:59`
-                : getDefaultDateTime(selectedDate, 1),
+                : getInitialDateTime(1),
         }));
-    }, [visible, selectedDate, allDay]);
+    }, [visible, selectedDate, selectedDateTimeProp, allDay]);
 
     // 바깥 클릭 닫기
     // document 전체 클릭을 감지한 뒤, 클릭 위치가 팝업 밖이면 팝업을 닫는다.
@@ -189,23 +219,6 @@ const CalendarSimpleAdd = ({
             ...formData,
             [name]: value,
         });
-    };
-
-    // 종료 시간 자동 계산
-    // 시작 시간을 바꾸면 종료 시간을 시작 시간 +1시간 배정
-    const addOneHour = (dateTimeValue) => {
-        if (!dateTimeValue) return '';
-
-        const date = new Date(dateTimeValue);
-        date.setHours(date.getHours() + 1);
-
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hour = String(date.getHours()).padStart(2, '0');
-        const minute = String(date.getMinutes()).padStart(2, '0');
-
-        return `${year}-${month}-${day}T${hour}:${minute}`;
     };
 
     // 시작/종료 시간 변경
