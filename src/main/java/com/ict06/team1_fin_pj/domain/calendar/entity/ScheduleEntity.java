@@ -73,4 +73,48 @@ public class ScheduleEntity extends BaseTimeEntity {
     @Builder.Default
     @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScheduleParticipantEntity> participants = new ArrayList<>();
+
+    // 일정 수정
+    public void updateSchedule(
+            String title,
+            String content,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            ScheduleType type,
+            DepartmentEntity department,
+            String category,
+            String location,
+            Boolean isAllDay,
+            Boolean isPublic,
+            String repeatRule
+    ) {
+        if (title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("일정 제목은 필수입니다.");
+        }
+
+        if (startTime == null) {
+            throw new IllegalArgumentException("시작 시간은 필수입니다.");
+        }
+
+        if (endTime == null) {
+            throw new IllegalArgumentException("종료 시간은 필수입니다.");
+        }
+
+        this.title = title.trim();
+        this.content = content;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.type = type;
+        this.department = department;
+        this.category = category;
+        this.location = location;
+        this.isAllDay = Boolean.TRUE.equals(isAllDay);
+        this.isPublic = isPublic == null ? this.isPublic : isPublic;
+        this.repeatRule = repeatRule;
+    }
+
+    // 일정 삭제
+    public void deleteSchedule() {
+        this.isDeleted = true;
+    }
 }
