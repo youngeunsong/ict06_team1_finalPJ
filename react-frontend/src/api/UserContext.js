@@ -9,6 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.22    김다솜        최초 생성/화면 구성/로그인 계정 정보 저장 Context 구현
  * @ 2026.04.29    김다솜        새로고침 시 토큰 기반 사용자 정보 복구 로직 추가
+ * @ 2026.05.07    김다솜        RefreshToken 도입에 따른 이중 토큰 저장 및 로그아웃 로직 수정
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -22,44 +23,46 @@ export const UserProvider = ({ children }) => {
     const [userLoading, setUserLoading] = useState(true);
 
     useEffect(() => {
-        const restoreUserInfo = async() => {
-            const token = localStorage.getItem('token');
+        const restoreUserInfo = async () => {
+            // 새로고침 시 토큰이 존재하면 AccessToken으로 사용자 정보 우선 복구 시도
+            const token = localStorage.getItem('accessToken');
 
-            if(!token) {
+            if (!token) {
                 setUserLoading(false);
                 return;
             }
 
-        try {
-            const response = await axiosInstance.get(PATH.API.USER_ME);
+            try {
+                const response = await axiosInstance.get(PATH.API.USER_ME);
 
-            setUserInfo(response.data);
-        } catch(err) {
-            console.error('사용자 정보 복구 실패:',err);
-            setUserInfo(null);
-        } finally {
-            setUserLoading(false);
-        }
+                setUserInfo(response.data);
+            } catch (err) {
+                console.error('사용자 정보 복구 실패:', err);
+                setUserInfo(null);
+            } finally {
+                setUserLoading(false);
+            };
+        };
+        restoreUserInfo();
+    }, []);
+
+    //로그인 시 AccessToken, RefreshToken 저장
+    const login = (basicInfo, accessToken, refreshToken) => {
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        setUserInfo(basicInfo);
     };
 
-    restoreUserInfo();
-}, []);
-
-    //로그인 시 호출
-    const login = (basicInfo, token) => {
-        localStorage.setItem('token', token);
-        setUserInfo(basicInfo);
+    //로그아웃 시 토큰 삭제 및 사용자 정보 초기화
+    const logout = () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        setUserInfo(null);
     };
 
     //상세 정보 업데이트
     const updateUserInfo = (detailInfo) => {
         setUserInfo(prev => ({ ...prev, ...detailInfo }));
-    };
-
-    //로그아웃
-    const logout = () => {
-        localStorage.removeItem('token');
-        setUserInfo(null);
     };
 
     return (

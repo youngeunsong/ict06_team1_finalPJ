@@ -1,0 +1,699 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+
+<head th:include="/admin/common/head.html :: common_header">
+    <title id="page_title">부서 관리</title>
+</head>
+
+<style>
+    .department-page-desc {
+        color: #6c757d;
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+
+    .department-message {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .department-message.success {
+        background-color: #e7f5ff;
+        color: #0D6EFD;
+        border: 1px solid #0D6EFD;
+    }
+
+    .department-message.error {
+        background-color: #fff0f0;
+        color: #d63333;
+        border: 1px solid #d63333;
+    }
+
+    .department-card-desc {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
+
+    .department-form-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .department-form-control {
+        height: 38px;
+        padding: 0 10px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        min-width: 180px;
+        box-sizing: border-box;
+    }
+
+    .department-notice-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0D6EFD;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+        font-size: 13px;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .department-search-box {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .department-search-input {
+        width: 320px;
+        max-width: 100%;
+    }
+
+    .department-search-help {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .department-table-scroll {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .department-table {
+        min-width: 1280px;
+        table-layout: fixed;
+    }
+
+    .col-id { width: 70px; }
+    .col-type { width: 80px; white-space: nowrap; }
+    .col-name { width: 190px; }
+    .col-parent { width: 150px; }
+    .col-child { width: 90px; }
+    .col-employee { width: 110px; }
+    .col-edit { width: 500px; }
+    .col-delete { width: 170px; }
+
+    .dept-name-text {
+        word-break: keep-all;
+        overflow-wrap: break-word;
+        line-height: 1.4;
+    }
+
+    .department-badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .department-badge-hq {
+        background-color: #e7f5ff;
+        color: #0D6EFD;
+    }
+
+    .department-badge-team {
+        background-color: #f1f3f5;
+        color: #555;
+    }
+
+    .department-count-text {
+        font-weight: bold;
+        color: #0D6EFD;
+    }
+
+    .department-hq-row {
+        background-color: #f8fbff;
+    }
+
+    .department-hq-row td {
+        font-weight: 600;
+    }
+
+    .department-team-row {
+        display: none;
+        background-color: #ffffff;
+    }
+
+    .department-toggle-btn {
+        border: none;
+        background: transparent;
+        color: #0D6EFD;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+        margin-right: 6px;
+        width: 18px;
+        text-align: center;
+    }
+
+    .department-team-name {
+        padding-left: 24px;
+        color: #555;
+    }
+
+    .department-summary-text {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 400;
+    }
+
+    .department-edit-box {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        flex-wrap: nowrap;
+    }
+
+    .department-edit-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .department-edit-label {
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .department-edit-box input {
+        min-width: 160px;
+        width: 160px;
+    }
+
+    .department-edit-box select {
+        min-width: 160px;
+        width: 160px;
+    }
+
+    .department-edit-box button {
+        min-width: 90px;
+        height: 38px;
+        white-space: nowrap;
+    }
+
+    .department-edit-help {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #777;
+        line-height: 1.4;
+    }
+
+    .department-delete-help {
+        font-size: 12px;
+        color: #777;
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+
+    .department-delete-disabled-help {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .department-empty-search-row {
+        display: none;
+    }
+</style>
+
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid">
+                <br>
+
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <h3 class="mb-1">부서 관리</h3>
+
+                        <p class="department-page-desc">
+                            본부와 팀을 등록/수정/삭제하는 관리자 화면입니다.<br>
+                            본부는 최상위 부서이고, 팀은 특정 본부 아래에 소속되는 하위 부서입니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div th:if="${successMessage}"
+                     class="department-message success"
+                     th:text="${successMessage}">
+                    성공 메시지
+                </div>
+
+                <div th:if="${errorMessage}"
+                     class="department-message error"
+                     th:text="${errorMessage}">
+                    실패 메시지
+                </div>
+
+                <div class="department-notice-box">
+                    <b>사용 안내</b><br>
+                    - 부서 목록은 본부 단위로 접고 펼칠 수 있습니다.<br>
+                    - 검색 시 검색어와 일치하는 본부/팀만 표시됩니다.<br>
+                    - 하위 팀이 있거나 소속 사원이 있는 부서는 삭제 버튼이 비활성화됩니다.<br>
+                    - 본부의 사원 수는 하위 팀 전체 사원 수를 합산해서 표시합니다.
+                </div>
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <strong>본부 등록</strong>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="department-card-desc">
+                                    회사 조직의 최상위 부서를 등록합니다.
+                                    예: 개발본부, 경영본부, 영업본부
+                                </div>
+
+                                <form th:action="@{/admin/departments}" method="post">
+                                    <div class="department-form-row">
+                                        <input type="text"
+                                               name="deptName"
+                                               class="department-form-control"
+                                               placeholder="본부명 입력"
+                                               required>
+
+                                        <input type="hidden"
+                                               name="parentDeptId"
+                                               value="">
+
+                                        <button type="submit"
+                                                class="btn btn-primary">
+                                            본부 등록
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <strong>팀 등록</strong>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="department-card-desc">
+                                    선택한 본부 아래에 팀을 등록합니다.
+                                    예: 개발본부 아래 개발1팀, 개발2팀, 디자인팀
+                                </div>
+
+                                <form th:action="@{/admin/departments}" method="post">
+                                    <div class="department-form-row">
+
+                                        <select name="parentDeptId"
+                                                class="department-form-control"
+                                                required>
+                                            <option value="">상위 본부 선택</option>
+
+                                            <option th:each="hq : ${headquarters}"
+                                                    th:value="${hq.id}"
+                                                    th:text="${hq.name}">
+                                                개발본부
+                                            </option>
+                                        </select>
+
+                                        <input type="text"
+                                               name="deptName"
+                                               class="department-form-control"
+                                               placeholder="팀명 입력"
+                                               required>
+
+                                        <button type="submit"
+                                                class="btn btn-primary">
+                                            팀 등록
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <strong>부서 목록</strong>
+                                <span class="text-muted ms-2">
+                                    본부를 클릭해서 하위 팀을 펼치거나 접을 수 있습니다.
+                                </span>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="department-card-desc">
+                                    부서명을 수정하거나 팀의 소속 본부를 변경할 수 있습니다.
+                                    상위 본부를 “본부로 설정”으로 선택하면 해당 부서는 최상위 본부로 변경됩니다.
+                                </div>
+
+                                <div class="department-search-box">
+                                    <input type="text"
+                                           id="departmentSearchInput"
+                                           class="form-control department-search-input"
+                                           placeholder="부서명 검색">
+
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            onclick="clearDepartmentSearch()">
+                                        검색 초기화
+                                    </button>
+
+                                    <span class="department-search-help">
+                                        본부명 또는 팀명으로 검색할 수 있습니다.
+                                    </span>
+                                </div>
+
+                                <div class="department-table-scroll">
+                                    <table class="table table-hover mb-0 align-middle department-table">
+                                        <thead class="table-light">
+                                        <tr>
+                                            <th class="col-id">부서 ID</th>
+                                            <th class="col-type">구분</th>
+                                            <th class="col-name">부서명</th>
+                                            <th class="col-parent">상위 본부</th>
+                                            <th class="col-child">하위 팀 수</th>
+                                            <th class="col-employee">소속 사원 수</th>
+                                            <th class="col-edit">부서명 / 상위 본부 변경</th>
+                                            <th class="col-delete">삭제</th>
+                                        </tr>
+                                        </thead>
+
+                                        <tbody>
+                                        <tr th:each="dept : ${departments}"
+                                            th:classappend="${dept.deptType == '본부'} ? 'department-hq-row' : 'department-team-row'"
+                                            th:attr="data-dept-id=${dept.deptId},
+                                                     data-parent-id=${dept.parentDeptId},
+                                                     data-dept-name=${dept.deptName},
+                                                     data-dept-type=${dept.deptType}">
+
+                                            <td th:text="${dept.deptId}">
+                                                1
+                                            </td>
+
+                                            <td>
+                                                <span th:if="${dept.deptType == '본부'}"
+                                                      class="department-badge department-badge-hq">
+                                                    본부
+                                                </span>
+
+                                                <span th:if="${dept.deptType == '팀'}"
+                                                      class="department-badge department-badge-team">
+                                                    팀
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <div th:if="${dept.deptType == '본부'}">
+                                                    <button type="button"
+                                                            class="department-toggle-btn"
+                                                            th:attr="data-dept-id=${dept.deptId}"
+                                                            onclick="toggleDepartmentTeams(this)">
+                                                        ▶
+                                                    </button>
+
+                                                    <span class="dept-name-text fw-semibold"
+                                                          th:text="${dept.deptName}">
+                                                        개발본부
+                                                    </span>
+
+                                                    <span class="department-summary-text"
+                                                          th:text="'하위 팀 ' + ${dept.childCount} + '개 / 총 인원 ' + ${dept.employeeCount} + '명'">
+                                                        하위 팀 0개 / 총 인원 0명
+                                                    </span>
+                                                </div>
+
+                                                <div th:if="${dept.deptType == '팀'}"
+                                                     class="department-team-name">
+                                                    <span class="dept-name-text"
+                                                          th:text="'ㄴ ' + ${dept.deptName}">
+                                                        ㄴ 개발1팀
+                                                    </span>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <span class="dept-name-text"
+                                                      th:text="${dept.parentDeptName != null ? dept.parentDeptName : '-'}">
+                                                    -
+                                                </span>
+                                            </td>
+
+                                            <td th:text="${dept.childCount}">
+                                                0
+                                            </td>
+
+                                            <td>
+                                                <span class="department-count-text"
+                                                      th:text="${dept.employeeCount}">
+                                                    0
+                                                </span>
+                                                명
+                                            </td>
+
+                                            <td>
+                                                <form th:action="@{/admin/departments/{deptId}(deptId=${dept.deptId})}"
+                                                      method="post">
+
+                                                    <div class="department-edit-box">
+
+                                                        <div class="department-edit-field">
+                                                            <label class="department-edit-label">
+                                                                부서명
+                                                            </label>
+
+                                                            <input type="text"
+                                                                   name="deptName"
+                                                                   class="department-form-control"
+                                                                   th:value="${dept.deptName}"
+                                                                   required>
+                                                        </div>
+
+                                                        <div class="department-edit-field">
+                                                            <label class="department-edit-label">
+                                                                상위 본부
+                                                            </label>
+
+                                                            <select name="parentDeptId"
+                                                                    class="department-form-control">
+                                                                <option value="">본부로 설정</option>
+
+                                                                <option th:each="hq : ${headquarters}"
+                                                                        th:value="${hq.id}"
+                                                                        th:text="${hq.name}"
+                                                                        th:selected="${dept.parentDeptId != null and dept.parentDeptId == hq.id}">
+                                                                    개발본부
+                                                                </option>
+                                                            </select>
+                                                        </div>
+
+                                                        <button type="submit"
+                                                                class="btn btn-secondary">
+                                                            변경 저장
+                                                        </button>
+                                                    </div>
+
+                                                    <span class="department-edit-help">
+                                                        부서명 변경 또는 팀의 상위 본부 변경에 사용합니다.
+                                                    </span>
+                                                </form>
+                                            </td>
+
+                                            <td>
+                                                <form th:if="${dept.childCount == 0 and dept.employeeCount == 0}"
+                                                      th:action="@{/admin/departments/{deptId}/delete(deptId=${dept.deptId})}"
+                                                      method="post"
+                                                      onsubmit="return confirm('정말 삭제하시겠습니까?');">
+
+                                                    <button type="submit"
+                                                            class="btn btn-danger">
+                                                        삭제
+                                                    </button>
+                                                </form>
+
+                                                <button th:if="${dept.childCount > 0 or dept.employeeCount > 0}"
+                                                        type="button"
+                                                        class="btn btn-danger"
+                                                        disabled>
+                                                    삭제 불가
+                                                </button>
+
+                                                <div class="department-delete-help"
+                                                     th:if="${dept.childCount == 0 and dept.employeeCount == 0}">
+                                                    하위 팀 0개, 사원 0명이라 삭제 가능합니다.
+                                                </div>
+
+                                                <div class="department-delete-help department-delete-disabled-help"
+                                                     th:if="${dept.childCount > 0 or dept.employeeCount > 0}">
+                                                    하위 팀 또는 소속 사원이 있어 삭제할 수 없습니다.
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <tr id="departmentEmptySearchRow"
+                                            class="department-empty-search-row">
+                                            <td colspan="8"
+                                                class="text-center text-muted py-4">
+                                                검색 결과가 없습니다.
+                                            </td>
+                                        </tr>
+
+                                        <tr th:if="${#lists.isEmpty(departments)}">
+                                            <td colspan="8"
+                                                class="text-center text-muted py-4">
+                                                등록된 부서가 없습니다.
+                                            </td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+
+<script>
+    function toggleDepartmentTeams(button) {
+        const deptId = button.getAttribute("data-dept-id");
+        const teamRows = document.querySelectorAll(
+            ".department-team-row[data-parent-id='" + deptId + "']"
+        );
+
+        const isOpen = button.textContent.trim() === "▼";
+
+        teamRows.forEach(function (row) {
+            row.style.display = isOpen ? "none" : "table-row";
+        });
+
+        button.textContent = isOpen ? "▶" : "▼";
+    }
+
+    function clearDepartmentSearch() {
+        const searchInput = document.getElementById("departmentSearchInput");
+        searchInput.value = "";
+        applyDepartmentSearch();
+    }
+
+    function resetDepartmentList() {
+        const hqRows = document.querySelectorAll(".department-hq-row");
+        const teamRows = document.querySelectorAll(".department-team-row");
+        const toggleButtons = document.querySelectorAll(".department-toggle-btn");
+
+        hqRows.forEach(function (row) {
+            row.style.display = "table-row";
+        });
+
+        teamRows.forEach(function (row) {
+            row.style.display = "none";
+        });
+
+        toggleButtons.forEach(function (button) {
+            button.textContent = "▶";
+        });
+    }
+
+    function applyDepartmentSearch() {
+        const keyword = document
+            .getElementById("departmentSearchInput")
+            .value
+            .trim()
+            .toLowerCase();
+
+        const hqRows = Array.from(document.querySelectorAll(".department-hq-row"));
+        const teamRows = Array.from(document.querySelectorAll(".department-team-row"));
+        const emptyRow = document.getElementById("departmentEmptySearchRow");
+
+        let visibleCount = 0;
+
+        if (keyword === "") {
+            resetDepartmentList();
+            emptyRow.style.display = "none";
+            return;
+        }
+
+        hqRows.forEach(function (row) {
+            row.style.display = "none";
+        });
+
+        teamRows.forEach(function (row) {
+            row.style.display = "none";
+        });
+
+        hqRows.forEach(function (hqRow) {
+            const hqName = (hqRow.getAttribute("data-dept-name") || "").toLowerCase();
+            const hqId = hqRow.getAttribute("data-dept-id");
+            const matchedHq = hqName.includes(keyword);
+
+            const childTeams = teamRows.filter(function (teamRow) {
+                return teamRow.getAttribute("data-parent-id") === hqId;
+            });
+
+            let matchedTeamCount = 0;
+
+            childTeams.forEach(function (teamRow) {
+                const teamName = (teamRow.getAttribute("data-dept-name") || "").toLowerCase();
+                const matchedTeam = teamName.includes(keyword);
+
+                if (matchedHq || matchedTeam) {
+                    teamRow.style.display = "table-row";
+                    matchedTeamCount++;
+                    visibleCount++;
+                }
+            });
+
+            if (matchedHq || matchedTeamCount > 0) {
+                hqRow.style.display = "table-row";
+                visibleCount++;
+
+                const toggleButton = hqRow.querySelector(".department-toggle-btn");
+                if (toggleButton) {
+                    toggleButton.textContent = "▼";
+                }
+            }
+        });
+
+        emptyRow.style.display = visibleCount === 0 ? "table-row" : "none";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("departmentSearchInput");
+
+        if (searchInput) {
+            searchInput.addEventListener("input", applyDepartmentSearch);
+        }
+    });
+</script>
+
+</body>
+</html>

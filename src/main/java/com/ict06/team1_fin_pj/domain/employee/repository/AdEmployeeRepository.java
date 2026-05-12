@@ -28,63 +28,86 @@ public interface AdEmployeeRepository extends JpaRepository<EmpEntity, String> {
      * 사원 목록 검색 쿼리
      *
      * EmployeeListDto로 바로 조회한다.
-     * 즉 Entity 전체를 가져오는 것이 아니라,
-     * 목록 화면에 필요한 데이터만 DTO로 뽑아온다.
      *
      * 검색 가능 조건:
      * - keyword: 사번, 아이디, 이름, 이메일, 연락처
-     * - deptId: 부서
+     * - parentDeptId: 본부
+     * - deptId: 팀
      * - positionId: 직급
+     * - minPositionId: 최소 직급 (예: '주임'보다 높은 직급 보유 사원)
      * - roleId: 권한
      * - status: 상태
      *
-     * isDeleted = 'N' 조건이 있으므로 삭제 처리된 사원은 조회하지 않는다.
+     * 부서 검색 기준:
+     * 1. 팀 선택 시
+     *    - 해당 팀 소속 사원만 조회
+     *
+     * 2. 본부만 선택 시
+     *    - 해당 본부 아래 모든 팀 소속 사원 조회
+     *    - 혹시 본부에 직접 소속된 사원이 있으면 그 사원도 포함
+     *
+     * 3. 본부/팀 모두 미선택 시
+     *    - 전체 부서 조회
      */
     @Query("""
-        select new com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto(
-            e.empNo,
-            e.empId,
-            e.name,
-            e.email,
-            e.phone,
-            d.deptName,
-            p.positionName,
-            r.roleName,
-            e.bank,
-            e.accountNo,
-            e.status,
-            e.hireDate
-        )
-        from EmpEntity e
-        join e.department d
-        join e.position p
-        join e.role r
-        where e.isDeleted = 'N'
-          and (
-                :keyword is null
-                or :keyword = ''
-                or e.empNo like concat('%', :keyword, '%')
-                or e.empId like concat('%', :keyword, '%')
-                or e.name like concat('%', :keyword, '%')
-                or e.email like concat('%', :keyword, '%')
-                or e.phone like concat('%', :keyword, '%')
-          )
-          and (:deptId is null or d.deptId = :deptId)
-          and (:positionId is null or p.positionId = :positionId)
-          and (:roleId is null or r.roleId = :roleId)
-          and (
-                :status is null
-                or :status = ''
-                or :status = '전체'
-                or (:status = '기본' and e.status <> '퇴사')
-                or (:status <> '기본' and e.status = :status)
-          )
-        order by e.hireDate desc, e.empNo desc
-    """)
+    select new com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto(
+        e.empNo,
+        e.empId,
+        e.name,
+        e.email,
+        e.phone,
+        d.deptName,
+        p.positionName,
+        p.positionId,
+        r.roleName,
+        e.bank,
+        e.accountNo,
+        e.status,
+        e.hireDate
+    )
+    from EmpEntity e
+    join e.department d
+    join e.position p
+    join e.role r
+    where e.isDeleted = 'N'
+      and (
+            :keyword is null
+            or :keyword = ''
+            or e.empNo like concat('%', :keyword, '%')
+            or e.empId like concat('%', :keyword, '%')
+            or e.name like concat('%', :keyword, '%')
+            or e.email like concat('%', :keyword, '%')
+            or e.phone like concat('%', :keyword, '%')
+      )
+      and (
+            (:deptId is not null and d.deptId = :deptId)
+            or
+            (:deptId is null and (
+                :parentDeptId is null
+                or d.parentDept.deptId = :parentDeptId
+                or d.deptId = :parentDeptId
+            ))
+      )
+      and (:positionId is null or p.positionId = :positionId)
+      
+      and (:minPositionId is null or p.positionId > :minPositionId)
+      
+      and (:roleId is null or r.roleId = :roleId)
+      and (
+            :status is null
+            or :status = ''
+            or :status = '전체'
+            or (:status = '기본' and e.status <> '퇴사')
+            or (:status <> '기본' and e.status = :status)
+      )
+    order by e.hireDate desc, e.empNo desc
+""")
     Page<EmployeeListDto> searchEmployees(
             String keyword,
+            Integer parentDeptId,
             Integer deptId,
             Integer positionId,
+            Integer minPositionId, // 최소 직급 (예: '주임'보다 높은 직급 보유 사원)
             Integer roleId,
             String status,
             Pageable pageable

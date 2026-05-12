@@ -56,4 +56,19 @@ public class OrganizationApiController {
     public List<OrgEmployeeDto> getEmployeesByDepartment(@RequestParam Integer deptId) {
         return organizationService.getEmployeesByDepartment(deptId);
     }
+
+    /*
+     * 전체 조직도 사원 목록 조회 API
+     *
+     * 호출 주소:
+     * GET /api/organization/employees/all
+     *
+     * 사용 위치:
+     * - 조직도에서 "전체 조직 보기"를 클릭했을 때
+     * - 오른쪽 사원 목록 영역
+     */
+    @GetMapping("/employees/all")
+    public List<OrgEmployeeDto> getAllEmployees() {
+        return organizationService.getAllEmployees();
+    }
 }

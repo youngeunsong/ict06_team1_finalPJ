@@ -24,7 +24,9 @@ public class SseEmitterManager {
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     //연결 추가
-    public void add(String empNo, SseEmitter emitter) {
+    public void add(String empNo, SseEmitter emitter)
+    {
+        System.out.println("[SSE] emitter 추가:" + empNo);
         emitters.put(empNo, emitter);
     }
 
@@ -35,13 +37,18 @@ public class SseEmitterManager {
 
     //특정 사원에게 알림 전송
     public void sendToEmp(String empNo, Object data) {
+        System.out.println("[SSE] 전송 시도 empNo:" + empNo);
+        System.out.println("[SSE] 현재 연결된 emitters:" + emitters.keySet());
         SseEmitter emitter = emitters.get(empNo);
+        System.out.println("[SSE] emitter 조회 결과:" + emitter);
         if(emitter != null) {
             try {
                 emitter.send(SseEmitter.event()
                         .name("notification")
                         .data(data));
+                System.out.println("[SSE] 전송 성공:" + empNo);
             } catch(Exception e) {
+                System.out.println("[SSE] 전송 실패:" + e.getMessage());
                 emitters.remove(empNo);
             }
         }

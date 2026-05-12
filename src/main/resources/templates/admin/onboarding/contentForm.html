@@ -1,0 +1,216 @@
+<!--
+    @FileName : contentForm.html
+    @Description : 관리자 온보딩 콘텐츠 등록 및 수정 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 08
+    @Modification_History
+    @
+    @ 수정일자        수정자       수정내용
+    @ ----------    ---------    -------------------------------
+    @ 2026.05.08    김다솜        최초 생성 및 콘텐츠 등록/수정 공용 폼 처리 추가
+    @ 2026.05.10    김다솜        대상 직급/부서 직접 입력을 체크박스 다중 선택 방식으로 변경
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title" th:text="${isEdit} ? '온보딩 콘텐츠 수정' : '온보딩 콘텐츠 등록'">온보딩 콘텐츠 등록</title>
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+    <!-- 헤더 시작 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <!-- 헤더 끝 -->
+
+    <!-- 사이드바 시작-->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <!-- 사이드바 끝-->
+
+    <!-- 메인 콘텐츠 시작 -->
+    <main class="app-main">
+        <!--begin::App Content-->
+        <div class="app-content">
+            <!--begin::Container-->
+            <div class="container-fluid">
+
+                <!--페이지 제목-->
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3 th:text="${isEdit} ? '온보딩 콘텐츠 수정' : '온보딩 콘텐츠 등록'">온보딩 콘텐츠 등록</h3>
+                        <p class="text-muted mb-0">
+                            신규 입사자에게 제공할 학습 콘텐츠 정보를 등록합니다.
+                        </p>
+                    </div>
+                </div>
+
+                <!--콘텐츠 등록 폼 영역-->
+                <form th:action="${isEdit} ? @{/admin/onboarding/contents/{id}/edit(id=${content.contentId})} : @{/admin/onboarding/contents}" method="post">
+                    <div class="row">
+
+                        <!--기본 정보-->
+                        <div class="col-md-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <strong>기본 정보</strong>
+                                </div>
+
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">콘텐츠 제목</label>
+                                        <input type="text" name="title" class="form-control" th:value="${content.title}" placeholder="예: 근태 시스템 사용법" required>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">카테고리</label>
+                                            <input type="text" name="category" class="form-control" th:value="${content.category}" placeholder="예: 근태">
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">하위 카테고리</label>
+                                            <input type="text" name="subCategory" class="form-control" th:value="${content.subCategory}" placeholder="예: 출퇴근">
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">콘텐츠 유형</label>
+                                            <select name="type" class="form-select" required>
+                                                <option value="">선택</option>
+                                                <option value="VIDEO" th:selected="${content.type != null and content.type.name() == 'VIDEO'}">영상</option>
+                                                <option value="PDF" th:selected="${content.type != null and content.type.name() == 'PDF'}">PDF</option>
+                                                <option value="QUIZ" th:selected="${content.type != null and content.type.name() == 'QUIZ'}">퀴즈</option>
+                                                <option value="LINK" th:selected="${content.type != null and content.type.name() == 'LINK'}">링크</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">난이도</label>
+                                            <select name="difficulty" class="form-select" required>
+                                                <option value="">선택</option>
+                                                <option value="EASY" th:selected="${content.difficulty != null and content.difficulty.name() == 'EASY'}">초급</option>
+                                                <option value="MEDIUM" th:selected="${content.difficulty != null and content.difficulty.name() == 'MEDIUM'}">중급</option>
+                                                <option value="HARD" th:selected="${content.difficulty != null and content.difficulty.name() == 'HARD'}">고급</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!--운영 정보 영역-->
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <strong>운영 정보</strong>
+                                </div>
+
+                                <div class="card-body">
+                                    <!--대상 부서 선택 영역-->
+                                    <div class="mb-3">
+                                        <label class="form-label">대상 부서</label>
+                                        <div class="border rounded p-2">
+                                            <div th:if="${#lists.isEmpty(departments)}" class="text-muted small">
+                                                등록된 부서가 없습니다.
+                                            </div>
+                                            <div th:each="department : ${departments}" class="form-check">
+                                                <input type="checkbox"
+                                                       name="targetDepartmentIds"
+                                                       class="form-check-input"
+                                                       th:id="|targetDepartment_${department.deptId}|"
+                                                       th:value="${department.deptId}"
+                                                       th:checked="${selectedTargetDepartmentIds.contains(department.deptId)}">
+                                                <label class="form-check-label"
+                                                       th:for="|targetDepartment_${department.deptId}|">
+                                                    <span th:if="${department.parentDept != null}"
+                                                          th:text="|${department.parentDept.deptName} > ${department.deptName}|">
+                                                        상위부서 > 부서명
+                                                    </span>
+                                                    <span th:unless="${department.parentDept != null}"
+                                                          th:text="${department.deptName}">
+                                                        부서명
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!--대상 직급 선택 영역-->
+                                    <div class="mb-3">
+                                        <label class="form-label">대상 직급</label>
+                                        <div class="border rounded p-2">
+                                            <div th:if="${#lists.isEmpty(positions)}" class="text-muted small">
+                                                등록된 직급이 없습니다.
+                                            </div>
+                                            <div th:each="position : ${positions}" class="form-check">
+                                                <input type="checkbox"
+                                                       name="targetPositionIds"
+                                                       class="form-check-input"
+                                                       th:id="|targetPosition_${position.positionId}|"
+                                                       th:value="${position.positionId}"
+                                                       th:checked="${selectedTargetPositionIds.contains(position.positionId)}">
+                                                <label class="form-check-label"
+                                                       th:for="|targetPosition_${position.positionId}|"
+                                                       th:text="${position.positionName}">
+                                                    직급명
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="form-text">부서/직급을 선택하지 않으면 필수 콘텐츠 여부 또는 공통 콘텐츠 기준으로 배정됩니다.</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">예상 소요 시간</label>
+                                        <input type="number" name="estimatedTime" class="form-control" th:value="${content.estimatedTime}" placeholder="예: 20">분
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">콘텐츠 경로</label>
+                                        <input type="text" name="path" class="form-control" th:value="${content.path}" placeholder="예: /files/onboarding/attendance.pdf">
+                                    </div>
+
+                                    <div class="form-check mb-3">
+                                        <input type="checkbox" name="isMandatory" value="true"
+                                               class="form-check-input" id="isMandatory" th:checked="${content.isMandatory}">
+                                        <label class="form-check-label" for="isMandatory">
+                                            필수 콘텐츠
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!--버튼 영역-->
+                    <div class="d-flex justify-content-end gap-2">
+                        <a th:href="@{/admin/onboarding/contents}" class="btn btn-outline-secondary">
+                            목록으로
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <span th:text="${isEdit} ? '수정' : '저장'">저장</span>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+            <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+    </main>
+    <!-- 메인 콘텐츠 끝 -->
+    <!-- 푸터 시작 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!--스크립트 시작-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<!--스크립트 끝-->
+</body>
+<!--end::Body-->
+</html>

@@ -65,24 +65,15 @@ public class DepartmentEntity {
      * 의미:
      * - null이면 본부
      * - 값이 있으면 해당 본부 아래의 팀
-     *
-     * 예:
-     * 인사팀.parentDept = 경영본부
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_dept_id", nullable = true)
+    @JoinColumn(name = "parent_dept_id")
     private DepartmentEntity parentDept;
 
     /*
      * 하위 부서 목록
      *
      * 하나의 본부 아래에 여러 팀이 있을 수 있으므로 List로 관리한다.
-     *
-     * mappedBy = "parentDept"
-     * - parentDept 필드가 관계의 주인이라는 뜻이다.
-     *
-     * orphanRemoval = false
-     * - 하위 부서를 children 리스트에서 제거해도 DB에서 자동 삭제하지 않는다.
      */
     @Builder.Default
     @OneToMany(mappedBy = "parentDept", orphanRemoval = false, fetch = FetchType.LAZY)
@@ -92,13 +83,6 @@ public class DepartmentEntity {
      * 하위 부서 추가 메서드
      *
      * 본부에 팀을 추가할 때 사용한다.
-     *
-     * 예:
-     * 경영본부.addChildDepartment(인사팀)
-     *
-     * 이 메서드를 사용하면:
-     * 1. 본부의 children 리스트에 팀이 추가되고
-     * 2. 팀의 parentDept도 본부로 설정된다.
      */
     public void addChildDepartment(DepartmentEntity child) {
         this.children.add(child);
@@ -108,12 +92,34 @@ public class DepartmentEntity {
     /*
      * 상위 부서 설정 메서드
      *
-     * 특정 부서의 parentDept를 지정한다.
-     *
-     * 예:
-     * 인사팀.setParent(경영본부)
+     * 팀의 소속 본부를 지정하거나 변경할 때 사용한다.
      */
     public void setParent(DepartmentEntity parent) {
         this.parentDept = parent;
+    }
+
+    /*
+     * 부서명 수정 메서드
+     *
+     * 부서 관리 화면에서 본부명 또는 팀명을 수정할 때 사용한다.
+     *
+     * Entity에 setter를 전체로 열어두지 않고,
+     * 필요한 변경 기능만 메서드로 제공하는 방식이다.
+     */
+    public void updateDeptName(String deptName) {
+        this.deptName = deptName;
+    }
+
+    /*
+     * 부서 정보 수정 메서드
+     *
+     * 부서명과 상위 부서를 함께 수정할 때 사용한다.
+     *
+     * parentDept가 null이면 본부,
+     * parentDept가 있으면 팀으로 처리된다.
+     */
+    public void updateDepartment(String deptName, DepartmentEntity parentDept) {
+        this.deptName = deptName;
+        this.parentDept = parentDept;
     }
 }

@@ -36,6 +36,9 @@ public class EmployeeListDto {
     // 직급명
     private String positionName;
 
+    // 직급 ID
+    private Integer positionId;
+
     // 권한명
     private String roleName;
 

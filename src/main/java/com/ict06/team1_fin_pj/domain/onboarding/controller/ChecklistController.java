@@ -15,7 +15,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.controller;
 
 import com.ict06.team1_fin_pj.common.dto.onboarding.ChecklistCompleteRequest;
 import com.ict06.team1_fin_pj.common.dto.onboarding.ChecklistResponse;
-import com.ict06.team1_fin_pj.domain.onboarding.service.ChecklistService;
+import com.ict06.team1_fin_pj.domain.onboarding.service.ChecklistServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +28,7 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:3000")
 public class ChecklistController {
 
-    private final ChecklistService checklistService;
+    private final ChecklistServiceImpl checklistService;
 
     /**
      * 체크리스트 조회

@@ -1,8 +1,9 @@
 /**
  * @FileName : QuizStyle.js
  * @Description : AI 평가 퀴즈 화면 스타일 정의
- *                - 퀴즈 화면 레이아웃, 문항 카드, 보기 영역 스타일
- *                - 제출 버튼, 결과 요약, 해설 영역 스타일
+*                - 퀴즈 레이아웃, 문항 카드, 응답 필드 스타일
+*                - SBERT 유사도 기반 동적 배지 및 AI 피드백 전용 박스 스타일
+*                - 평가 현황 및 결과 요약 컴포넌트 공통 스타일
  * @Author : 김다솜
  * @Date : 2026. 04. 30
  * @Modification_History
@@ -11,6 +12,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.30    김다솜        최초 생성 및 퀴즈 화면 스타일 분리
  * @ 2026.05.01    김다솜        카테고리별 일괄 제출 UI 및 결과 요약 스타일 추가
+ * @ 2026.05.06    김다솜        AI 분석 리포트 전용 스타일(aiResultContainer, similarityBadge 등) 추가
  */
 
 // ==============================
@@ -154,6 +156,48 @@ export const failText = {
     color: '#dc3545'
 };
 
+export const evalResultStyles = {
+    container: {
+        padding: '24px',
+        maxWidth: '900px',
+        margin: '0 auto'
+    },
+    summaryHeader: {
+        background: '#f0f4ff',
+        borderRadius: '12px',
+        padding: '20px 24px',
+        marginBottom: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+    grid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+        gap: '16px'
+    },
+    // 상세 보기용 스타일
+    detailCard: {
+        background: '#fff',
+        borderRadius: '12px',
+        padding: '20px',
+        border: '1px solid #ebedef',
+        marginBottom: '16px'
+    },
+    questionText: {
+        fontWeight: 600,
+        fontSize: '16px',
+        marginBottom: '10px'
+    },
+    answerBox: {
+        padding: '12px',
+        borderRadius: '8px',
+        backgroundColor: '#f8f9fa',
+        fontSize: '14px',
+        lineHeight: '1.6'
+    }
+};
+
 // ==============================
 // 6. 평가 현황 카드 목록
 // ==============================
@@ -192,8 +236,107 @@ export const statusButton = {
     padding: '4px 10px',
     fontSize: '12px',
     borderRadius: '20px',
-    border: '1px solid #adb5bd',
-    background: '#f8f9fa',
-    color: '#6c757d',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    fontWeight: 600
+};
+
+// 평가 상태별 버튼 className 반환
+export const getEvaluationButtonClass = ({ isLearningCompleted, isPassed, isSubmitted }) => {
+    if (!isLearningCompleted) return 'btn-secondary';
+    if (isPassed) return 'btn-success';
+    if (isSubmitted) return 'btn-warning';
+    return 'btn-primary';
+};
+
+// 평가 상태별 버튼 텍스트 반환
+export const getEvaluationButtonText = ({ isLearningCompleted, isPassed, isSubmitted }) => {
+    if (!isLearningCompleted) return '응시 대기';
+    if (isPassed) return '통과 완료';
+    if (isSubmitted) return '재응시 필요';
+    return '응시하기';
+};
+
+// 평가 상태별 설명 문구 반환
+export const getEvaluationStatusText = ({ isLearningCompleted, result }) => {
+    if (!isLearningCompleted) return '학습 완료 후 응시 가능';
+    if (result?.submitted) return `총점 ${result.totalScore} / ${result.maxScore}`;
+    return '평가 미응시';
+};
+
+// 평가 상태별 서브텍스트 스타일
+export const getEvaluationStatusSubText = ({ isLearningCompleted, isPassed, isSubmitted }) => ({
+    ...statusSubText,
+    color: !isLearningCompleted
+        ? '#868e96'
+        : isPassed
+            ? '#198754'
+            : isSubmitted
+                ? '#f59f00'
+                : '#321fdb'
+});
+
+// 평가 상태별 왼쪽 컬러바 스타일
+export const evaluationStatusBar = ({ isLearningCompleted, isPassed, isSubmitted }) => ({
+    width: '6px',
+    alignSelf: 'stretch',
+    borderRadius: '8px',
+    backgroundColor: !isLearningCompleted
+        ? '#adb5bd'
+        : isPassed
+            ? '#198754'
+            : isSubmitted
+                ? '#f59f00'
+                : '#321fdb'
+});
+
+// 평가 현황 카드 내부 레이아웃
+export const statusContentWrap = {
+    display: 'flex',
+    alignItems: 'stretch',
+    gap: '12px',
+    flex: 1
+};
+
+// ==============================
+// 7. AI 평가 결과 상세 스타일
+// ==============================
+export const aiResultContainer = {
+    marginTop: '16px',
+    padding: '14px',
+    background: '#f0f2ff', // 연한 보라/파란색 톤으로 AI 느낌 강조
+    borderRadius: '10px',
+    borderLeft: '4px solid #4f46e5', // 강조 라인
+};
+
+export const aiResultHeader = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontWeight: 700,
+    fontSize: '14px',
+    color: '#4f46e5',
+    marginBottom: '8px'
+};
+
+export const aiScoreText = {
+    fontSize: '13px',
+    color: '#374151',
+    marginBottom: '4px'
+};
+
+export const similarityBadge = (score) => ({
+    fontWeight: 'bold',
+    color: score >= 80 ? '#10b981' : '#f59e0b', // 80점 이상은 초록, 미만은 주황
+    marginLeft: '4px'
+});
+
+export const aiFeedbackBox = {
+    marginTop: '8px',
+    padding: '10px',
+    background: '#ffffff',
+    borderRadius: '8px',
+    fontSize: '13px',
+    color: '#4b5563',
+    lineHeight: '1.5',
+    border: '1px dashed #c7d2fe'
 };

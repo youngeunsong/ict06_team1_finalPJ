@@ -82,6 +82,23 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
         npm i react-router-dom
         ```
 
+### 4. [AI서버] VisualStudio Code 환경설정 & 실행
+
+1. **프로젝트 폴더 열기**:`File` -> `Open Folder` -> `D:\DEV06\ict06_team1_finalPJ` 선택
+
+2. **AI 서버 작업용 폴더로 이동하기**: `Terminal` -> `New Terminal` -> `+` 옆의 `V` -> `Git bash` 선택-> `cd ai_server` 입력
+
+3. **가상환경 실행하기**: (2번의 ai_server 폴더로 이동한 상태에서) `source venv/Scripts/activate` 입력
+   **정상적으로 실행되면 터미널의 경로 앞에 `(venv)` 라는 표시가 생깁니다.**
+   
+4. **AI 가상 서버 띄우기**: (Terminal에서) `uvicorn main:app --reload` 입력 -> 실행 성공 시 터미널에 `INFO: Application startup complete.` 메시지가 뜹니다.
+
+5. **정상 실행되지 않을 시**: (Terminal의 ai_server 폴더에서) `pip install -r requirements.txt` 입력하여 DB 접속 라이브러리를 설치한 후 3,4번을 다시 실행합니다.
+
+6. **AI 서버 실행 확인**: http://127.0.0.1:8000 로 접속 -> 화면에 응답이 있으면 성공입니다.
+
+
+
 1. **테스트 계정으로 로그인**: 이제 프로젝트를 실행하면 테스트 계정의 사번/비밀번호로 로그인이 가능
    * **테스트 계정**: 사번 20209999 / 비밀번호: 1234
     ![alt text](/readme_images/login.png)
