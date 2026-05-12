@@ -1,20 +1,14 @@
 package com.ict06.team1_fin_pj.common.dto.calendar;
 
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-// 캘린더 목록 응답 DTO
-// 화면에 보여줄 일정 정보만 담는다.
+// 일정 수정 요청
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ScheduleListResponseDto {
-
-    private Integer scheduleId;
-
+public class ScheduleUpdateRequestDto {
     private String title;
 
     private String content;
@@ -25,6 +19,8 @@ public class ScheduleListResponseDto {
 
     private String type;
 
+    private Integer deptId;
+
     private String category;
 
     private String location;
@@ -34,7 +30,4 @@ public class ScheduleListResponseDto {
     private Boolean isPublic;
 
     private String repeatRule;
-
-    private String creatorNo;
-
 }
