@@ -12,6 +12,8 @@
  * @ ----------    ---------    ----------------------------------------
  * @ 2026.04.27    송혜진        최초 생성
  * @ 2026.05.06    송혜진        더미 데이터 삭제 / DB 기반 최근 작성 목록 연결
+ * @ 2026.05.07    송혜진        문서 유형 REPORT / MINUTES / APPROVAL 대문자 기준 정리
+ * @ 2026.05.07    송혜진        mail 명칭을 correction 흐름으로 정리
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -59,8 +61,8 @@ import { styles } from "./styles/aiSecretaryTheme";
  * ASSISTANT 세션 응답을 Sidebar / AssistantHome에서 쓰는 recent 문서 형식으로 변환한다.
  *
  * 현재 한계:
- * - AI_CHAT_SESSION에 report/minutes/approval 같은 documentType 컬럼이 아직 없음
- * - 그래서 우선 type은 report로 기본 처리
+ * - AI_CHAT_SESSION에 documentType 컬럼이 아직 없음
+ * - 따라서 우선 REPORT로 기본 처리
  *
  * 추후 개선:
  * - AI_CHAT_SESSION.document_type 컬럼 추가
@@ -71,9 +73,9 @@ const mapSessionToRecentDoc = (session) => ({
   id: String(session.sessionId),
   sessionId: session.sessionId,
   title: session.title || "제목 없는 AI 문서",
-  type: "report",
+  type: normalizeFormType(session.documentType || session.type || "REPORT"),
   screen: "writer",
-  updatedAt: session.lastMessageAt,
+  updatedAt: session.lastMessageAt || session.updatedAt || session.createdAt,
 });
 
 export default function AiSecretary({ userInfo }) {
@@ -82,11 +84,23 @@ export default function AiSecretary({ userInfo }) {
   const { docId } = useParams();
   const [searchParams] = useSearchParams();
 
+  // ------------------------------------------------
+  // 0) 화면 공통 상태
+  // ------------------------------------------------
+
   /**
-   * 화면 상태
+   * StartFormScreen 입력값
    */
   const [formData, setFormData] = useState(initialFormData);
+
+  /**
+   * CorrectionScreen 상태
+   */
   const [correction, setCorrection] = useState(initialCorrectionState);
+
+  /**
+   * WriterScreen 상태
+   */
   const [writerState, setWriterState] = useState(initialWriterState);
 
   /**
@@ -131,9 +145,11 @@ export default function AiSecretary({ userInfo }) {
    * query string의 type 값을 문서 유형으로 정규화한다.
    *
    * 예:
-   * /ai-portal/assistant/new?type=report
-   * /ai-portal/assistant/new?type=minutes
-   * /ai-portal/assistant/new?type=approval
+   * /ai-portal/assistant/new?type=REPORT
+   * /ai-portal/assistant/new?type=MINUTES
+   * /ai-portal/assistant/new?type=APPROVAL
+   *
+   * normalizeFormType은 소문자가 들어와도 대문자로 보정한다.
    */
   const queryType = normalizeFormType(searchParams.get("type"));
 
@@ -155,7 +171,7 @@ export default function AiSecretary({ userInfo }) {
    * chatbot:
    * - 사내 지식 챗봇
    *
-   * polish:
+   * correction:
    * - 문장 다듬기
    *
    * knowledge-request:
@@ -163,7 +179,12 @@ export default function AiSecretary({ userInfo }) {
    */
   const currentTab = useMemo(() => {
     if (location.pathname.startsWith(PATH.AI.CHATBOT)) return "chatbot";
-    if (location.pathname.startsWith(PATH.AI.CORRECTION)) return "polish";
+
+    /**
+     * 기존에는 polish라는 탭 키를 사용했지만,
+     * 기능명과 API/route 기준에 맞춰 correction으로 정리한다.
+     */
+    if (location.pathname.startsWith(PATH.AI.CORRECTION)) return "correction";
 
     if (location.pathname.startsWith(PATH.AI.KNOWLEDGE_REQUEST)) {
       return "knowledge-request";
@@ -193,10 +214,13 @@ export default function AiSecretary({ userInfo }) {
    * 우선순위:
    * 1. 최근 작성 목록에서 찾은 문서 type
    * 2. query string type
-   * 3. normalizeFormType 내부 기본값
+   * 3. normalizeFormType 내부 기본값 REPORT
    */
   const currentFormType = useMemo(() => {
-    if (matchedRecentDoc?.type) return matchedRecentDoc.type;
+    if (matchedRecentDoc?.type) {
+      return normalizeFormType(matchedRecentDoc.type);
+    }
+
     return queryType;
   }, [matchedRecentDoc, queryType]);
 
@@ -206,14 +230,25 @@ export default function AiSecretary({ userInfo }) {
 
   const goAssistantHome = () => navigate(PATH.AI.ASSISTANT);
 
-  const goAssistantForm = (type = "report") => {
+  /**
+   * AI 비서 문서 작성 시작 화면으로 이동
+   *
+   * 문서 유형:
+   * - REPORT
+   * - MINUTES
+   * - APPROVAL
+   */
+  const goAssistantForm = (type = "REPORT") => {
     const normalized = normalizeFormType(type);
     navigate(`${PATH.AI.ASSISTANT_NEW}?type=${normalized}`);
   };
 
   const goAssistantTemplate = () => navigate(PATH.AI.ASSISTANT_TEMPLATE);
 
-  const goAssistantDoc = (targetDocId, type = "report") => {
+  /**
+   * AI 비서 문서 작성/수정 화면으로 이동
+   */
+  const goAssistantDoc = (targetDocId, type = "REPORT") => {
     const normalized = normalizeFormType(type);
     navigate(`${buildAssistantDocPath(targetDocId)}?type=${normalized}`);
   };
@@ -270,7 +305,7 @@ export default function AiSecretary({ userInfo }) {
   /**
    * 최근 작성 문서 클릭 또는 URL 직접 진입 시:
    *
-   * /ai-portal/assistant/docs/{sessionId}?type=report
+   * /ai-portal/assistant/docs/{sessionId}?type=REPORT
    *
    * 위와 같은 writer 화면으로 들어오면,
    * sessionId 기준으로 메시지 목록을 불러온다.
@@ -374,18 +409,6 @@ export default function AiSecretary({ userInfo }) {
    * 5. WriterScreen으로 이동
    */
   const handleGenerateDraft = async () => {
-    /**
-     * 디버깅이 필요할 때만 주석 해제
-     *
-     * console.log("[DRAFT] 버튼 클릭됨", {
-     *   userInfo,
-     *   empNo,
-     *   currentFormType,
-     *   formData,
-     *   generatingDraft,
-     * });
-     */
-
     if (generatingDraft) {
       return;
     }
@@ -428,7 +451,7 @@ export default function AiSecretary({ userInfo }) {
         sessionId: data.sessionId,
         userMessageId: data.userMessageId,
         aiMessageId: data.aiMessageId,
-        type: data.type,
+        type: normalizeFormType(data.type || currentFormType),
         title: data.title,
         content: data.content,
         modelName: data.modelName,
@@ -481,7 +504,7 @@ export default function AiSecretary({ userInfo }) {
           id: String(data.sessionId),
           sessionId: data.sessionId,
           title: data.title || formData.title || "제목 없는 AI 문서",
-          type: data.type || currentFormType,
+          type: normalizeFormType(data.type || currentFormType),
           screen: "writer",
           updatedAt: new Date().toISOString(),
         },
@@ -490,7 +513,7 @@ export default function AiSecretary({ userInfo }) {
         ),
       ]);
 
-      goAssistantDoc(data.sessionId, currentFormType);
+      goAssistantDoc(data.sessionId, data.type || currentFormType);
     } catch (err) {
       console.error("AI 초안 생성 실패", err);
       setDraftError(
@@ -516,7 +539,8 @@ export default function AiSecretary({ userInfo }) {
       return;
     }
 
-    if (next === "polish") {
+    // correction : 현재 정리된 문장 다듬기 탭 key
+    if (next === "correction") {
       goCorrection();
       return;
     }
@@ -534,7 +558,7 @@ export default function AiSecretary({ userInfo }) {
    */
   const handleRecentClick = (doc) => {
     if (doc.screen === "writer") {
-      goAssistantDoc(doc.sessionId ?? doc.id, doc.type ?? "report");
+      goAssistantDoc(doc.sessionId ?? doc.id, doc.type ?? "REPORT");
       return;
     }
 
@@ -543,7 +567,7 @@ export default function AiSecretary({ userInfo }) {
       title: doc.title,
     }));
 
-    goAssistantForm(doc.type ?? "report");
+    goAssistantForm(doc.type ?? "REPORT");
   };
 
   // ------------------------------------------------
@@ -555,7 +579,7 @@ export default function AiSecretary({ userInfo }) {
       return <ChatbotScreen userInfo={userInfo} />;
     }
 
-    if (currentTab === "polish") {
+    if (currentTab === "correction") {
       return (
         <CorrectionScreen
           correction={correction}
@@ -610,21 +634,28 @@ export default function AiSecretary({ userInfo }) {
     if (currentScreen === "template") {
       return (
         <TemplateScreen
+          empNo={empNo}
           onOpenForm={goAssistantForm}
           onStartTemplate={(card) => {
-            // 선택한 템플릿의 title / desc / preview를 기반으로 AI 초안 생성에 필요한 입력값을 미리 구성
-            const previewText = Array.isArray(card.preview)
+            /**
+             * 선택한 템플릿의 generatedContent / preview를 기반으로
+             * AI 초안 생성에 필요한 입력값을 미리 구성한다.
+             *
+             * 우선순위:
+             * 1. AI 생성 템플릿: card.generatedContent
+             * 2. 정적 추천 템플릿: card.preview.join("\n")
+             */
+            const previewText = card.generatedContent
+              ? card.generatedContent
+              : Array.isArray(card.preview)
               ? card.preview.join("\n")
               : "";
 
-            const inferredType =
-              card.type === "minutes" || card.type === "approval" || card.type === "report"
-                ? card.type
-                : card.tag?.includes("회의") || card.title?.includes("회의")
-                ? "minutes"
-                : card.tag?.includes("결재") || card.title?.includes("결재")
-                ? "approval"
-                : "report";
+            /**
+             * card.type은 이제 REPORT / MINUTES / APPROVAL 대문자 기준이다.
+             * 다만 혹시 과거 데이터가 들어와도 normalizeFormType으로 보정한다.
+             */
+            const inferredType = normalizeFormType(card.type);
 
             setFormData((prev) => ({
               ...prev,
@@ -635,21 +666,22 @@ export default function AiSecretary({ userInfo }) {
               // 작성 목적
               purpose:
                 card.desc ||
+                card.description ||
                 "선택한 템플릿을 바탕으로 업무 문서 초안을 작성하기 위함",
 
               // 대상 독자
               audience:
-                inferredType === "approval"
+                inferredType === "APPROVAL"
                   ? "팀장 및 결재권자"
-                  : inferredType === "minutes"
+                  : inferredType === "MINUTES"
                   ? "회의 참석자 및 공유 대상자"
                   : "팀장 및 유관 부서 담당자",
 
-              // 정리 대상/보고 대상
+              // 정리 대상 / 보고 대상 / 결재 라인
               targets:
-                inferredType === "minutes"
+                inferredType === "MINUTES"
                   ? ["참석자 공유", "액션아이템 중심"]
-                  : inferredType === "approval"
+                  : inferredType === "APPROVAL"
                   ? ["팀장", "부서장"]
                   : ["팀장", "전사 공유"],
 
@@ -658,11 +690,11 @@ export default function AiSecretary({ userInfo }) {
                 previewText ||
                 "선택한 템플릿의 구조를 바탕으로 문서 초안을 작성해 주세요.",
 
-              // 원하는 분량/방식
+              // 원하는 분량 / 정리 방식 / 강조 포인트
               amount:
-                inferredType === "minutes"
+                inferredType === "MINUTES"
                   ? "결정사항 및 액션아이템 중심"
-                  : inferredType === "approval"
+                  : inferredType === "APPROVAL"
                   ? "승인자가 이해하기 쉬운 간결한 결재 사유"
                   : "A4 1페이지 내외",
             }));
@@ -734,4 +766,4 @@ export default function AiSecretary({ userInfo }) {
       <main style={styles.main}>{page}</main>
     </div>
   );
-} 
+}

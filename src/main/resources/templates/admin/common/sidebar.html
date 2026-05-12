@@ -51,16 +51,6 @@
                 </li>
                 <!-- 끝: 구분선 -->
 
-                <!-- 시작: 사내 AI 포털 --> <!-- TODO: 혜진님의 페이지 설정에 따라 이 구조 변경-->
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
-                        <p>사내 AI 포털</p>
-                        <span class="badge text-bg-primary">AI</span>
-                    </a>
-                </li>
-                <!-- 끝: 사내 AI 포털 -->
-
                 <!-- 시작: 홈피드 -->
                 <li class="nav-item">
                     <a th:href="@{/admin/home}" class="nav-link">
@@ -87,6 +77,32 @@
                     </a>
                 </li>
                 <!-- 끝: 전자결재 -->
+
+                <!-- 시작: 사내 AI 포털 --> <!-- TODO: 혜진님의 페이지 설정에 따라 이 구조 변경-->
+                <li class="nav-header">
+                    <hr>
+                    사내 AI 포털
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/dashboard" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>AI 데이터 운영 대시보드</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/rag" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>지식 베이스 및 RAG 관리</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/AiSecretary/security" class="nav-link">
+                        <i class="nav-icon fa-regular fa-comments"></i> <!-- class에 nav-icon 넣어야 p 태그와 세로 가운데 정렬됨 -->
+                        <p>보안 및 권한 제어</p>
+                    </a>
+                </li>
+                <!-- 끝: 사내 AI 포털 -->
+
 
                 <!-- 시작: 인사 관리 -->
                 <li class="nav-header">
