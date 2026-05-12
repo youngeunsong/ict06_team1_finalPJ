@@ -1777,9 +1777,11 @@ $(document).ready(function () {
 
     function renderSavedInsurance(result) {
 
-        if (!result || result.payrollStatus === 'NEW') {
-            return;
-        }
+       if (!result
+               || result.payrollStatus === 'NEW'
+               || result.payrollStatus === 'DRAFT') {
+           return;
+       }
 
         const hasInsurance =
             result.nationalPensionAmount != null
