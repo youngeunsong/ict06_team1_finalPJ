@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @FileName : _nav.jsx
  * @Description : 사이드바 메뉴 구성
  *                - 주요 기능별 화면 이동 경로 정의
@@ -84,19 +84,6 @@ const _nav = [
       text: 'AI',
     },
     end: true,
-  },
-  {
-    component: CNavItem,
-    name: '평가 조회',
-    to: PATH.EVALUATION.RESULT,
-    icon: <CIcon icon={cilChartLine} customClassName="nav-icon" />,
-  },
-  {
-    component: CNavItem,
-    name: '평가 관리',
-    to: '/evaluation/admin',
-    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
-    roles: ['ROLE_TEAM_LEADER', 'ROLE_ADMIN'],
   },
   {
     component: CNavTitle,

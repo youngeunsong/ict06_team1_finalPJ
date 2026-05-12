@@ -9,6 +9,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.06    김다솜        최초 생성 및 온보딩 요약 카드 구현
+ * @ 2026.05.08    김다솜        체크리스트 완료 현황 표시 추가
  */
 
 import React, { useEffect, useState } from 'react';
@@ -38,7 +39,11 @@ const OnboardingSummaryCard = () => {
                 console.error("[OnboardingSummaryCard] 요약 조회 실패", err);
             }
         };
+
         fetchSummary();
+
+        window.addEventListener('onboardingProgressUpdated', fetchSummary);
+        return () => window.removeEventListener('onboardingProgressUpdated', fetchSummary);
     }, [userInfo?.empNo]);
 
     return (
@@ -67,8 +72,8 @@ const OnboardingSummaryCard = () => {
                 </div>
 
                 <div>
-                    <div style={summaryItemLabel}>완료 콘텐츠</div>
-                    <strong>{summary?.completedLearningCount ?? 0} / {summary?.totalLearningCount ?? 0}</strong>
+                    <div style={summaryItemLabel}>체크리스트 완료</div>
+                    <strong>{summary?.completedChecklistCount ?? 0} / {summary?.totalChecklistCount ?? 0}</strong>
                 </div>
 
                 <div>

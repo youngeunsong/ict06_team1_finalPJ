@@ -23,13 +23,15 @@
  * @ 2026.04.27    송영은        Thymeleaf 기반 관리자 페이지 전용 보안 설정(세션 기반 인증-Form Login 사용)
  * @ 2026.05.01    김다솜        API용 JWT 필터 체인과 관리자용 세션 필터 체인 분리
  * @ 2026.05.08    김다솜        SSE 구독 인증 검증 및 DaoAuthenticationProvider 생성자 수정
- * @                            PasswordEncoder 빈 분리, 인증 매니저 주입 방식 변경, 세션 고정 보호 및 로그아웃 인증정보 제거 설정 추가
+ * @ 2026.05.08    김다솜        PasswordEncoder 빈 분리, 인증 매니저 주입 방식 변경, 세션 고정 보호 및 로그아웃 인증정보 제거 설정 추가
+ * @ 2026.05.08    김다솜        관리자 세션 만료 및 로그아웃 시 공용 로그인 페이지로 이동하도록 수정
  */
 
 package com.ict06.team1_fin_pj.common.security;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -56,6 +58,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtToken;
+
+    @Value("${app.frontend.login-url:http://localhost:3000/auth/login}")
+    private String commonLoginUrl;
 
     /**
      * 1. [React API용] JWT 기반 인증 필터 체인
@@ -178,7 +183,7 @@ public class SecurityConfig {
                 // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // 관리자 로그인 페이지 허용
-                        .requestMatchers("/admin/login").permitAll()
+                        .requestMatchers("/admin/login", "/admin/login-process").permitAll()
                         // 관리자 페이지는 ADMIN 권한 필요
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                 )
@@ -188,14 +193,20 @@ public class SecurityConfig {
                         .loginPage("/admin/login")      // 로그인 페이지
                         .loginProcessingUrl("/admin/login-process")         // 로그인 처리 URL
                         .defaultSuccessUrl("/admin/home", true)     // 로그인 성공 시
-                        .failureUrl("/admin/login?error=true")           // 로그인 실패 시
+                        .failureUrl(commonLoginUrl)           // 로그인 실패 시
                         .permitAll()
+                )
+
+                // 관리자 세션 만료/미인증 접근 시 공용 로그인 페이지로 이동
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendRedirect(commonLoginUrl))
                 )
 
                 // 로그아웃 설정
                 .logout(logout -> logout
                         .logoutUrl("/admin/logout")
-                        .logoutSuccessUrl("/admin/login")
+                        .logoutSuccessUrl(commonLoginUrl)
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
