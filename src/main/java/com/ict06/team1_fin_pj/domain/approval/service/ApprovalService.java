@@ -126,6 +126,15 @@ public interface ApprovalService {
     );
 
     /**
+     * 작성자가 상신한 결재 문서를 취소 처리합니다.
+     * 아직 어떤 결재자도 승인/반려하지 않은 문서만 취소할 수 있습니다.
+     */
+    ApprovalCreateResponseDto cancelApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    );
+
+    /**
      * 결재 문서 상세 정보를 조회합니다.
      *
      * 작성자, 결재자, 참조자만 조회할 수 있으며,

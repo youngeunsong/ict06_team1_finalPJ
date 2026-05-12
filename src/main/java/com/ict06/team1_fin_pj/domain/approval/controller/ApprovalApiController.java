@@ -140,6 +140,21 @@ public class ApprovalApiController {
     }
 
     /**
+     * 결재 문서 상신 취소 API
+     *
+     * - 작성자 본인만 상신 취소할 수 있습니다.
+     * - 결재자가 아직 승인/반려하지 않은 진행중 문서만 취소할 수 있습니다.
+     * - 취소된 문서는 CANCELED 상태로 남겨 개인 문서함에서 이력을 확인할 수 있게 합니다.
+     */
+    @PostMapping("/{approvalId}/cancel")
+    public ApprovalCreateResponseDto cancelApproval(
+            @PathVariable Integer approvalId,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.cancelApproval(approvalId, principal);
+    }
+
+    /**
      * 결재 문서 상세 조회 API
      *
      * - 목록에서 문서를 클릭했을 때 호출합니다.

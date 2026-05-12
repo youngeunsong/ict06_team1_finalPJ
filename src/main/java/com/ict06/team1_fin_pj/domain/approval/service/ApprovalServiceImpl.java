@@ -297,6 +297,24 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 작성자가 상신한 결재 문서를 취소 처리합니다.
+     *
+     * 결재자가 이미 승인 또는 반려한 문서는 결재 이력이 생긴 상태이므로 취소할 수 없습니다.
+     * 아직 모든 결재선이 WAITING 상태인 진행중 문서만 CANCELED 상태로 전환합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto cancelApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    ) {
+        ApprovalEntity approval = getCancelableApproval(approvalId, principal);
+        approval.cancel();
+
+        return toCreateResponse(approval);
+    }
+
+    /**
      * 결재 문서 상세 정보를 조회합니다.
      *
      * 작성자는 자신의 문서를 볼 수 있고, 결재자와 참조자는 상신 이후 문서만 볼 수 있습니다.
@@ -398,6 +416,41 @@ public class ApprovalServiceImpl implements ApprovalService {
         if (approval.getCurrentApprover() == null
                 || !principal.getEmpNo().equals(approval.getCurrentApprover().getEmpNo())) {
             throw new IllegalArgumentException("현재 결재자만 승인 또는 반려할 수 있습니다.");
+        }
+
+        return approval;
+    }
+
+    /**
+     * 상신 취소가 가능한 문서를 조회하고 작성자 권한과 결재 진행 여부를 검증합니다.
+     */
+    private ApprovalEntity getCancelableApproval(Integer approvalId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (approvalId == null) {
+            throw new IllegalArgumentException("결재 문서 ID가 필요합니다.");
+        }
+
+        ApprovalEntity approval = approvalRepository.findById(approvalId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 문서입니다."));
+
+        boolean isWriter = approval.getWriter() != null
+                && principal.getEmpNo().equals(approval.getWriter().getEmpNo());
+
+        if (!isWriter) {
+            throw new IllegalArgumentException("상신 취소는 작성자만 할 수 있습니다.");
+        }
+
+        if (approval.getStatus() != ApprovalStatus.IN_PROGRESS) {
+            throw new IllegalArgumentException("진행 중인 결재 문서만 상신 취소할 수 있습니다.");
+        }
+
+        boolean hasProcessedLine = approval.getLines().stream()
+                .anyMatch(line -> line.getStatus() == ApprovalLineStatus.APPROVED
+                        || line.getStatus() == ApprovalLineStatus.REJECTED);
+
+        if (hasProcessedLine) {
+            throw new IllegalArgumentException("이미 결재자가 처리한 문서는 상신 취소할 수 없습니다.");
         }
 
         return approval;

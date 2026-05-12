@@ -167,4 +167,13 @@ public class ApprovalEntity extends BaseTimeEntity {
         this.status = ApprovalStatus.REJECTED;
         this.currentApprover = null;
     }
+
+    /**
+     * 상신자가 결재 진행 전 문서를 취소 상태로 전환합니다.
+     * 취소 문서는 이력으로 남기되 더 이상 현재 결재자가 없도록 currentApprover를 비웁니다.
+     */
+    public void cancel() {
+        this.status = ApprovalStatus.CANCELED;
+        this.currentApprover = null;
+    }
 }
