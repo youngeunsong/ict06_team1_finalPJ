@@ -2,7 +2,10 @@ package com.ict06.team1_fin_pj.domain.approval.entity;
 
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +22,6 @@ public class AppLineEntity {
     @Column(name = "line_id")
     private Integer lineId;
 
-    @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approval_id", nullable = false)
     private ApprovalEntity approval;
@@ -36,4 +38,11 @@ public class AppLineEntity {
 
     private LocalDateTime processedAt;
 
+    /**
+     * 결재 문서와 결재선의 양방향 연관관계를 맞추기 위한 메서드입니다.
+     * 외부에서 임의로 approval을 바꾸지 않도록 Setter 대신 의미가 분명한 메서드로 제한합니다.
+     */
+    public void assignApproval(ApprovalEntity approval) {
+        this.approval = approval;
+    }
 }

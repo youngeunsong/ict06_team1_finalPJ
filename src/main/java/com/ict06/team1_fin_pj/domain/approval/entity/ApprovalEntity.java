@@ -7,8 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,4 +62,43 @@ public class ApprovalEntity extends BaseTimeEntity {
     @OneToMany(mappedBy = "approval", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AppFileEntity> files = new ArrayList<>();
+
+    /**
+     * 결재 문서에 실제 결재자를 한 명 추가합니다.
+     * ApprovalEntity가 연관관계의 주인이 아니므로, 자식 엔티티에도 부모를 지정해 양방향 관계를 일관되게 유지합니다.
+     */
+    public void addLine(AppLineEntity line) {
+        this.lines.add(line);
+        line.assignApproval(this);
+    }
+
+    /**
+     * 결재 문서에 첨부파일을 추가합니다.
+     * 파일 엔티티가 approval_id를 가진 주인 쪽이므로, 부모 문서 참조도 함께 세팅합니다.
+     */
+    public void addFile(AppFileEntity file) {
+        this.files.add(file);
+        file.assignApproval(this);
+    }
+
+    /**
+     * 문서를 아직 상신하지 않은 임시저장 상태로 전환합니다.
+     * 현재 결재자는 존재하지 않으므로 currentApprover를 비워 둡니다.
+     */
+    public void saveAsDraft() {
+        this.status = ApprovalStatus.DRAFT;
+        this.currentStep = 0;
+        this.currentApprover = null;
+    }
+
+    /**
+     * 문서를 상신 상태로 전환하고 첫 번째 결재자를 현재 결재자로 지정합니다.
+     * 이후 승인/반려 처리에서 currentStep과 currentApprover를 다음 단계로 이동시키게 됩니다.
+     */
+    public void submit(EmpEntity firstApprover, Integer maxStep) {
+        this.status = ApprovalStatus.IN_PROGRESS;
+        this.currentStep = 1;
+        this.currentApprover = firstApprover;
+        this.maxStep = maxStep;
+    }
 }

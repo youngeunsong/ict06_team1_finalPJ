@@ -43,10 +43,13 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
     @Builder.Default
     private List<AppLineTemplateDetailEntity> details = new ArrayList<>();
 
-    // 비즈니스 메서드
+    /**
+     * 결재선 템플릿에 상세 결재 조건을 추가합니다.
+     * 양방향 연관관계를 한 곳에서 관리해 템플릿과 상세 항목의 연결이 어긋나지 않게 합니다.
+     */
     public void addDetail(AppLineTemplateDetailEntity detail) {
         this.details.add(detail);
-        detail.setTemplate(this);
+        detail.assignTemplate(this);
     }
 
     // 기본 정보 수정

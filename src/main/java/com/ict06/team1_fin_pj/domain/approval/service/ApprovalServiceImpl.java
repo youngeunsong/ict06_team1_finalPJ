@@ -1,4 +1,518 @@
 package com.ict06.team1_fin_pj.domain.approval.service;
 
-public class ApprovalServiceImpl {
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFileResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineRequestDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppFileEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppLineEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalLineStatus;
+import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalStatus;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
+import com.ict06.team1_fin_pj.domain.approval.repository.ApprovalRepository;
+import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
+import com.ict06.team1_fin_pj.domain.employee.repository.EmployeeRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * 일반 직원용 전자결재 서비스 구현체입니다.
+ *
+ * 관리자용 결재 양식/결재선 템플릿 관리는 AdApprovalService가 담당하고,
+ * 이 클래스는 React 사용자 화면에서 호출하는 결재 문서 작성, 임시저장, 상신, 목록/상세 조회를 담당합니다.
+ */
+@Service
+@RequiredArgsConstructor
+public class ApprovalServiceImpl implements ApprovalService {
+
+    /*
+     * 결재 첨부파일 저장 위치입니다.
+     * 인사관리(employee) 업로드 영역과 섞이지 않도록 프로젝트 루트의 approval 전용 폴더를 사용합니다.
+     */
+    private static final String UPLOAD_BASE_DIR =
+            System.getProperty("user.dir") + "/ict_06_uploads/approval";
+
+    private final ApprovalRepository approvalRepository;
+    private final AppFormRepository appFormRepository;
+    private final EmployeeRepository employeeRepository;
+
+    /**
+     * 새 결재 문서를 임시저장합니다.
+     *
+     * 임시저장은 아직 결재 진행을 시작하지 않은 상태이므로 currentStep은 0,
+     * currentApprover는 null로 저장합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto saveDraft(
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    ) {
+        ApprovalEntity approval = createApproval(requestDto, principal);
+        approval.saveAsDraft();
+        addFiles(approval, files);
+
+        ApprovalEntity saved = approvalRepository.save(approval);
+        return toCreateResponse(saved);
+    }
+
+    /**
+     * 새 결재 문서를 상신합니다.
+     *
+     * stepOrder=0은 참조자이므로 실제 결재자 계산에서는 제외하고,
+     * stepOrder가 1 이상인 대상 중 가장 앞 순서의 사람을 현재 결재자로 지정합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto submit(
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    ) {
+        validateSubmitRequest(requestDto);
+
+        ApprovalEntity approval = createApproval(requestDto, principal);
+        EmpEntity firstApprover = findFirstApprover(requestDto.getApprovalLines());
+
+        int maxStep = requestDto.getApprovalLines().stream()
+                .filter(line -> line.getStepOrder() != null && line.getStepOrder() > 0)
+                .map(ApprovalLineRequestDto::getStepOrder)
+                .max(Integer::compareTo)
+                .orElse(1);
+
+        approval.submit(firstApprover, maxStep);
+        addFiles(approval, files);
+
+        ApprovalEntity saved = approvalRepository.save(approval);
+        return toCreateResponse(saved);
+    }
+
+    /**
+     * 로그인 사용자가 작성한 결재 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getMyDocuments(
+            String status,
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        ApprovalStatus approvalStatus = parseStatus(status);
+        return approvalRepository.findMyDocuments(
+                principal.getEmpNo(),
+                approvalStatus,
+                pageable
+        );
+    }
+
+    /**
+     * 로그인 사용자의 임시저장 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getMyDrafts(
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        return approvalRepository.findMyDrafts(
+                principal.getEmpNo(),
+                pageable
+        );
+    }
+
+    /**
+     * 로그인 사용자가 참조자로 지정된 결재 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getMyReferencedDocuments(
+            String status,
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        ApprovalStatus approvalStatus = parseStatus(status);
+        return approvalRepository.findMyReferencedDocuments(
+                principal.getEmpNo(),
+                approvalStatus,
+                pageable
+        );
+    }
+
+    /**
+     * 결재 문서 상세 정보를 조회합니다.
+     *
+     * 작성자는 자신의 문서를 볼 수 있고, 결재자/참조자는 상신 이후 문서만 볼 수 있습니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalDetailResponseDto getApprovalDetail(
+            Integer approvalId,
+            PrincipalDetails principal
+    ) {
+        validatePrincipal(principal);
+
+        if (approvalId == null) {
+            throw new IllegalArgumentException("결재 문서 ID가 필요합니다.");
+        }
+
+        ApprovalEntity approval = approvalRepository.findById(approvalId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 문서입니다."));
+
+        validateDetailReadable(approval, principal.getEmpNo());
+
+        return toDetailResponse(approval);
+    }
+
+    /**
+     * 요청 DTO를 ApprovalEntity로 변환합니다.
+     *
+     * 작성자(writer)는 요청 body에서 받지 않고 JWT 인증 정보에서 가져옵니다.
+     * 이렇게 해야 사용자가 다른 사람 사번을 임의로 보내 대리 상신하는 문제를 막을 수 있습니다.
+     */
+    private ApprovalEntity createApproval(
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal
+    ) {
+        validateCommonRequest(requestDto, principal);
+
+        AppFormEntity form = appFormRepository.findById(requestDto.getFormId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 양식입니다."));
+
+        EmpEntity writer = employeeRepository.findByEmpNo(principal.getEmpNo())
+                .orElseThrow(() -> new IllegalArgumentException("작성자 정보를 찾을 수 없습니다."));
+
+        ApprovalEntity approval = ApprovalEntity.builder()
+                .form(form)
+                .title(requestDto.getTitle().trim())
+                .content(requestDto.getContent())
+                .writer(writer)
+                .currentStep(0)
+                .maxStep(calculateMaxStep(requestDto.getApprovalLines()))
+                .status(ApprovalStatus.DRAFT)
+                .isDeleted(false)
+                .build();
+
+        if (requestDto.getApprovalLines() != null) {
+            requestDto.getApprovalLines().stream()
+                    .map(this::createLine)
+                    .sorted(Comparator.comparing(AppLineEntity::getStepOrder))
+                    .forEach(approval::addLine);
+        }
+
+        return approval;
+    }
+
+    /**
+     * 결재선 요청 한 줄을 AppLineEntity로 변환합니다.
+     *
+     * stepOrder=0은 참조자, stepOrder>=1은 실제 결재자입니다.
+     */
+    private AppLineEntity createLine(ApprovalLineRequestDto lineDto) {
+        if (lineDto == null) {
+            throw new IllegalArgumentException("결재선 정보가 비어 있습니다.");
+        }
+
+        if (lineDto.getApproverNo() == null || lineDto.getApproverNo().isBlank()) {
+            throw new IllegalArgumentException("결재자 사번은 필수입니다.");
+        }
+
+        if (lineDto.getStepOrder() == null || lineDto.getStepOrder() < 0) {
+            throw new IllegalArgumentException("결재 순서는 0 이상이어야 합니다. 0은 참조자를 의미합니다.");
+        }
+
+        EmpEntity approver = employeeRepository.findByEmpNo(lineDto.getApproverNo())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재자입니다. 사번: " + lineDto.getApproverNo()));
+
+        return AppLineEntity.builder()
+                .approver(approver)
+                .stepOrder(lineDto.getStepOrder())
+                .status(ApprovalLineStatus.WAITING)
+                .build();
+    }
+
+    /**
+     * 상신 직후 현재 결재자로 지정할 첫 번째 결재자를 찾습니다.
+     * 참조자(stepOrder=0)는 결재 순서에 참여하지 않으므로 제외합니다.
+     */
+    private EmpEntity findFirstApprover(List<ApprovalLineRequestDto> approvalLines) {
+        String firstApproverNo = approvalLines.stream()
+                .filter(line -> line.getStepOrder() != null && line.getStepOrder() > 0)
+                .min(Comparator.comparing(ApprovalLineRequestDto::getStepOrder))
+                .map(ApprovalLineRequestDto::getApproverNo)
+                .orElseThrow(() -> new IllegalArgumentException("결재선은 최소 1명 이상의 실제 결재자가 필요합니다."));
+
+        return employeeRepository.findByEmpNo(firstApproverNo)
+                .orElseThrow(() -> new IllegalArgumentException("첫 번째 결재자를 찾을 수 없습니다."));
+    }
+
+    /**
+     * 업로드된 첨부파일 목록을 결재 문서에 연결합니다.
+     */
+    private void addFiles(ApprovalEntity approval, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+
+        files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .map(this::saveApprovalFile)
+                .forEach(approval::addFile);
+    }
+
+    /**
+     * 첨부파일을 서버 디렉터리에 저장하고 APP_FILE 엔티티를 생성합니다.
+     */
+    private AppFileEntity saveApprovalFile(MultipartFile file) {
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw new IllegalArgumentException("파일명이 없는 첨부파일은 저장할 수 없습니다.");
+        }
+
+        String extension = "";
+        int extensionIndex = originalFilename.lastIndexOf(".");
+        if (extensionIndex >= 0) {
+            extension = originalFilename.substring(extensionIndex);
+        }
+
+        String savedFileName = UUID.randomUUID() + extension;
+        File folder = new File(UPLOAD_BASE_DIR);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+
+        File saveFile = new File(folder, savedFileName);
+        try {
+            file.transferTo(saveFile);
+        } catch (IOException e) {
+            throw new RuntimeException("결재 첨부파일 저장 중 오류가 발생했습니다.", e);
+        }
+
+        return AppFileEntity.builder()
+                .fileName(originalFilename)
+                .filePath("/approval/uploads/" + savedFileName)
+                .fileSize(file.getSize())
+                .build();
+    }
+
+    /**
+     * 임시저장/상신에 공통으로 필요한 필수값을 검증합니다.
+     */
+    private void validateCommonRequest(
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal
+    ) {
+        validatePrincipal(principal);
+
+        if (requestDto == null) {
+            throw new IllegalArgumentException("결재 문서 정보가 필요합니다.");
+        }
+
+        if (requestDto.getFormId() == null) {
+            throw new IllegalArgumentException("결재 양식은 필수입니다.");
+        }
+
+        if (requestDto.getTitle() == null || requestDto.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("결재 문서 제목은 필수입니다.");
+        }
+    }
+
+    /**
+     * 상신 전용 검증입니다.
+     *
+     * 참조자만 있는 결재선은 실제 승인 흐름을 만들 수 없으므로 허용하지 않습니다.
+     */
+    private void validateSubmitRequest(ApprovalCreateRequestDto requestDto) {
+        if (requestDto.getApprovalLines() == null || requestDto.getApprovalLines().isEmpty()) {
+            throw new IllegalArgumentException("상신하려면 결재선을 1명 이상 지정해야 합니다.");
+        }
+
+        boolean hasApprover = requestDto.getApprovalLines().stream()
+                .anyMatch(line -> line != null
+                        && line.getStepOrder() != null
+                        && line.getStepOrder() > 0);
+
+        if (!hasApprover) {
+            throw new IllegalArgumentException("상신하려면 참조자 외에 실제 결재자가 1명 이상 필요합니다.");
+        }
+    }
+
+    /**
+     * JWT 인증 사용자 정보가 존재하는지 확인합니다.
+     */
+    private void validatePrincipal(PrincipalDetails principal) {
+        if (principal == null) {
+            throw new IllegalArgumentException("로그인 정보가 필요합니다.");
+        }
+    }
+
+    /**
+     * 목록 조회 status 파라미터를 ApprovalStatus enum으로 변환합니다.
+     */
+    private ApprovalStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+
+        try {
+            return ApprovalStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("지원하지 않는 결재 상태입니다. status=" + status);
+        }
+    }
+
+    /**
+     * 결재선의 전체 단계 수를 계산합니다.
+     * 참조자(stepOrder=0)는 단계 수에 영향을 주지 않습니다.
+     */
+    private Integer calculateMaxStep(List<ApprovalLineRequestDto> approvalLines) {
+        if (approvalLines == null || approvalLines.isEmpty()) {
+            return 0;
+        }
+
+        return approvalLines.stream()
+                .map(line -> {
+                    if (line == null || line.getStepOrder() == null) {
+                        throw new IllegalArgumentException("결재 순서는 필수입니다.");
+                    }
+                    return line.getStepOrder();
+                })
+                .max(Integer::compareTo)
+                .orElse(0);
+    }
+
+    /**
+     * 상세 조회 권한을 검증합니다.
+     */
+    private void validateDetailReadable(ApprovalEntity approval, String empNo) {
+        boolean isWriter = approval.getWriter() != null
+                && empNo.equals(approval.getWriter().getEmpNo());
+
+        if (isWriter) {
+            return;
+        }
+
+        if (approval.getStatus() == ApprovalStatus.DRAFT) {
+            throw new IllegalArgumentException("임시저장 문서는 작성자만 조회할 수 있습니다.");
+        }
+
+        boolean isLineParticipant = approval.getLines().stream()
+                .anyMatch(line -> line.getApprover() != null
+                        && empNo.equals(line.getApprover().getEmpNo()));
+
+        if (!isLineParticipant) {
+            throw new IllegalArgumentException("결재 문서 조회 권한이 없습니다.");
+        }
+    }
+
+    /**
+     * 저장/상신 직후 프론트가 사용할 최소 응답 DTO로 변환합니다.
+     */
+    private ApprovalCreateResponseDto toCreateResponse(ApprovalEntity approval) {
+        return ApprovalCreateResponseDto.builder()
+                .approvalId(approval.getApprovalId())
+                .status(approval.getStatus().name())
+                .currentStep(approval.getCurrentStep())
+                .maxStep(approval.getMaxStep())
+                .currentApproverNo(
+                        approval.getCurrentApprover() != null
+                                ? approval.getCurrentApprover().getEmpNo()
+                                : null
+                )
+                .currentApproverName(
+                        approval.getCurrentApprover() != null
+                                ? approval.getCurrentApprover().getName()
+                                : null
+                )
+                .build();
+    }
+
+    /**
+     * ApprovalEntity를 상세 조회 응답 DTO로 변환합니다.
+     */
+    private ApprovalDetailResponseDto toDetailResponse(ApprovalEntity approval) {
+        return ApprovalDetailResponseDto.builder()
+                .approvalId(approval.getApprovalId())
+                .formId(approval.getForm() != null ? approval.getForm().getFormId() : null)
+                .formName(approval.getForm() != null ? approval.getForm().getFormName() : null)
+                .title(approval.getTitle())
+                .content(approval.getContent())
+                .status(approval.getStatus())
+                .writerNo(approval.getWriter() != null ? approval.getWriter().getEmpNo() : null)
+                .writerName(approval.getWriter() != null ? approval.getWriter().getName() : null)
+                .currentStep(approval.getCurrentStep())
+                .maxStep(approval.getMaxStep())
+                .currentApproverNo(
+                        approval.getCurrentApprover() != null
+                                ? approval.getCurrentApprover().getEmpNo()
+                                : null
+                )
+                .currentApproverName(
+                        approval.getCurrentApprover() != null
+                                ? approval.getCurrentApprover().getName()
+                                : null
+                )
+                .createdAt(approval.getCreatedAt())
+                .updatedAt(approval.getUpdatedAt())
+                .lines(toLineResponses(approval))
+                .files(toFileResponses(approval))
+                .build();
+    }
+
+    /**
+     * 결재선 Entity 목록을 상세 화면용 DTO 목록으로 변환합니다.
+     * 참조자(stepOrder=0)가 먼저 보이고, 이후 실제 결재 순서대로 정렬합니다.
+     */
+    private List<ApprovalLineResponseDto> toLineResponses(ApprovalEntity approval) {
+        return approval.getLines().stream()
+                .sorted(Comparator
+                        .comparing(AppLineEntity::getStepOrder)
+                        .thenComparing(AppLineEntity::getLineId))
+                .map(line -> ApprovalLineResponseDto.builder()
+                        .lineId(line.getLineId())
+                        .approverNo(line.getApprover() != null ? line.getApprover().getEmpNo() : null)
+                        .approverName(line.getApprover() != null ? line.getApprover().getName() : null)
+                        .stepOrder(line.getStepOrder())
+                        .status(line.getStatus())
+                        .processedAt(line.getProcessedAt())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * 첨부파일 Entity 목록을 상세 화면용 DTO 목록으로 변환합니다.
+     */
+    private List<ApprovalFileResponseDto> toFileResponses(ApprovalEntity approval) {
+        return approval.getFiles().stream()
+                .sorted(Comparator.comparing(AppFileEntity::getFileId))
+                .map(file -> ApprovalFileResponseDto.builder()
+                        .fileId(file.getFileId())
+                        .fileName(file.getFileName())
+                        .filePath(file.getFilePath())
+                        .fileSize(file.getFileSize())
+                        .build())
+                .toList();
+    }
 }

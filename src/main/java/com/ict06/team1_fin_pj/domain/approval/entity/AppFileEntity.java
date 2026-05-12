@@ -31,4 +31,12 @@ public class AppFileEntity {
 
     @Column(name = "file_size")
     private Long fileSize;
+
+    /**
+     * 첨부파일이 어느 결재 문서에 속하는지 연결합니다.
+     * 연관관계 관리는 ApprovalEntity.addFile()에서만 호출하는 흐름으로 사용합니다.
+     */
+    public void assignApproval(ApprovalEntity approval) {
+        this.approval = approval;
+    }
 }
