@@ -2,11 +2,24 @@ package com.ict06.team1_fin_pj.domain.approval.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,8 +77,8 @@ public class ApprovalEntity extends BaseTimeEntity {
     private List<AppFileEntity> files = new ArrayList<>();
 
     /**
-     * 결재 문서에 실제 결재자를 한 명 추가합니다.
-     * ApprovalEntity가 연관관계의 주인이 아니므로, 자식 엔티티에도 부모를 지정해 양방향 관계를 일관되게 유지합니다.
+     * 결재 문서에 실제 결재자 또는 참조자를 한 명 추가합니다.
+     * ApprovalEntity가 연관관계의 주인은 아니지만, 자식 엔티티에 부모를 지정해 양방향 관계를 일관되게 유지합니다.
      */
     public void addLine(AppLineEntity line) {
         this.lines.add(line);
@@ -125,5 +138,33 @@ public class ApprovalEntity extends BaseTimeEntity {
         this.currentStep = 1;
         this.currentApprover = firstApprover;
         this.maxStep = maxStep;
+    }
+
+    /**
+     * 다음 결재 단계로 문서를 이동합니다.
+     * 현재 결재자의 승인 처리가 끝난 뒤 아직 남은 결재자가 있을 때 호출합니다.
+     */
+    public void moveToNextApprover(EmpEntity nextApprover, Integer nextStep) {
+        this.currentApprover = nextApprover;
+        this.currentStep = nextStep;
+    }
+
+    /**
+     * 모든 결재 단계가 승인된 문서를 완료 상태로 전환합니다.
+     * 완료 문서는 더 이상 현재 결재자가 없으므로 currentApprover를 비웁니다.
+     */
+    public void complete() {
+        this.status = ApprovalStatus.COMPLETED;
+        this.currentApprover = null;
+        this.currentStep = this.maxStep;
+    }
+
+    /**
+     * 결재자가 반려한 문서를 반려 상태로 전환합니다.
+     * 반려 후에는 결재 흐름이 종료되므로 currentApprover를 비웁니다.
+     */
+    public void reject() {
+        this.status = ApprovalStatus.REJECTED;
+        this.currentApprover = null;
     }
 }

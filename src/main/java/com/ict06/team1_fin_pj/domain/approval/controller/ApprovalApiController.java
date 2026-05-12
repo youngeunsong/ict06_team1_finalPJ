@@ -110,6 +110,36 @@ public class ApprovalApiController {
     }
 
     /**
+     * 결재 승인 API
+     *
+     * - 결재 대기 문서 상세 화면에서 승인 버튼을 눌렀을 때 호출합니다.
+     * - 현재 결재자가 로그인 사용자일 때만 승인할 수 있습니다.
+     * - 다음 결재자가 있으면 다음 단계로 이동하고, 마지막 결재자라면 문서를 완료 처리합니다.
+     */
+    @PostMapping("/{approvalId}/approve")
+    public ApprovalCreateResponseDto approveApproval(
+            @PathVariable Integer approvalId,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.approveApproval(approvalId, principal);
+    }
+
+    /**
+     * 결재 반려 API
+     *
+     * - 결재 대기 문서 상세 화면에서 반려 버튼을 눌렀을 때 호출합니다.
+     * - 현재 결재자가 로그인 사용자일 때만 반려할 수 있습니다.
+     * - 반려 시 문서 전체 결재 흐름은 REJECTED 상태로 종료됩니다.
+     */
+    @PostMapping("/{approvalId}/reject")
+    public ApprovalCreateResponseDto rejectApproval(
+            @PathVariable Integer approvalId,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.rejectApproval(approvalId, principal);
+    }
+
+    /**
      * 결재 문서 상세 조회 API
      *
      * - 목록에서 문서를 클릭했을 때 호출합니다.

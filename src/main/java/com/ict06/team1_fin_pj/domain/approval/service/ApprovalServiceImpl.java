@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -248,6 +249,54 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 현재 결재 대기 중인 문서를 승인 처리합니다.
+     *
+     * 현재 결재선은 APPROVED로 바꾸고, 다음 결재자가 있으면 currentApprover/currentStep을 이동합니다.
+     * 더 이상 남은 결재자가 없으면 문서 상태를 COMPLETED로 종료합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto approveApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    ) {
+        ApprovalEntity approval = getProcessableApproval(approvalId, principal);
+        AppLineEntity currentLine = findCurrentApprovalLine(approval, principal.getEmpNo());
+
+        currentLine.approve();
+
+        Optional<AppLineEntity> nextLine = findNextApprovalLine(approval);
+        if (nextLine.isPresent()) {
+            AppLineEntity next = nextLine.get();
+            approval.moveToNextApprover(next.getApprover(), next.getStepOrder());
+        } else {
+            approval.complete();
+        }
+
+        return toCreateResponse(approval);
+    }
+
+    /**
+     * 현재 결재 대기 중인 문서를 반려 처리합니다.
+     *
+     * 현재 결재선은 REJECTED로 바꾸고, 문서 전체 상태도 REJECTED로 종료합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto rejectApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    ) {
+        ApprovalEntity approval = getProcessableApproval(approvalId, principal);
+        AppLineEntity currentLine = findCurrentApprovalLine(approval, principal.getEmpNo());
+
+        currentLine.reject();
+        approval.reject();
+
+        return toCreateResponse(approval);
+    }
+
+    /**
      * 결재 문서 상세 정보를 조회합니다.
      *
      * 작성자는 자신의 문서를 볼 수 있고, 결재자와 참조자는 상신 이후 문서만 볼 수 있습니다.
@@ -327,6 +376,66 @@ public class ApprovalServiceImpl implements ApprovalService {
         validateDraftEditable(approval, principal.getEmpNo());
 
         return approval;
+    }
+
+    /**
+     * 승인/반려 처리가 가능한 문서를 조회하고 현재 결재자 권한을 검증합니다.
+     */
+    private ApprovalEntity getProcessableApproval(Integer approvalId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (approvalId == null) {
+            throw new IllegalArgumentException("결재 문서 ID가 필요합니다.");
+        }
+
+        ApprovalEntity approval = approvalRepository.findById(approvalId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 문서입니다."));
+
+        if (approval.getStatus() != ApprovalStatus.IN_PROGRESS) {
+            throw new IllegalArgumentException("진행 중인 결재 문서만 승인 또는 반려할 수 있습니다.");
+        }
+
+        if (approval.getCurrentApprover() == null
+                || !principal.getEmpNo().equals(approval.getCurrentApprover().getEmpNo())) {
+            throw new IllegalArgumentException("현재 결재자만 승인 또는 반려할 수 있습니다.");
+        }
+
+        return approval;
+    }
+
+    /**
+     * 현재 로그인 사용자가 처리해야 하는 결재선 한 줄을 찾습니다.
+     */
+    private AppLineEntity findCurrentApprovalLine(ApprovalEntity approval, String empNo) {
+        AppLineEntity currentLine = approval.getLines().stream()
+                .filter(line -> line.getStepOrder() != null
+                        && line.getStepOrder().equals(approval.getCurrentStep()))
+                .filter(line -> line.getApprover() != null
+                        && empNo.equals(line.getApprover().getEmpNo()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("현재 처리할 결재선을 찾을 수 없습니다."));
+
+        if (currentLine.getStatus() != ApprovalLineStatus.WAITING) {
+            throw new IllegalArgumentException("이미 처리된 결재선입니다.");
+        }
+
+        return currentLine;
+    }
+
+    /**
+     * 현재 단계 또는 이후 단계의 다음 실제 결재자를 찾습니다.
+     *
+     * 같은 stepOrder에 결재자가 여러 명 있을 수 있으므로,
+     * 현재 단계에 WAITING 상태인 결재선이 남아 있으면 그 결재자를 먼저 다음 결재자로 지정합니다.
+     * stepOrder=0인 참조자는 결재 단계가 아니므로 제외합니다.
+     */
+    private Optional<AppLineEntity> findNextApprovalLine(ApprovalEntity approval) {
+        return approval.getLines().stream()
+                .filter(line -> line.getStepOrder() != null
+                        && line.getStepOrder() >= approval.getCurrentStep())
+                .filter(line -> line.getStepOrder() > 0)
+                .filter(line -> line.getStatus() == ApprovalLineStatus.WAITING)
+                .min(Comparator.comparing(AppLineEntity::getStepOrder));
     }
 
     /**

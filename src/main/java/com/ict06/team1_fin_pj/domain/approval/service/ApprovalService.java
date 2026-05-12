@@ -108,6 +108,24 @@ public interface ApprovalService {
     );
 
     /**
+     * 결재 대기 문서를 승인 처리합니다.
+     * 현재 결재자가 로그인 사용자일 때만 처리할 수 있습니다.
+     */
+    ApprovalCreateResponseDto approveApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    );
+
+    /**
+     * 결재 대기 문서를 반려 처리합니다.
+     * 현재 결재자가 로그인 사용자일 때만 처리할 수 있습니다.
+     */
+    ApprovalCreateResponseDto rejectApproval(
+            Integer approvalId,
+            PrincipalDetails principal
+    );
+
+    /**
      * 결재 문서 상세 정보를 조회합니다.
      *
      * 작성자, 결재자, 참조자만 조회할 수 있으며,
