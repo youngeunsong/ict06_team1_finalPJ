@@ -8,7 +8,7 @@
 2. 모든 관리자용 페이지에 반드시 포함시킬 파일: header, head, sidebar, commonJs.html (이 파일들은 수정 시 반드시 팀원들과 협의해주세요)
 -->
 <!doctype html>
-<html xmlns:th="http://www.thymleaf.org">
+<html xmlns:th="http://www.thymeleaf.org">
 <!--begin::Head-->
 <head th:include="/admin/common/head.html :: common_header">
   <title id="page_title">근태 관리 메인</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
@@ -34,10 +34,317 @@
       <div class="container-fluid">
         <br>
         <!-- begin::Row-->
-        <div class="row">
-          <h3>근태 관리 메인</h3>
+        <!-- 관리자 근태 현황 페이지 제목 영역 시작 -->
+        <div class="row mb-3">
+          <!-- 페이지 제목 -->
+          <div class="col-sm-6">
+            <!-- 관리자 페이지 제목 -->
+            <h3 class="mb-0">
+              관리자 근태 현황
+            </h3>
+          </div>
         </div>
+        <!-- 관리자 근태 현황 페이지 제목 영역 끝 -->
+        <!-- 상단 요약 카드 영역 시작 -->
+        <div class="row">
+          <!-- 전체 근태 건수 카드 -->
+          <div class="col-lg-3 col-6">
+            <!-- small-box : AdminLTE 기본 카드 -->
+            <!-- text-bg-primary : 파란색 -->
+            <div class="small-box text-bg-primary">
+              <!-- 카드 내부 -->
+              <div class="inner">
+                <!-- 컨트롤러에서 전달한 전체 근태 건수 출력 -->
+                <h3 th:text="${totalCount}">0</h3>
+                <p>전체 근태 건수</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 정상 출근 카드 -->
+          <div class="col-lg-3 col-6">
+            <!-- 초록색 카드 -->
+            <div class="small-box text-bg-success">
+              <div class="inner">
+                <!-- 컨트롤러에서 전달한 정상 출근 수 출력 -->
+                <h3 th:text="${onTimeCount}">0</h3>
+                <p>정상 출근</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 지각 카드 -->
+          <div class="col-lg-3 col-6">
+            <!-- 노란색 카드 -->
+            <div class="small-box text-bg-warning">
+              <div class="inner">
+                <!-- 컨트롤러에서 전달한 지각 수 출력 -->
+                <h3 th:text="${lateCount}">0</h3>
+                <p>지각</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 조퇴 카드 -->
+          <div class="col-lg-3 col-6">
+            <!-- 빨간색 카드 -->
+            <div class="small-box text-bg-danger">
+              <div class="inner">
+                <!-- 컨트롤러에서 전달한 조퇴 수 출력 -->
+                <h3 th:text="${earlyCount}">0</h3>
+                <p>조퇴</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 상단 요약 카드 영역 끝 -->
         <!-- end::Row-->
+
+        <!-- 관리자 근태 검색/필터 영역 시작 -->
+        <div class="card mb-4">
+          <!-- 카드 제목 영역 -->
+          <div class="card-header">
+            <h5 class="card-title mb-0">근태 검색 조건</h5>
+          </div>
+          <!-- 카드 내용 영역 -->
+          <div class="card-body">
+            <!--
+                관리자 근태 목록 필터 Form
+                지금은 화면만 먼저 만드는 단계라 action은 비워둠
+                나중에 GET /admin/attendance/main 으로 검색 조건을 넘길 예정
+            -->
+            <form method="get" action="/admin/attendance/main">
+              <div class="row g-3">
+                <!-- 근무일 필터 -->
+                <div class="col-md-3">
+                  <label for="workDate" class="form-label">근무일</label>
+                  <!-- 검색 후에도 선택한 근무일이 유지되도록 th:value 사용 -->
+                  <input type="date"
+                         id="workDate"
+                         name="workDate"
+                         class="form-control"
+                         th:value="${searchDTO.workDate}">
+                </div>
+                <!-- 부서 필터 -->
+                <div class="col-md-3">
+                  <label for="deptId" class="form-label">부서</label>
+                  <select id="deptId"
+                          name="deptId"
+                          class="form-select">
+                    <option value="">전체 부서</option>
+                    <option value="1" th:selected="${searchDTO.deptId == '1'}">인사팀</option>
+                    <option value="2" th:selected="${searchDTO.deptId == '2'}">개발팀</option>
+                    <option value="3" th:selected="${searchDTO.deptId == '3'}">영업팀</option>
+                  </select>
+                </div>
+                <!-- 근태 상태 필터 -->
+                <div class="col-md-3">
+                  <label for="status" class="form-label">근태 상태</label>
+                  <select id="status"
+                          name="status"
+                          class="form-select">
+                    <option value="">전체 상태</option>
+                    <!-- 정상 근무 상태 필터 -->
+                    <option value="ON_TIME" th:selected="${searchDTO.status == 'ON_TIME'}">정상</option>
+                    <option value="LATE" th:selected="${searchDTO.status == 'LATE'}">지각</option>
+                    <option value="EARLY" th:selected="${searchDTO.status == 'EARLY'}">조퇴</option>
+                    <option value="ABSENT" th:selected="${searchDTO.status == 'ABSENT'}">결근</option>
+                    <!-- 퇴근완료 상태 필터 -->
+                    <option value="LEFT" th:selected="${searchDTO.status == 'LEFT'}">퇴근완료</option>
+                  </select>
+                </div>
+                <!-- 사원명 검색 -->
+                <div class="col-md-3">
+                  <label for="keyword" class="form-label">사원명 검색</label>
+                  <!-- 검색 후에도 입력한 사원명이 유지되도록 th:value 사용 -->
+                  <input type="text"
+                         id="keyword"
+                         name="keyword"
+                         class="form-control"
+                         placeholder="사원명 입력"
+                         th:value="${searchDTO.keyword}">
+                </div>
+              </div>
+              <!-- 검색 버튼 영역 -->
+              <div class="row mt-3">
+                <div class="col-12 text-end">
+                  <!-- 검색 버튼 -->
+                  <button type="submit" class="btn btn-primary">
+                    검색
+                  </button>
+                  <!-- 초기화 버튼 -->
+                  <a href="/admin/attendance/main" class="btn btn-secondary">
+                    초기화
+                  </a>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <!-- 관리자 근태 검색/필터 영역 끝 -->
+
+        <!-- 관리자 근태 목록 테이블 영역 시작 -->
+        <div class="card">
+          <!-- 테이블 제목 영역 -->
+          <div class="card-header">
+            <h5 class="card-title mb-0">전체 사원 근태 목록</h5>
+          </div>
+          <!-- 테이블 영역 -->
+          <div class="card-body table-responsive p-0">
+            <table class="table table-hover table-striped text-nowrap mb-0">
+              <!-- 테이블 헤더 -->
+              <thead>
+                <tr>
+                  <th>사번</th>
+                  <th>이름</th>
+                  <th>부서</th>
+                  <th>근무일</th>
+                  <th>출근 시간</th>
+                  <th>퇴근 시간</th>
+                  <th>근무 시간</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody>
+
+              <!-- 검색 결과 없을 경우 -->
+              <!-- attendanceList가 없거나 비어있을 경우 -->
+              <tr th:if="${attendanceList == null or #lists.isEmpty(attendanceList)}">
+                <td colspan="8" class="text-center text-muted py-4">
+                  조회된 근태 데이터가 없습니다.
+                </td>
+              </tr>
+
+              <!-- 관리자 근태 목록 반복 출력 -->
+              <!-- attendanceList가 있으면 사원별 근태 행을 반복 출력 -->
+              <tr th:each="attendance : ${attendanceList}">
+
+                <!-- 사번 -->
+                <td th:text="${attendance.empNo}"></td>
+
+                <!-- 이름 -->
+                <td th:text="${attendance.empName}"></td>
+
+                <!-- 부서 -->
+                <td th:text="${attendance.deptName}"></td>
+
+                <!-- 근무일 -->
+                <td th:text="${attendance.workDate}"></td>
+
+                <!-- 출근 시간 -->
+                <td th:text="${attendance.checkIn}"></td>
+
+                <!-- 퇴근 시간 -->
+                <td th:text="${attendance.checkOut}"></td>
+
+                <!-- 근무 시간 -->
+                <td th:text="${attendance.workHours}"></td>
+
+                <!-- 근태 상태 Badge -->
+                <td>
+                  <!-- 정상 -->
+                  <span th:if="${attendance.status == '정상'}"
+                        class="badge text-bg-success">
+                    정상
+                  </span>
+
+                  <!-- 지각 -->
+                  <span th:if="${attendance.status == '지각'}"
+                        class="badge text-bg-warning">
+                    지각
+                  </span>
+
+                  <!-- 조퇴 -->
+                  <span th:if="${attendance.status == '조퇴'}"
+                        class="badge text-bg-danger">
+                    조퇴
+                  </span>
+
+                  <!-- 결근 -->
+                  <span th:if="${attendance.status == '결근'}"
+                        class="badge text-bg-dark">
+                    결근
+                  </span>
+
+                  <!-- 퇴근완료 -->
+                  <span th:if="${attendance.status == '퇴근완료'}"
+                        class="badge text-bg-primary">
+                    퇴근완료
+                  </span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- 관리자 근태 목록 테이블 영역 끝 -->
+
+        <!-- 관리자 근태 목록 페이징 영역 시작 -->
+        <div class="row mt-3">
+
+          <!-- 가운데 정렬 -->
+          <div class="col-12 d-flex justify-content-center">
+
+            <!-- Bootstrap Pagination -->
+            <nav>
+              <ul class="pagination">
+
+                <!-- 이전 버튼 -->
+                <li class="page-item"
+                    th:classappend="${attendancePage.first} ? ' disabled'">
+                  <a class="page-link"
+                     th:href="@{/admin/attendance/main(
+                page=${attendancePage.number - 1},
+                size=${attendancePage.size},
+                workDate=${searchDTO.workDate},
+                deptId=${searchDTO.deptId},
+                status=${searchDTO.status},
+                keyword=${searchDTO.keyword}
+             )}">
+                    이전
+                  </a>
+                </li>
+
+                <!-- 페이지 번호 반복 -->
+                <!-- Page 객체의 number는 0부터 시작하므로 화면에는 pageNum + 1로 표시 -->
+                <li class="page-item"
+                    th:each="pageNum : ${#numbers.sequence(0, attendancePage.totalPages - 1)}"
+                    th:classappend="${pageNum == attendancePage.number} ? ' active'">
+                  <a class="page-link"
+                     th:text="${pageNum + 1}"
+                     th:href="@{/admin/attendance/main(
+                page=${pageNum},
+                size=${attendancePage.size},
+                workDate=${searchDTO.workDate},
+                deptId=${searchDTO.deptId},
+                status=${searchDTO.status},
+                keyword=${searchDTO.keyword}
+             )}">
+                    1
+                  </a>
+                </li>
+
+                <!-- 다음 버튼 -->
+                <li class="page-item"
+                    th:classappend="${attendancePage.last} ? ' disabled'">
+                  <a class="page-link"
+                     th:href="@{/admin/attendance/main(
+                page=${attendancePage.number + 1},
+                size=${attendancePage.size},
+                workDate=${searchDTO.workDate},
+                deptId=${searchDTO.deptId},
+                status=${searchDTO.status},
+                keyword=${searchDTO.keyword}
+             )}">
+                    다음
+                  </a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+        <!-- 관리자 근태 목록 페이징 영역 끝 -->
+
       </div>
       <!--end::Container-->
     </div>

@@ -1,5 +1,6 @@
 package com.ict06.team1_fin_pj.domain.attendance.repository;
 
+import com.ict06.team1_fin_pj.domain.attendance.entity.AttendanceStatus;
 import com.ict06.team1_fin_pj.domain.attendance.entity.AttendanceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -25,5 +26,9 @@ public interface AttendanceRepository extends JpaRepository<AttendanceEntity, In
             String empNo,
             LocalDate workDate
     );
+
+    // 상태별 근태 건수 조회
+    // 예: ON_TIME 몇 건인지, LATE 몇 건인지 조회할 때 사용
+    long countByStatus(AttendanceStatus status);
 
 }
