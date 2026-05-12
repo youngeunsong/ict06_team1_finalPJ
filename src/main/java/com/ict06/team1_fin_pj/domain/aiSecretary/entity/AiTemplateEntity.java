@@ -28,31 +28,31 @@ public class AiTemplateEntity extends BaseTimeEntity {
     private AiTemplateRequestEntity sourceRequest; // 원본 요청
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 20)
+    @Column(nullable = false, length = 20)
     private DocumentType type; // 문서 유형(REPORT / MINUTES / APPROVAL)
 
-    @Column(name = "category", length = 100)
+    @Column(length = 100)
     private String category; // 문서 카테고리
 
-    @Column(name = "dept", length = 100)
+    @Column(length = 100)
     private String dept; // 관련 부서 또는 업무 영역
 
-    @Column(name = "situation", length = 255)
+    @Column(length = 255)
     private String situation; // 사용 상황
 
-    @Column(name = "tone", length = 50)
+    @Column(length = 50)
     private String tone; // 톤앤매너
 
-    @Column(name = "title", nullable = false, length = 255)
+    @Column(nullable = false, length = 255)
     private String title; // 템플릿 제목
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String description; // 템플릿 설명
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content; // 템플릿 본문
 
-    @JdbcTypeCode(SqlTypes.JSON)
+    @JdbcTypeCode(SqlTypes.JSON) // *** 추가
     @Column(name = "preview_json", columnDefinition = "jsonb")
     private List<String> previewJson; // 미리보기 목록
 
@@ -61,19 +61,19 @@ public class AiTemplateEntity extends BaseTimeEntity {
     private Map<String, Object> optionsJson; // 템플릿 생성 옵션
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = false) // *** name = "is_active" 추가
     private Boolean isActive = true; // 노출 여부
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private EmpEntity createdBy; // 등록자 또는 승인 관리자
 
-    // 노출 상태로 변경
+    // *** 노출 상태로 변경
     public void activate() {
         this.isActive = true;
     }
 
-    // 미노출 상태로 변경
+    // *** 미노출 상태로 변경
     public void deactivate() {
         this.isActive = false;
     }

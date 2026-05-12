@@ -18,18 +18,23 @@ import axios from "axios";
 // AI 비서 전용 axios instance
 const api = axios.create({
   baseURL: "http://localhost:8081",
+  withCredentials: true, // CORS 상황에서 쿠키/인증 정보를 허용
 });
 
 // JWT 토큰 자동 첨부 ()
 // 로그인 성공 후 localStorage에 저장된 token을 꺼내 모든 AI 비서 API 요청에 Authorization Bearer 헤더로 붙임
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const accessToken = localStorage.getItem("accessToken");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (accessToken) {
+    config.headers.Authorization = accessToken.startsWith("Bearer ")
+      ? accessToken
+      : `Bearer ${accessToken}`;
   }
 
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
 

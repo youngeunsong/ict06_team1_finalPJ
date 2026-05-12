@@ -30,31 +30,31 @@ public class AiTemplateRequestEntity extends BaseTimeEntity {
     private EmpEntity employee; // 요청한 사원
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 20)
+    @Column(nullable = false, length = 20)
     private DocumentType type; // 문서 유형(REPORT / MINUTES / APPROVAL)
 
-    @Column(name = "category", length = 100)
+    @Column(length = 100)
     private String category; // 문서 카테고리
 
-    @Column(name = "dept", length = 100)
+    @Column(length = 100)
     private String dept; // 관련 부서 또는 업무 영역
 
-    @Column(name = "situation", length = 255)
+    @Column(length = 255)
     private String situation; // 사용 상황
 
-    @Column(name = "tone", length = 50)
+    @Column(length = 50)
     private String tone; // 톤앤매너
 
-    @Column(name = "title", nullable = false, length = 255)
+    @Column(nullable = false, length = 255)
     private String title; // 요청 템플릿 제목
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String description; // 템플릿 설명
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content; // 템플릿 본문
 
-    @JdbcTypeCode(SqlTypes.JSON)
+    @JdbcTypeCode(SqlTypes.JSON) // *** 추가
     @Column(name = "preview_json", columnDefinition = "jsonb")
     private List<String> previewJson; // 템플릿 미리보기 목록
 
@@ -64,13 +64,13 @@ public class AiTemplateRequestEntity extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(length = 20)
     private RequestStatus status = RequestStatus.PENDING; // 요청 상태
 
-    @Column(name = "admin_comment", columnDefinition = "TEXT")
+    @Column(name = "admin_comment", columnDefinition = "TEXT") // *** 수정
     private String adminComment; // 관리자 검토 메모
 
-    @Column(name = "reviewed_at")
+    @Column(name = "reviewed_at") // *** 추가
     private LocalDateTime reviewedAt; // 관리자 검토 일시
 
     // 관리자 승인/반려/취소 처리
