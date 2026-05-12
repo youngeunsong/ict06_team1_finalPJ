@@ -30,10 +30,32 @@ public interface ApprovalService {
     );
 
     /**
+     * 기존 임시저장 문서를 수정합니다.
+     * DRAFT 상태이고 작성자 본인인 경우에만 수정할 수 있습니다.
+     */
+    ApprovalCreateResponseDto updateDraft(
+            Integer approvalId,
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    );
+
+    /**
      * 새 결재 문서를 상신합니다.
      * 상신 시에는 결재선이 필수이며, 첫 번째 결재자가 현재 결재자로 지정됩니다.
      */
     ApprovalCreateResponseDto submit(
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    );
+
+    /**
+     * 기존 임시저장 문서를 수정 내용으로 갱신한 뒤 상신합니다.
+     * DRAFT 상태이고 작성자 본인인 경우에만 상신할 수 있습니다.
+     */
+    ApprovalCreateResponseDto submitDraft(
+            Integer approvalId,
             ApprovalCreateRequestDto requestDto,
             PrincipalDetails principal,
             List<MultipartFile> files

@@ -73,6 +73,20 @@ public class ApprovalEntity extends BaseTimeEntity {
     }
 
     /**
+     * 임시저장 문서의 결재선을 새 결재선으로 교체합니다.
+     * 기존 결재선은 orphanRemoval=true 설정에 따라 삭제 대상이 됩니다.
+     */
+    public void replaceLines(List<AppLineEntity> newLines) {
+        this.lines.clear();
+        newLines.forEach(this::addLine);
+        this.maxStep = newLines.stream()
+                .map(AppLineEntity::getStepOrder)
+                .filter(step -> step != null && step > 0)
+                .max(Integer::compareTo)
+                .orElse(0);
+    }
+
+    /**
      * 결재 문서에 첨부파일을 추가합니다.
      * 파일 엔티티가 approval_id를 가진 주인 쪽이므로, 부모 문서 참조도 함께 세팅합니다.
      */
@@ -89,6 +103,17 @@ public class ApprovalEntity extends BaseTimeEntity {
         this.status = ApprovalStatus.DRAFT;
         this.currentStep = 0;
         this.currentApprover = null;
+    }
+
+    /**
+     * 임시저장 문서의 기본 내용을 수정합니다.
+     * 작성자와 상태값은 이 메서드에서 변경하지 않아, 서비스 계층의 권한/상태 검증 흐름을 유지합니다.
+     */
+    public void updateDraftContent(AppFormEntity form, String title, String content) {
+        this.form = form;
+        this.title = title;
+        this.content = content;
+        saveAsDraft();
     }
 
     /**

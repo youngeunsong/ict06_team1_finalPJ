@@ -13,7 +13,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -28,7 +36,7 @@ public class ApprovalApiController {
     /**
      * 개인 문서함 목록 조회 API
      *
-     * - 로그인한 사용자가 작성한 결재 문서만 조회합니다.
+     * - 로그인한 사용자가 작성한 결재 문서를 조회합니다.
      * - status 파라미터가 없으면 임시저장(DRAFT)을 제외한 전체 문서를 조회합니다.
      * - status 파라미터가 있으면 IN_PROGRESS, COMPLETED, REJECTED 등 특정 상태만 필터링합니다.
      * - React 화면에서 페이지네이션을 쉽게 처리할 수 있도록 Spring Data Page 형태로 반환합니다.
@@ -122,6 +130,82 @@ public class ApprovalApiController {
             @AuthenticationPrincipal PrincipalDetails principal
     ) {
         return approvalService.saveDraft(requestDto, principal, files);
+    }
+
+    /**
+     * 기존 임시저장 문서 수정 API(JSON)
+     *
+     * - 작성자 본인의 DRAFT 문서만 수정할 수 있습니다.
+     * - 제목, 본문, 결재 양식, 결재선을 요청 값으로 갱신합니다.
+     * - 첨부파일이 없는 화면 저장 흐름에서 사용합니다.
+     */
+    @PutMapping(
+            value = "/drafts/{approvalId}",
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ApprovalCreateResponseDto updateDraft(
+            @PathVariable Integer approvalId,
+            @RequestBody ApprovalCreateRequestDto requestDto,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.updateDraft(approvalId, requestDto, principal, null);
+    }
+
+    /**
+     * 기존 임시저장 문서 수정 API(multipart)
+     *
+     * - 첨부파일을 추가하면서 임시저장 내용을 수정할 때 사용합니다.
+     * - request 파트에는 ApprovalCreateRequestDto JSON을, files 파트에는 추가 첨부파일을 전달합니다.
+     * - 현재 단계에서는 기존 첨부파일 삭제/교체가 아니라 새 파일 추가만 처리합니다.
+     */
+    @PutMapping(
+            value = "/drafts/{approvalId}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ApprovalCreateResponseDto updateDraftWithFiles(
+            @PathVariable Integer approvalId,
+            @RequestPart("request") ApprovalCreateRequestDto requestDto,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.updateDraft(approvalId, requestDto, principal, files);
+    }
+
+    /**
+     * 기존 임시저장 문서 상신 API(JSON)
+     *
+     * - 임시저장 상세 화면에서 최종 내용을 함께 전달하고 바로 상신할 때 사용합니다.
+     * - stepOrder=0인 참조자는 결재 순서 계산에서 제외되고, stepOrder가 1 이상인 첫 결재자가 현재 결재자가 됩니다.
+     */
+    @PostMapping(
+            value = "/drafts/{approvalId}/submit",
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ApprovalCreateResponseDto submitDraft(
+            @PathVariable Integer approvalId,
+            @RequestBody ApprovalCreateRequestDto requestDto,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.submitDraft(approvalId, requestDto, principal, null);
+    }
+
+    /**
+     * 기존 임시저장 문서 상신 API(multipart)
+     *
+     * - 임시저장 문서에 첨부파일을 추가한 뒤 바로 상신할 때 사용합니다.
+     * - 신규 상신 API와 같은 multipart 구조를 사용해 React 쪽 구현 방식을 통일합니다.
+     */
+    @PostMapping(
+            value = "/drafts/{approvalId}/submit",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ApprovalCreateResponseDto submitDraftWithFiles(
+            @PathVariable Integer approvalId,
+            @RequestPart("request") ApprovalCreateRequestDto requestDto,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.submitDraft(approvalId, requestDto, principal, files);
     }
 
     /**

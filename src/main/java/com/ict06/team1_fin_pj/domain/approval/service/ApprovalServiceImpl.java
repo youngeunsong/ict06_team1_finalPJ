@@ -74,6 +74,27 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 기존 임시저장 문서를 수정합니다.
+     *
+     * 작성자 본인의 DRAFT 문서만 수정할 수 있으며,
+     * 제목/본문/양식/결재선은 요청 내용으로 교체하고 첨부파일은 새 파일만 추가합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto updateDraft(
+            Integer approvalId,
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    ) {
+        ApprovalEntity approval = getEditableDraft(approvalId, principal);
+        updateDraftFields(approval, requestDto);
+        addFiles(approval, files);
+
+        return toCreateResponse(approval);
+    }
+
+    /**
      * 새 결재 문서를 상신합니다.
      *
      * stepOrder=0은 참조자이므로 실제 결재자 계산에서는 제외하고,
@@ -102,6 +123,37 @@ public class ApprovalServiceImpl implements ApprovalService {
 
         ApprovalEntity saved = approvalRepository.save(approval);
         return toCreateResponse(saved);
+    }
+
+    /**
+     * 기존 임시저장 문서를 수정한 뒤 상신합니다.
+     *
+     * 화면에서는 임시저장 상세에서 내용을 고친 뒤 바로 "상신" 버튼을 누르는 흐름에 사용합니다.
+     */
+    @Override
+    @Transactional
+    public ApprovalCreateResponseDto submitDraft(
+            Integer approvalId,
+            ApprovalCreateRequestDto requestDto,
+            PrincipalDetails principal,
+            List<MultipartFile> files
+    ) {
+        validateSubmitRequest(requestDto);
+
+        ApprovalEntity approval = getEditableDraft(approvalId, principal);
+        updateDraftFields(approval, requestDto);
+        addFiles(approval, files);
+
+        EmpEntity firstApprover = findFirstApprover(requestDto.getApprovalLines());
+        int maxStep = requestDto.getApprovalLines().stream()
+                .filter(line -> line.getStepOrder() != null && line.getStepOrder() > 0)
+                .map(ApprovalLineRequestDto::getStepOrder)
+                .max(Integer::compareTo)
+                .orElse(1);
+
+        approval.submit(firstApprover, maxStep);
+
+        return toCreateResponse(approval);
     }
 
     /**
@@ -226,6 +278,52 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 수정 가능한 임시저장 문서를 조회하고 권한을 검증합니다.
+     */
+    private ApprovalEntity getEditableDraft(Integer approvalId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (approvalId == null) {
+            throw new IllegalArgumentException("결재 문서 ID가 필요합니다.");
+        }
+
+        ApprovalEntity approval = approvalRepository.findById(approvalId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 문서입니다."));
+
+        validateDraftEditable(approval, principal.getEmpNo());
+
+        return approval;
+    }
+
+    /**
+     * 임시저장 문서의 기본 정보와 결재선을 요청 내용으로 교체합니다.
+     */
+    private void updateDraftFields(
+            ApprovalEntity approval,
+            ApprovalCreateRequestDto requestDto
+    ) {
+        validateDraftRequestFields(requestDto);
+
+        AppFormEntity form = appFormRepository.findById(requestDto.getFormId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 양식입니다."));
+
+        approval.updateDraftContent(
+                form,
+                requestDto.getTitle().trim(),
+                requestDto.getContent()
+        );
+
+        if (requestDto.getApprovalLines() != null) {
+            List<AppLineEntity> newLines = requestDto.getApprovalLines().stream()
+                    .map(this::createLine)
+                    .sorted(Comparator.comparing(AppLineEntity::getStepOrder))
+                    .toList();
+
+            approval.replaceLines(newLines);
+        }
+    }
+
+    /**
      * 결재선 요청 한 줄을 AppLineEntity로 변환합니다.
      *
      * stepOrder=0은 참조자, stepOrder>=1은 실제 결재자입니다.
@@ -326,6 +424,14 @@ public class ApprovalServiceImpl implements ApprovalService {
     ) {
         validatePrincipal(principal);
 
+        validateDraftRequestFields(requestDto);
+    }
+
+    /**
+     * 임시저장/상신 요청 DTO 자체의 필수값을 검증합니다.
+     * 새 문서 생성과 기존 임시저장 수정에서 함께 사용합니다.
+     */
+    private void validateDraftRequestFields(ApprovalCreateRequestDto requestDto) {
         if (requestDto == null) {
             throw new IllegalArgumentException("결재 문서 정보가 필요합니다.");
         }
@@ -336,6 +442,25 @@ public class ApprovalServiceImpl implements ApprovalService {
 
         if (requestDto.getTitle() == null || requestDto.getTitle().trim().isEmpty()) {
             throw new IllegalArgumentException("결재 문서 제목은 필수입니다.");
+        }
+    }
+
+    /**
+     * 임시저장 문서를 수정하거나 상신할 수 있는 상태인지 확인합니다.
+     *
+     * 임시저장 문서는 아직 다른 결재자에게 공유되지 않은 작성자 개인 작업물이므로,
+     * 작성자 본인만 수정할 수 있고 DRAFT 상태일 때만 이 API 흐름을 허용합니다.
+     */
+    private void validateDraftEditable(ApprovalEntity approval, String empNo) {
+        boolean isWriter = approval.getWriter() != null
+                && empNo.equals(approval.getWriter().getEmpNo());
+
+        if (!isWriter) {
+            throw new IllegalArgumentException("임시저장 문서는 작성자만 수정할 수 있습니다.");
+        }
+
+        if (approval.getStatus() != ApprovalStatus.DRAFT) {
+            throw new IllegalArgumentException("이미 상신된 문서는 임시저장 수정 API에서 변경할 수 없습니다.");
         }
     }
 
