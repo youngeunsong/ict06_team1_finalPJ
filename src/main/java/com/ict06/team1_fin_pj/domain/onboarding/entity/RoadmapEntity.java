@@ -1,3 +1,15 @@
+/**
+ * @FileName : RoadmapEntity.java
+ * @Description : 온보딩 로드맵 Entity
+ * @Author : 김다솜
+ * @Date : 2026. 05. 02
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.02    김다솜        최초 생성
+ * @ 2026.05.10    김다솜        관리자 로드맵 수정 처리를 위한 update 메서드 추가
+ */
 package com.ict06.team1_fin_pj.domain.onboarding.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
@@ -55,4 +67,9 @@ public class RoadmapEntity extends BaseTimeEntity {
     @OneToMany(mappedBy = "roadmap", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<RoadItemEntity> items = new ArrayList<>();
+
+    public void updateRoadmap(String title, GeneratedType generatedType) {
+        this.title = title;
+        this.generatedType = generatedType;
+    }
 }

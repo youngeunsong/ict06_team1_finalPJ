@@ -8,6 +8,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.23    김다솜        최초 생성/사원별 최신 알림 조회 및 미읽음 카운트 추가
+ * @ 2026.05.08    김다솜        알림 전체 읽음 및 삭제 처리를 위한 사원별 조회 메서드 추가
  */
 
 package com.ict06.team1_fin_pj.domain.notification.repository;
@@ -23,4 +24,8 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
 
     //읽지 않은 알림 개수
     long countByEmployee_EmpNoAndIsRead(String empNo, Boolean isRead);
+
+    List<NotificationEntity> findByEmployee_EmpNoAndIsRead(String empNo, Boolean isRead);
+
+    List<NotificationEntity> findByEmployee_EmpNo(String empNo);
 }

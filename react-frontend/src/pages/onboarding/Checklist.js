@@ -11,6 +11,7 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.29    김다솜        최초 생성 및 체크리스트 조회/완료 기능 구현
+ * @ 2026.05.08    김다솜        체크리스트 완료 변경 시 홈/요약 카드 갱신 이벤트 추가
  */
 
 import React, { useEffect, useState } from 'react';
@@ -18,7 +19,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from 'src/api/axiosInstance';
 import { useUser } from 'src/api/UserContext';
 import { PATH } from 'src/constants/path';
-import { actionButton, actionButtonCompleted, actionButtonPending, actionButtonPrimary, actionButtonSuccess, checkDoneIcon, checklistActionRow, checklistCategory, checklistGrid, checklistItem, checklistItemCompleted, checklistItemMandatory, checklistTitle, checkTodoIcon, mandatoryBadge, optionalBadge } from 'src/styles/js/onboarding/ChecklistStyle';
+import { actionButtonPending, actionButtonPrimary, actionButtonSuccess, checkDoneIcon, checklistActionRow, checklistCategory, checklistGrid, checklistItem, checklistItemCompleted, checklistItemMandatory, checklistTitle, checkTodoIcon, mandatoryBadge, optionalBadge } from 'src/styles/js/onboarding/ChecklistStyle';
 
 const Checklist = () => {
 
@@ -77,8 +78,6 @@ const Checklist = () => {
     //완료 처리
     const handleComplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_COMPLETE}`;
-
             await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_COMPLETE, {
                 empNo: userInfo.empNo,
                 checklistId
@@ -92,6 +91,7 @@ const Checklist = () => {
                         : item
                 )
             );
+            window.dispatchEvent(new Event('onboardingProgressUpdated'));
         } catch (err) {
             console.error("완료 처리 실패", err);
         }
@@ -100,8 +100,6 @@ const Checklist = () => {
     //미완료 처리
     const handleUncomplete = async (checklistId) => {
         try {
-            const url = `${PATH.API.BASE}${PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE}`;
-
             await axiosInstance.post(PATH.API.ONBOARDING.CHECKLIST_UNCOMPLETE,
                 {
                     empNo: userInfo.empNo,
@@ -115,6 +113,7 @@ const Checklist = () => {
                         : item
                 )
             );
+            window.dispatchEvent(new Event('onboardingProgressUpdated'));
         } catch (err) {
             console.error("완료 취소 실패", err);
         }

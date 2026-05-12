@@ -1,0 +1,227 @@
+<!--
+    @FileName : documentList.html
+    @Description : 문서 등록 현황 및 청크/벡터 처리 상태 모니터링 목록 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 11
+    @Modification_History
+    @
+    @ 수정일자        수정자        수정내용
+    @ ----------    ---------    -----------------------------------------------
+    @ 2026.05.10    김다솜        최초 생성 및 데이터 테이블 UI 구현
+    @ 2026.05.11    김다솜        목록 필터링/정렬 기능 및 재처리 요청 기능 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title">문서/RAG 관리</title>
+</head>
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid">
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>문서 및 RAG 데이터 관리</h3>
+                        <p class="text-muted mb-0">문서 등록 현황과 청크, 벡터 반영 상태를 확인합니다.</p>
+                    </div>
+                    <div class="col text-end">
+                        <a th:href="@{/admin/onboarding/documents/new}" class="btn btn-primary">문서 등록</a>
+                    </div>
+                </div>
+
+                <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control" id="documentSearchInput" placeholder="문서명, 부서, 등록자, 경로 검색">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="documentAccessFilter">
+                                    <option value="">전체 권한</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="documentStageFilter">
+                                    <option value="">전체 단계</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select mb-2" id="documentSortOrder">
+                                    <option value="id-desc">정렬: 최신 등록순</option>
+                                    <option value="id-asc">정렬: ID 오름차순</option>
+                                    <option value="title-asc">정렬: 문서명 가나다순</option>
+                                    <option value="chunk-desc">정렬: 청크 많은 순</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary w-100" id="documentFilterReset">초기화</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        <table class="table table-hover align-middle" id="documentTable">
+                            <thead>
+                            <tr>
+                                <th class="text-nowrap" style="min-width: 60px;">ID</th>
+                                <th style="min-width: 220px;">문서명</th>
+                                <th class="text-nowrap" style="min-width: 120px;">대상 부서</th>
+                                <th class="text-nowrap" style="min-width: 90px;">권한</th>
+                                <th class="text-nowrap" style="min-width: 120px;">처리 단계</th>
+                                <th class="text-nowrap" style="min-width: 80px;">청크</th>
+                                <th class="text-nowrap" style="min-width: 80px;">벡터</th>
+                                <th class="text-nowrap" style="min-width: 120px;">등록자</th>
+                                <th style="min-width: 260px;">경로</th>
+                                <th style="min-width: 280px;">요약/미리보기</th>
+                                <th style="min-width: 240px;">최근 실패 사유</th>
+                                <th class="text-nowrap" style="min-width: 190px;">관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="document : ${documents}" class="document-row">
+                                <td th:text="${document.docId}"></td>
+                                <td th:text="${document.title}" class="document-title"></td>
+                                <td th:text="${document.departmentName}" class="document-department text-nowrap"></td>
+                                <td class="document-access">
+                                    <span class="badge text-bg-light border" th:text="${document.accessLevel}"></span>
+                                </td>
+                                <td class="document-stage">
+                                    <span class="badge text-bg-info" th:text="${document.currentStage}"></span>
+                                </td>
+                                <td th:text="${document.chunkCount}" class="text-nowrap"></td>
+                                <td th:text="${document.vectorCount}" class="text-nowrap"></td>
+                                <td th:text="${document.createdByName}" class="document-created-by text-nowrap"></td>
+                                <td class="text-muted small document-path"
+                                    style="max-width: 320px; word-break: break-all;"
+                                    th:title="${document.filePath}"
+                                    th:text="${document.filePath}"></td>
+                                <td class="small text-muted"
+                                    style="max-width: 320px; white-space: normal;"
+                                    th:title="${document.summaryPreview}"
+                                    th:text="${document.summaryPreview != null && !#strings.isEmpty(document.summaryPreview) ? document.summaryPreview : '-'}"></td>
+                                <td class="small text-muted"
+                                    style="max-width: 260px; white-space: normal;"
+                                    th:title="${document.lastErrorMessage}"
+                                    th:text="${document.lastErrorMessage != null && !#strings.isEmpty(document.lastErrorMessage) ? document.lastErrorMessage : '-'}"></td>
+                                <td>
+                                    <div class="d-flex flex-nowrap gap-1">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           th:href="@{/admin/onboarding/documents/{id}/edit(id=${document.docId})}">수정</a>
+                                        <form th:action="@{/admin/onboarding/documents/{id}/process(id=${document.docId})}"
+                                              method="post">
+                                            <button type="submit" class="btn btn-sm btn-outline-success">재처리</button>
+                                        </form>
+                                        <form th:action="@{/admin/onboarding/documents/{id}/delete(id=${document.docId})}"
+                                              method="post"
+                                              onsubmit="return confirm('이 문서를 삭제하시겠습니까?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">삭제</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(documents)}">
+                                <td colspan="12" class="text-center text-muted">등록된 문서가 없습니다.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = Array.from(document.querySelectorAll('#documentTable tbody .document-row'));
+        const searchInput = document.getElementById('documentSearchInput');
+        const accessFilter = document.getElementById('documentAccessFilter');
+        const stageFilter = document.getElementById('documentStageFilter');
+        const sortOrder = document.getElementById('documentSortOrder');
+        const resetButton = document.getElementById('documentFilterReset');
+        const tbody = document.querySelector('#documentTable tbody');
+
+        const fillOptions = (selector, values, placeholder) => {
+            selector.innerHTML = `<option value="">${placeholder}</option>` +
+                [...new Set(values.filter(Boolean))].map((value) => `<option value="${value}">${value}</option>`).join('');
+        };
+
+        fillOptions(accessFilter, rows.map((row) => row.querySelector('.document-access')?.innerText.trim()), '전체 권한');
+        fillOptions(stageFilter, rows.map((row) => row.querySelector('.document-stage')?.innerText.trim()), '전체 단계');
+
+        const sortRows = () => {
+            const sortValue = sortOrder.value;
+            const sortedRows = [...rows].sort((a, b) => {
+                if (sortValue === 'id-asc' || sortValue === 'id-desc') {
+                    const aId = Number(a.children[0]?.innerText.trim() || 0);
+                    const bId = Number(b.children[0]?.innerText.trim() || 0);
+                    return sortValue === 'id-asc' ? aId - bId : bId - aId;
+                }
+
+                if (sortValue === 'title-asc') {
+                    return (a.querySelector('.document-title')?.innerText || '').localeCompare(
+                        b.querySelector('.document-title')?.innerText || '',
+                        'ko'
+                    );
+                }
+
+                if (sortValue === 'chunk-desc') {
+                    const aChunk = Number(a.children[5]?.innerText.trim() || 0);
+                    const bChunk = Number(b.children[5]?.innerText.trim() || 0);
+                    return bChunk - aChunk;
+                }
+
+                return 0;
+            });
+
+            sortedRows.forEach((row) => tbody.appendChild(row));
+        };
+
+        const applyFilters = () => {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const accessValue = accessFilter.value;
+            const stageValue = stageFilter.value;
+
+            rows.forEach((row) => {
+                const rowText = row.innerText.toLowerCase();
+                const rowAccess = row.querySelector('.document-access')?.innerText.trim() || '';
+                const rowStage = row.querySelector('.document-stage')?.innerText.trim() || '';
+
+                const matchesSearch = !searchValue || rowText.includes(searchValue);
+                const matchesAccess = !accessValue || rowAccess === accessValue;
+                const matchesStage = !stageValue || rowStage === stageValue;
+
+                row.style.display = matchesSearch && matchesAccess && matchesStage ? '' : 'none';
+            });
+        };
+
+        [searchInput, accessFilter, stageFilter].forEach((element) => {
+            element.addEventListener('input', applyFilters);
+            element.addEventListener('change', applyFilters);
+        });
+        sortOrder.addEventListener('change', sortRows);
+
+        resetButton.addEventListener('click', function () {
+            searchInput.value = '';
+            accessFilter.value = '';
+            stageFilter.value = '';
+            sortOrder.value = 'id-desc';
+            sortRows();
+            applyFilters();
+        });
+
+        sortRows();
+    });
+</script>
+</body>
+</html>

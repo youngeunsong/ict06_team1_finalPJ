@@ -1,5 +1,5 @@
 /**
- * @FileName : ChecklistService.java
+ * @FileName : ChecklistServiceImpl.java
  * @Description : AI 온보딩 체크리스트 Service
  *                체크리스트 조회 및 완료 처리 로직 담당
  * @Author : 김다솜
@@ -32,7 +32,7 @@ import static java.time.LocalDateTime.now;
 
 @Service
 @RequiredArgsConstructor
-public class ChecklistService {
+public class ChecklistServiceImpl {
 
     private final ChecklistRepository checklistRepository;
     private final ChecklistProgressRepository progressRepository;

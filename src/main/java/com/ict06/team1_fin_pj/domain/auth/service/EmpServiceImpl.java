@@ -33,7 +33,9 @@ public class EmpServiceImpl {
 
     //마이페이지 정보 수정
     public void updateEmpInfo(String empNo, String name, String email, String phone) {
+        System.out.println("[EmpService] 정보 수정 요청 - empNo: " + empNo);
         empRepository.updateEmpInfo(empNo, name, email, phone);
+        System.out.println("[EmpService] 알림 전송 시도 - empNo: " + empNo);
 
         //알림 전송(테스트용)
         notificationService.sendNotification(
@@ -41,7 +43,8 @@ public class EmpServiceImpl {
                 "MYPAGE",
                 "정보 수정 알림",
                 name + "님의 정보가 성공적으로 수정되었습니다.",
-                "/mypage"
+                "/auth/mypage"
         );
+        System.out.println("[EmpService] 알림 전송 완료");
     }
 }
