@@ -10,7 +10,7 @@
  * @ 2026.04.24    김다솜        최초 생성 및 온보딩 기본 구조 설계
  * @ 2026.05.10    김다솜        온보딩 콘텐츠 및 문서 CRUD 화면 추가
  * @ 2026.05.11    김다솜        문서 기반 RAG 처리 로직 및 로드맵 아이템 편집 기능 추가
- * @ 2026.05.12    김다솜        일정 관리 직원 목록/상세 화면 분리, 복귀 경로 유지 및 학습항목 알림 발송 처리 추가
+ * @ 2026.05.12    김다솜        일정 관리 직원 목록/상세 화면 분리, 복귀 경로 유지, 학습항목 알림 발송 및 문서 수정 시 RAG 재처리 흐름 분리
  */
 
 package com.ict06.team1_fin_pj.domain.onboarding.controller;
@@ -44,6 +44,7 @@ import com.ict06.team1_fin_pj.domain.onboarding.repository.OnContentRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadItemRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadProgressRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadmapRepository;
+import com.ict06.team1_fin_pj.domain.onboarding.service.DocumentProcessingAsyncService;
 import com.ict06.team1_fin_pj.domain.onboarding.service.DocumentProcessingService;
 import com.ict06.team1_fin_pj.domain.onboarding.service.OnboardingScheduleNotificationService;
 import com.ict06.team1_fin_pj.domain.onboarding.service.RoadmapServiceImpl;
@@ -86,6 +87,7 @@ public class AdOnboardingController {
     private final AdPositionRepository adPositionRepository;
     private final RoadmapServiceImpl roadmapService;
     private final DocumentProcessingService documentProcessingService;
+    private final DocumentProcessingAsyncService documentProcessingAsyncService;
     private final OnboardingScheduleNotificationService onboardingScheduleNotificationService;
 
     @RequestMapping("/main")
@@ -253,7 +255,6 @@ public class AdOnboardingController {
     public String updateDocument(
             @PathVariable Integer docId,
             @ModelAttribute AdDocumentRequestDto requestDto,
-            @AuthenticationPrincipal PrincipalDetails principal,
             RedirectAttributes redirectAttributes
     ) {
         System.out.println("[AdOnboardingController] - updateDocument()");
@@ -274,18 +275,7 @@ public class AdOnboardingController {
                             document.getCurrentStage()
                     );
                     documentRepository.save(document);
-                    try {
-                        DocumentProcessingResultDto processingResult = documentProcessingService.processDocument(
-                                document.getDocId(),
-                                principal != null ? principal.getEmp() : null
-                        );
-                        applyDocumentProcessFlashMessage(redirectAttributes, "Document updated successfully.", processingResult);
-                    } catch (Exception e) {
-                        redirectAttributes.addFlashAttribute(
-                                "errorMessage",
-                                "Document updated successfully, but automatic processing failed. " + e.getMessage()
-                        );
-                    }
+                    redirectAttributes.addFlashAttribute("successMessage", "Document updated successfully. Use reprocess when RAG data needs to be refreshed.");
                     return "redirect:/admin/onboarding/documents";
                 })
                 .orElseGet(() -> {
@@ -331,18 +321,14 @@ public class AdOnboardingController {
             return "redirect:/admin/onboarding/documents";
         }
 
-        try {
-            DocumentProcessingResultDto processingResult = documentProcessingService.processDocument(
-                    docId,
-                    principal != null ? principal.getEmp() : null
-            );
-            applyDocumentProcessFlashMessage(redirectAttributes, "Document processing started.", processingResult);
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(
-                    "errorMessage",
-                    "Document processing failed. " + e.getMessage()
-            );
-        }
+        documentProcessingAsyncService.processDocumentAsync(
+                docId,
+                principal != null ? principal.getEmp() : null
+        );
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                "Document reprocessing started. Refresh the page later to check updated chunks and vectors."
+        );
         return "redirect:/admin/onboarding/documents";
     }
 
