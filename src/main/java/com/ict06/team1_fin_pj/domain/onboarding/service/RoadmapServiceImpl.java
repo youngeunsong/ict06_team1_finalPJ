@@ -1,3 +1,17 @@
+/**
+ * @FileName : RoadmapServiceImpl.java
+ * @Description : 개인 맞춤형 온보딩 로드맵 생성 및 관리 Service
+ *                - 사원의 부서/직급/직무에 따른 추천 알고리즘 및 로드맵 재생성 로직 담당
+ * @Author : 김다솜
+ * @Date : 2026. 05. 07
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.07    김다솜        최초 생성/개인별 맞춤 추천 알고리즘(selectRoadmapContents) 구현
+ * @ 2026.05.11    김다솜        로드맵 자동 재생성 시 추천 사유 시각화 및 진행 상태 초기화 로직 보완
+ */
+
 package com.ict06.team1_fin_pj.domain.onboarding.service;
 
 import com.ict06.team1_fin_pj.common.dto.onboarding.RoadmapGroupResponse;

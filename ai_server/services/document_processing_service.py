@@ -1,3 +1,15 @@
+#
+#  @FileName : document_processing_service.py
+#  @Description : 문서 본문 추출/청크 분할/벡터 생성 서비스 모듈
+#  @Author : 김다솜
+#  @Date : 2026. 05. 12
+#  @Modification_History
+#  @
+#  @ 수정일자        수정자          수정내용
+#  @ ----------    ---------    -------------------------------
+#  @ 2026.05.12    김다솜        문서 자동 처리 파이프라인 구현 및 상단 주석 보강
+#
+
 import hashlib
 import html
 import json

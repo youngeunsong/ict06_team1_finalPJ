@@ -1,3 +1,14 @@
+/**
+ * @FileName : AppLogo.js
+ * @Description : COREWORK 브랜드 로고 및 서비스명 표시 컴포넌트
+ * @Author : 김다솜
+ * @Date : 2026. 05. 11
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.11    김다솜        최초 생성 (COREWORK 육각형 로고 적용)
+ */
 import React from 'react';
 import { Link } from 'react-router-dom';
 

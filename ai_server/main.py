@@ -1,96 +1,140 @@
 #
 #  @FileName : main.py
-#  @Description : AI 온보딩 평가 서버
+#  @Description : AI 서버 메인 엔트리포인트
 #                 - FastAPI 기반 AI 전용 API 서버
-#                 - Spring Boot 서버와 분리하여 AI 채점/피드백 기능 처리
-#                 - AI 로드맵 추천 및 퀴즈 채점 라우터 통합 관리
+#                 - 관리자 대시보드 통계 API 제공
+#                 - 문서/RAG 처리 및 AI 평가/퀴즈 생성 API 제공
 #  @Author : 김다솜
 #  @Date : 2026. 04. 27
 #  @Modification_History
 #  @
-#  @ 수정일         수정자        수정내용
+#  @ 수정일자        수정자       수정내용
 #  @ ----------    ---------    -------------------------------
-#  @ 2026.04.27    김다솜        최초 생성 및 FastAPI 기본 서버 구성, Gemini 기반 AI 로드맵 추천 API 구현
-#  @ 2026.04.28    김다솜        로드맵 응답 구조 변경(교육 그룹별 JSON 형태)/DB 저장 로직 연동
-#  @ 2026.05.06    김다솜        로드맵/퀴즈 평가 라우터 분리 및 main.py 경량화,
-#                               load_dotenv import 순서 최상단으로 이동(API KEY 로딩 타이밍 문제 해결)
+#  @ 2026.04.27    김다솜        최초 생성 및 FastAPI 기본 서버 구성
+#  @ 2026.05.11    김다솜        관리자 대시보드 통계 API 및 문서 처리 트리거 구성
+#  @ 2026.05.12    김다솜        Spring 연동 경로에 맞춰 AI 평가/퀴즈/문서 처리 라우터 등록
 #
 
-import os
-from dotenv import load_dotenv
 from pathlib import Path
 
-# .env 로딩
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
-
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.documents.ai_documents import router as documents_router
+from pydantic import BaseModel
+
+from repositories import dashboard_repository
+from api.documents.ai_documents import router as document_router
 from api.evaluation.ai_evaluation import router as evaluation_router
 from api.roadmap.ai_roadmap import router as roadmap_router
-from services.evaluation_service import evaluate_answer
-from schemas.evaluation_schema import AiEvaluationRequest, AiEvaluationResponse
+from schemas.evaluation_schema import AiEvaluationRequest, AiEvaluationResponse, AiQuizGenerationRequest
+from services import evaluation_service
 
-# =========================
-# API KEY
-# =========================
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-print(f"🔑 DEBUG KEY: {GEMINI_API_KEY[:10] if GEMINI_API_KEY else 'NONE'}")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-print(f"🔑 GROQ KEY: {GROQ_API_KEY[:10] if GROQ_API_KEY else 'NONE'}")
+load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 app = FastAPI(
-    title="AI Onboarding Evaluation Server",
-    description="온보딩 퀴즈 AI 채점 및 피드백 생성 서버",
-    version="1.0.0"
+    title="COREWORK AI Server",
+    description="온보딩 로드맵, 평가, 퀴즈, 문서/RAG 처리를 담당하는 AI 서버",
+    version="1.0.0",
 )
 
-# SpringBoot / React와 통신 위한 CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://localhost:8081"
-        ],
+        "http://localhost:8081",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(
-    evaluation_router,
-    prefix="/api/ai/evaluation",
-    tags=["AI Evaluation"]
-)
+# Spring 서버가 호출하는 실제 AI API 경로를 Swagger UI에 등록한다.
+app.include_router(evaluation_router, prefix="/api/ai/evaluation", tags=["AI Evaluation"])
+app.include_router(document_router, prefix="/api/ai/documents", tags=["AI Documents"])
+app.include_router(roadmap_router, prefix="/api/ai", tags=["AI Roadmap"])
 
-app.include_router(
-    roadmap_router,
-    prefix="/api/ai",
-    tags=["AI Roadmap"]
-)
 
-app.include_router(
-    documents_router,
-    prefix="/api/ai/documents",
-    tags=["AI Documents"]
-)
+class RagProcessRequest(BaseModel):
+    doc_id: int
+    file_path: str
 
 
 @app.get("/")
-def root():
+def read_root():
+    """
+    AI 서버 기동 여부를 확인하는 기본 헬스 체크 엔드포인트
+    """
     return {
-        "service": "AI Onboarding Evaluation Server",
-        "status": "running"
+        "service": "COREWORK AI Server",
+        "status": "running",
     }
+
 
 @app.get("/health")
 def health_check():
+    """
+    AI 서버 상태 확인용 헬스 체크 엔드포인트
+    """
     return {
         "status": "ok",
         "server": "ai",
-        "port": 8000
+        "port": 8000,
     }
-    
-@app.post("/evaluate", response_model=AiEvaluationResponse)
+
+
+@app.get("/api/stats/dashboard", tags=["Dashboard"])
+def get_dashboard_stats():
+    """
+    관리자 대시보드용 통계 데이터를 일괄 반환
+    """
+    return {
+        "kpis": dashboard_repository.analyze_dashboard_kpis(),
+        "onboarding": dashboard_repository.analyze_onboarding_stats(),
+        "rag": dashboard_repository.analyze_rag_status(),
+        "ai_usage": dashboard_repository.analyze_ai_usage_trend(),
+        "quiz": dashboard_repository.analyze_quiz_performance(),
+        "recentActivities": dashboard_repository.analyze_recent_activities(),
+    }
+
+
+@app.post("/api/rag/process", tags=["RAG"])
+def trigger_rag_processing(req: RagProcessRequest, background_tasks: BackgroundTasks):
+    """
+    문서/RAG 처리 요청을 비동기 트리거하는 레거시 엔드포인트
+    """
+    # 실제 청크/벡터 처리 로직 연결 예정
+    # background_tasks.add_task(database.process_document_rag, req.doc_id, req.file_path)
+    return {
+        "status": "processing",
+        "message": f"Document {req.doc_id} is being processed in background.",
+    }
+
+
+@app.post("/api/ai/evaluate", tags=["Legacy AI"])
+def evaluate_answer(req: AiEvaluationRequest):
+    """
+    기존 테스트 경로: AI가 주관식 답변을 채점하고 피드백을 생성한다.
+    """
+    return evaluation_service.evaluate_answer(req)
+
+
+@app.post("/evaluate", response_model=AiEvaluationResponse, tags=["Legacy AI"])
 async def ai_evaluation_endpoint(req: AiEvaluationRequest):
-    return evaluate_answer(req)
+    """
+    기존 Swagger 단독 테스트용 평가 엔드포인트
+    """
+    return evaluation_service.evaluate_answer(req)
+
+
+@app.post("/api/ai/generate-quiz", tags=["Legacy AI"])
+def generate_quiz(req: AiQuizGenerationRequest):
+    """
+    기존 테스트 경로: 콘텐츠 정보를 바탕으로 AI가 객관식 퀴즈를 생성한다.
+    """
+    return evaluation_service.generate_quiz_drafts(req)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

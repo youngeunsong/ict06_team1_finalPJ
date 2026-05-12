@@ -12,6 +12,7 @@
 #  @ 2026.05.02    김다솜        최초 생성 및 AI 평가 mock 서비스 구현
 #  @ 2026.05.06    김다솜        Gemini API 실제 연동 (google-genai 패키지 적용)
 #  @ 2026.05.06    김다솜        Gemini 미사용 -> groq AI API로 변경 / client 초기화를 함수 내부로 이동 (load_dotenv 타이밍 문제 해결)
+#  @ 2026.05.12    김다솜        퀴즈 생성 및 주관식 채점 난이도별 가이드라인(EASY/NORMAL/HARD) 추가
 # 
 
 import os
@@ -47,6 +48,17 @@ def evaluate_answer(req: AiEvaluationRequest) -> AiEvaluationResponse:
     # 1. PyTorch 라이브러리로 의미적 유사도 먼저 계산
     nlp_similarity = get_semantic_similarity(user_answer, reference_answer)
     
+    # [시나리오별 채점 가이드라인 정의]
+    # 1. 완전 일치(Excellent): 핵심 키워드와 행동 원칙이 모두 포함된 경우 (90~100점)
+    # 2. 의미 상통(Good): 단어는 다르나 동의어를 사용하여 맥락상 정답인 경우 (80~89점)
+    # 3. 부분 정답(Partial): 일부 개념은 맞으나 핵심 지침이 하나 이상 누락된 경우 (40~79점)
+    # 4. 오답/무관(Poor): 주제와 동떨어지거나 잘못된 정보를 제공하는 경우 (0~39점)
+    scoring_guideline = (
+        "- 핵심 키워드가 포함되었는가?\n"
+        "- 실무 지침으로서의 논리적 타당성이 있는가?\n"
+        "- 단순히 단어만 나열한 것이 아니라 문장으로서 의미가 전달되는가?"
+    )
+
     # 2. Groq API 호출하여 AI 채점 수행
     prompt = f"""
 당신은 온보딩 교육 평가 전문가입니다.
@@ -60,6 +72,9 @@ def evaluate_answer(req: AiEvaluationRequest) -> AiEvaluationResponse:
 1. 표현이 달라도 핵심 원칙(최소 활용, 즉시 보고 등)이 포함되었는지 확인.
 2. 이미 답변에 포함된 내용을 "누락되었다"고 오판하지 않도록 주의.
 3. 유사도는 단순 단어 일치도가 아닌 의미적 유사성을 기반으로 산출.
+
+[세부 채점 기준]
+{scoring_guideline}
 
 [기준 답안]
 {reference_answer}
@@ -151,6 +166,16 @@ def evaluate_answer(req: AiEvaluationRequest) -> AiEvaluationResponse:
 
 
 def generate_quiz_drafts(req: AiQuizGenerationRequest) -> AiQuizGenerationResponse:
+    difficulty = (req.difficulty or "EASY").upper()
+
+    # [수정] 난이도별 세부 출제 가이드라인 정의하여 문제 변별력 강화
+    difficulty_instructions = {
+        "EASY": "가장 기초적인 개념과 용어 정의 위주로 출제하세요. 보기 간의 차이를 명확하게 구성하여 정답을 찾기 쉽게 만드세요.",
+        "NORMAL": "실무 적용 사례나 일반적인 업무 절차를 바탕으로 출제하세요. 정답과 혼동될 수 있는 매력적인 오답을 한두 개 포함하세요.",
+        "HARD": "복합적인 상황 시나리오, 예외 케이스, 또는 지엽적인 규정을 다루어 출제하세요. 전문 용어를 적극 활용하고 고도의 사고력을 요구하는 보기들로 구성하세요."
+    }
+    selected_instruction = difficulty_instructions.get(difficulty, difficulty_instructions["EASY"])
+
     prompt = f"""
 당신은 기업 온보딩 교육용 객관식 문제 출제 도우미입니다.
 아래 콘텐츠 정보를 기준으로 한국어 4지선다 객관식 문제 {req.question_count}개를 만들어 주세요.
@@ -160,9 +185,13 @@ def generate_quiz_drafts(req: AiQuizGenerationRequest) -> AiQuizGenerationRespon
 - 카테고리: {req.category or "공통"}
 - 세부 카테고리: {req.sub_category or "없음"}
 - 콘텐츠 유형: {req.content_type or "LINK"}
-- 난이도: {req.difficulty or "EASY"}
+- 난이도: {difficulty}
 - 태그: {req.tags or "없음"}
 - 경로: {req.path or "없음"}
+
+[난이도별 출제 가이드라인]
+현재 설정된 난이도는 **{difficulty}**입니다.
+{selected_instruction}
 
 [출제 규칙]
 1. 각 문제는 보기 4개를 제공하세요.

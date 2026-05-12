@@ -1,3 +1,17 @@
+/**
+ * @FileName : DocumentProcessingService.java
+ * @Description : 관리자 문서 RAG(Retrieval-Augmented Generation) 처리 Service
+ * AI 서버 연동을 통한 본문 추출, 청크 분할 및 벡터 임베딩 자동화
+ * @Author : 김다솜
+ * @Date : 2026. 05. 11
+ * @Modification_History
+ * @
+ * @ 수정일         수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.11    김다솜        최초 생성/문서 처리 파이프라인(Chunking->Embedding->Publish) 구현
+ * @ 2026.05.12    김다솜        문서 삭제 시 연관된 로그/청크/벡터 데이터 순차 정리 로직 추가
+ */
+
 package com.ict06.team1_fin_pj.domain.onboarding.service;
 
 import com.ict06.team1_fin_pj.common.dto.onboarding.AiDocumentChunkResponseDto;
@@ -79,7 +93,7 @@ public class DocumentProcessingService {
             documentRepository.saveAndFlush(document);
             applyChunks(document, response.getChunks());
             document.updateSummaryPreview(response.getExtractedTextPreview());
-            document.updateStage(DocumentStage.REFLECTED);
+            document.updateStage(DocumentStage.PUBLISHED);
             documentRepository.saveAndFlush(document);
             embedLog.markSuccess();
             documentProcessLogRepository.saveAndFlush(embedLog);
@@ -92,7 +106,7 @@ public class DocumentProcessingService {
             return DocumentProcessingResultDto.builder()
                     .success(true)
                     .message("문서 자동 처리가 완료되었습니다.")
-                    .stage(DocumentStage.REFLECTED)
+                    .stage(DocumentStage.PUBLISHED)
                     .chunkCount(chunkCount)
                     .vectorCount(vectorCount)
                     .build();

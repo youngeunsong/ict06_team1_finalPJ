@@ -8,6 +8,7 @@
     @ 수정일자        수정자        수정내용
     @ ----------    ---------    -----------------------------------------------
     @ 2026.05.11    김다솜        최초 생성 및 평가 관리 메뉴 UI 구현
+    @ 2026.05.12    김다솜        온보딩 관리 메인과 동일하게 카드 폭을 줄이고 중앙 정렬되도록 레이아웃 조정
 -->
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
@@ -22,7 +23,7 @@
 
     <main class="app-main">
         <div class="app-content">
-            <div class="container-fluid">
+            <div class="container-fluid p-4" style="max-width: 1200px; margin: 0 auto;">
                 <div class="row mb-3">
                     <div class="col">
                         <h3>온보딩 평가 관리</h3>
@@ -30,9 +31,9 @@
                     </div>
                 </div>
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="card h-100">
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-6 col-lg-4 col-xxl-3">
+                        <div class="card h-100 shadow-sm">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">AI 퀴즈 출제 기준</h5>
                                 <p class="card-text text-muted flex-grow-1">
@@ -46,8 +47,8 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="card h-100">
+                    <div class="col-md-6 col-lg-4 col-xxl-3">
+                        <div class="card h-100 shadow-sm">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">AI 퀴즈 자동 생성</h5>
                                 <p class="card-text text-muted flex-grow-1">
@@ -61,8 +62,8 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="card h-100">
+                    <div class="col-md-6 col-lg-4 col-xxl-3">
+                        <div class="card h-100 shadow-sm">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">평가 문제 목록</h5>
                                 <p class="card-text text-muted flex-grow-1">
