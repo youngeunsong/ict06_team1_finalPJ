@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -161,6 +162,21 @@ public class ApprovalApiController {
      * - 작성자, 결재선에 포함된 결재자, 참조자만 열람할 수 있습니다.
      * - 임시저장(DRAFT) 문서는 아직 공유 전이므로 작성자만 열람할 수 있습니다.
      */
+    /**
+     * 결재 첨부파일 삭제 API
+     *
+     * - 임시저장 문서를 수정하는 화면에서 기존 첨부파일을 삭제할 때 사용합니다.
+     * - 작성자 본인의 DRAFT 문서에 속한 첨부파일만 삭제할 수 있습니다.
+     * - DB의 APP_FILE 행과 서버에 저장된 실제 파일을 함께 삭제합니다.
+     */
+    @DeleteMapping("/files/{fileId}")
+    public void deleteApprovalFile(
+            @PathVariable Integer fileId,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        approvalService.deleteApprovalFile(fileId, principal);
+    }
+
     @GetMapping("/{approvalId}")
     public ApprovalDetailResponseDto getApprovalDetail(
             @PathVariable Integer approvalId,

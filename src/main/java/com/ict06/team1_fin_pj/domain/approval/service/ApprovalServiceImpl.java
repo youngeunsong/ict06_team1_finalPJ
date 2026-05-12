@@ -14,6 +14,7 @@ import com.ict06.team1_fin_pj.domain.approval.entity.AppLineEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalLineStatus;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalStatus;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppFileRepository;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
 import com.ict06.team1_fin_pj.domain.approval.repository.ApprovalRepository;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
@@ -27,6 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +54,7 @@ public class ApprovalServiceImpl implements ApprovalService {
             System.getProperty("user.dir") + "/ict_06_uploads/approval";
 
     private final ApprovalRepository approvalRepository;
+    private final AppFileRepository appFileRepository;
     private final AppFormRepository appFormRepository;
     private final EmployeeRepository employeeRepository;
 
@@ -319,6 +324,23 @@ public class ApprovalServiceImpl implements ApprovalService {
      *
      * 작성자는 자신의 문서를 볼 수 있고, 결재자와 참조자는 상신 이후 문서만 볼 수 있습니다.
      */
+    /**
+     * 임시저장 문서의 첨부파일을 삭제합니다.
+     *
+     * 작성자 본인의 DRAFT 문서에 속한 파일만 삭제할 수 있습니다.
+     * DB의 APP_FILE 행과 실제 업로드 디렉터리의 파일을 함께 삭제합니다.
+     */
+    @Override
+    @Transactional
+    public void deleteApprovalFile(
+            Integer fileId,
+            PrincipalDetails principal
+    ) {
+        AppFileEntity file = getDeletableFile(fileId, principal);
+        deletePhysicalFile(file);
+        appFileRepository.delete(file);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public ApprovalDetailResponseDto getApprovalDetail(
@@ -459,6 +481,63 @@ public class ApprovalServiceImpl implements ApprovalService {
     /**
      * 현재 로그인 사용자가 처리해야 하는 결재선 한 줄을 찾습니다.
      */
+    /**
+     * 삭제 가능한 첨부파일을 조회하고 작성자/문서 상태 권한을 검증합니다.
+     */
+    private AppFileEntity getDeletableFile(Integer fileId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (fileId == null) {
+            throw new IllegalArgumentException("첨부파일 ID가 필요합니다.");
+        }
+
+        AppFileEntity file = appFileRepository.findById(fileId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 첨부파일입니다."));
+
+        ApprovalEntity approval = file.getApproval();
+        if (approval == null) {
+            throw new IllegalArgumentException("첨부파일이 연결된 결재 문서를 찾을 수 없습니다.");
+        }
+
+        boolean isWriter = approval.getWriter() != null
+                && principal.getEmpNo().equals(approval.getWriter().getEmpNo());
+
+        if (!isWriter) {
+            throw new IllegalArgumentException("첨부파일은 문서 작성자만 삭제할 수 있습니다.");
+        }
+
+        if (approval.getStatus() != ApprovalStatus.DRAFT) {
+            throw new IllegalArgumentException("임시저장 문서의 첨부파일만 삭제할 수 있습니다.");
+        }
+
+        return file;
+    }
+
+    /**
+     * DB에 저장된 웹 경로를 실제 파일 경로로 변환해 업로드 파일을 삭제합니다.
+     * 저장 폴더 밖의 경로가 만들어지지 않도록 normalize 후 base directory 하위 여부를 검증합니다.
+     */
+    private void deletePhysicalFile(AppFileEntity file) {
+        String filePath = file.getFilePath();
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+
+        String savedFileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+        Path basePath = Paths.get(UPLOAD_BASE_DIR).toAbsolutePath().normalize();
+        Path targetPath = basePath.resolve(savedFileName).normalize();
+
+        if (!targetPath.startsWith(basePath)) {
+            throw new IllegalArgumentException("올바르지 않은 첨부파일 경로입니다.");
+        }
+
+        try {
+            Files.deleteIfExists(targetPath);
+        } catch (IOException e) {
+            throw new RuntimeException("결재 첨부파일 삭제 중 오류가 발생했습니다.", e);
+        }
+    }
+
     private AppLineEntity findCurrentApprovalLine(ApprovalEntity approval, String empNo) {
         AppLineEntity currentLine = approval.getLines().stream()
                 .filter(line -> line.getStepOrder() != null
