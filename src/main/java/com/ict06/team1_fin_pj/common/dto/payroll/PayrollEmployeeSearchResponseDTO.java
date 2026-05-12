@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class PayrollEmployeeSearchResponseDTO {
 
     // 사원 PK
-    private Long empId;
+    private String empId;
 
     // 사번
     private String empNo;
@@ -22,7 +22,8 @@ public class PayrollEmployeeSearchResponseDTO {
     private String empName;
 
     // 본부/부서명
-    private String deptFullName;
+    private String deptName;
+    private String parentDeptName;
 
     // 직급명
     private String positionName;

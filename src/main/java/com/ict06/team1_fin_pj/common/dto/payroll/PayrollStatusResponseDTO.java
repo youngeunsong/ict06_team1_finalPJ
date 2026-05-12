@@ -46,4 +46,10 @@ public class PayrollStatusResponseDTO {
 
     // 입력 초기화 가능 여부
     private boolean resetAvailable;
+
+    private BigDecimal nationalPensionAmount;
+    private BigDecimal healthInsuranceAmount;
+    private BigDecimal longTermCareAmount;
+    private BigDecimal employmentInsuranceAmount;
+    private BigDecimal totalInsurance;
 }

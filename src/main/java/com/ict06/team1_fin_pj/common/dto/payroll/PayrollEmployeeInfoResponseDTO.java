@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 //사원 인사정보 응답 DTO
 @Data
 @Builder
@@ -13,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class PayrollEmployeeInfoResponseDTO {
 
     // 사원 PK
-    private Long empId;
+    private String empId;
 
     // 사번
     private String empNo;
@@ -22,10 +24,17 @@ public class PayrollEmployeeInfoResponseDTO {
     private String empName;
 
     // 본부/부서명
-    private String deptFullName;
+    private String deptName;
+    private String parentDeptName;
+
+    // 부서 PK
+    private Integer deptId;
 
     // 직급명
     private String positionName;
+
+    // 직급 PK
+    private Integer positionId;
 
     // 급여등급
     private String gradeId;
@@ -33,12 +42,18 @@ public class PayrollEmployeeInfoResponseDTO {
     // 급여등급 설명
     private String gradeDescription;
 
+    // 재직 상태
+    private String status;
+
+    // 재직상태 표시명
+    private String statusName;
+
     // 입사일
-    private String hireDate;
+    private LocalDate hireDate;
 
     // 은행명
-    private String bankName;
+    private String bank;
 
     // 계좌번호
-    private String accountNumber;
+    private String accountNo;
 }

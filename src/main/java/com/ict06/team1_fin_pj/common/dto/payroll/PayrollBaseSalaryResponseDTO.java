@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 // 기본급 조회 응답 DTO
 @Data
@@ -31,5 +32,26 @@ public class PayrollBaseSalaryResponseDTO {
 
     // 급여등급 코드
     private String gradeId;
+
+    // 정책 경고 표시 여부
+    private boolean warningRequired;
+
+    // 정책 선택 강제 여부
+    private boolean policyDecisionRequired;
+
+    // 현재 기준 정책 기본급
+    private BigDecimal policyBaseSalary;
+
+    // 저장된 기본급
+    private BigDecimal savedBaseSalary;
+
+    // 현재 기준 정책 수정일
+    private LocalDateTime policyUpdatedAt;
+
+    // 정책 경고 처리 여부
+    private boolean policyDecisionCompleted;
+
+    // 저장된 급여대장 수정일
+    private LocalDateTime payrollUpdatedAt;
 
 }

@@ -14,4 +14,7 @@ public class PayrollMainRequestDTO {
 
     // 작성월
     private Integer payMonth;
+
+    // 지급/공제항목 설정 변경 선택값
+    private String itemSettingDecision;
 }
