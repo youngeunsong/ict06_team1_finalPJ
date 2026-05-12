@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+// http://localhost:8081/admin/login
 @EnableJpaAuditing
 @EnableScheduling
 @SpringBootApplication // 스케줄러 기능 사용 설정
