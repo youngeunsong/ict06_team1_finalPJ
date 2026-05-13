@@ -2,7 +2,17 @@ package com.ict06.team1_fin_pj.domain.approval.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,10 +34,6 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
     @Column(name = "template_id")
     private Integer templateId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "form_id")
-    private AppFormEntity form;
-
     @Column(name = "template_name", nullable = false, length = 100)
     private String templateName;
 
@@ -44,7 +50,7 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
     private List<AppLineTemplateDetailEntity> details = new ArrayList<>();
 
     /**
-     * 결재선 템플릿에 상세 결재 조건을 추가합니다.
+     * 결재선 서식에 상세 결재 조건을 추가합니다.
      * 양방향 연관관계를 한 곳에서 관리해 템플릿과 상세 항목의 연결이 어긋나지 않게 합니다.
      */
     public void addDetail(AppLineTemplateDetailEntity detail) {
@@ -52,14 +58,11 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
         detail.assignTemplate(this);
     }
 
-    // 기본 정보 수정
-    public void updateNameIsDefault(String templateName, Boolean isDefault){
+    /**
+     * 결재선 서식의 이름과 기본 서식 여부를 수정합니다.
+     */
+    public void updateNameIsDefault(String templateName, Boolean isDefault) {
         this.templateName = templateName;
         this.isDefault = isDefault;
-    }
-
-    // 연결된 결재 서식 수정
-    public void updateForm(AppFormEntity form){
-        this.form = form;
     }
 }
