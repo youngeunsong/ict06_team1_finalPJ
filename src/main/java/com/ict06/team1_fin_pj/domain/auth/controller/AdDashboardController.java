@@ -40,11 +40,32 @@ public class AdDashboardController {
      */
     @GetMapping("/home")
     public String adminHome(Model model) {
+        model.addAttribute("stats", Map.of(
+                "kpis", Map.of(
+                        "totalOnboarding", 0,
+                        "avgProgress", 0.0,
+                        "evaluationSubmissions", 0,
+                        "aiActivities", 0
+                ),
+                "onboarding", Collections.emptyList(),
+                "rag", Collections.emptyList(),
+                "ai_usage", Collections.emptyMap(),
+                "quiz", Collections.emptyList(),
+                "recentActivities", Collections.emptyList()
+        ));
+        model.addAttribute("totalOnboarding", 0);
+        model.addAttribute("avgProgress", 0.0);
+        model.addAttribute("evaluationSubmissions", 0);
+        model.addAttribute("aiActivities", 0);
+        model.addAttribute("recentActivities", Collections.emptyList());
+
         try {
             Map<String, Object> stats = restTemplate.getForObject(AI_SERVER_URL, Map.class);
-            model.addAttribute("stats", stats);
+            if (stats != null) {
+                model.addAttribute("stats", stats);
+            }
 
-            if (stats != null && stats.containsKey("kpis")) {
+            if (stats != null && stats.get("kpis") instanceof Map<?, ?>) {
                 Map<String, Object> kpis = (Map<String, Object>) stats.get("kpis");
                 model.addAttribute("totalOnboarding", kpis.getOrDefault("totalOnboarding", 0));
                 model.addAttribute("avgProgress", kpis.getOrDefault("avgProgress", 0.0));

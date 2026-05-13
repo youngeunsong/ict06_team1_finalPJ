@@ -146,6 +146,7 @@ public class AdOnboardingController {
         model.addAttribute("employeeName", firstSchedule.getEmployeeName());
         model.addAttribute("roadmapTitle", firstSchedule.getRoadmapTitle());
         model.addAttribute("schedules", schedules);
+        model.addAttribute("items", schedules);
         return "admin/onboarding/scheduleDetail";
     }
 
@@ -560,9 +561,14 @@ public class AdOnboardingController {
 
         return roadmapRepository.findById(roadmapId)
                 .map(roadmap -> {
-                    RoadmapEntity regeneratedRoadmap = roadmapService.resetAndRegenerateRoadmap(roadmapId);
-                    redirectAttributes.addFlashAttribute("successMessage", "Roadmap was reset and regenerated from the latest content list.");
-                    return "redirect:/admin/onboarding/roadmaps/" + regeneratedRoadmap.getRoadmapId() + "/items";
+                    try {
+                        RoadmapEntity regeneratedRoadmap = roadmapService.resetAndRegenerateRoadmap(roadmapId);
+                        redirectAttributes.addFlashAttribute("successMessage", "Roadmap was reset and regenerated from the latest content list.");
+                        return "redirect:/admin/onboarding/roadmaps/" + regeneratedRoadmap.getRoadmapId() + "/items";
+                    } catch (IllegalStateException e) {
+                        redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+                        return "redirect:/admin/onboarding/roadmaps";
+                    }
                 })
                 .orElseGet(() -> {
                     redirectAttributes.addFlashAttribute("errorMessage", "Roadmap was not found.");

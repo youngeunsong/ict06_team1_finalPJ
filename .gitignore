@@ -39,7 +39,7 @@ __pycache__/
 *.py[cod]
 .env
 env
-db_connection
+db_connection.py
 
 ### DB Preferences ###
 application.properties
