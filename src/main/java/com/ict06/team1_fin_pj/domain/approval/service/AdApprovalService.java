@@ -36,6 +36,8 @@ public interface AdApprovalService {
     // delete
     public void deleteAppForm(int id);
 
+    public void deleteAppForms(List<Integer> ids);
+
     // update
     public void updateAppForm(int id, AppFormDto dto);
 

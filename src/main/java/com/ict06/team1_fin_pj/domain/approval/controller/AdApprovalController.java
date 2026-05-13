@@ -139,6 +139,20 @@ public class AdApprovalController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/deleteAppForms")
+    @ResponseBody
+    public ResponseEntity<?> deleteAppForms(@RequestBody Map<String, Object> body) {
+        System.out.println("[AdApprovalController] - deleteAppForms()");
+
+        List<Integer> formIds = ((List<?>) body.get("formIds"))
+                .stream()
+                .map(value -> Integer.valueOf(value.toString()))
+                .toList();
+
+        service.deleteAppForms(formIds);
+        return ResponseEntity.ok().build();
+    }
+
     // [전자 결재 서식 수정] ----------------------------------------------------------------------------
     // 서식 수정 페이지
     @GetMapping("/editAppForm/{formId}")

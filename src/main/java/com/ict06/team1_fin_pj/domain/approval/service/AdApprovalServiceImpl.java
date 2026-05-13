@@ -112,6 +112,8 @@ public class AdApprovalServiceImpl implements AdApprovalService {
 
                             .formName(form.getFormName())
 
+                            .isDefault(form.getIsDefault())
+
                             .updatedAt(form.getUpdatedAt())
 
                             .lineTemplateId(
@@ -144,7 +146,20 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     public void deleteAppForm(int id) {
         AppFormEntity form = appFormRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("서식 없음"));
+        validateEditableAppForm(form);
         appFormRepository.delete(form);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAppForms(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        List<AppFormEntity> forms = appFormRepository.findAllById(ids);
+        forms.forEach(this::validateEditableAppForm);
+        appFormRepository.deleteAll(forms);
     }
 
     // update
@@ -157,8 +172,15 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         // 1. DB에서 조회 (영속 상태)
         AppFormEntity prevEntity = appFormRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("서식 없음"));
+        validateEditableAppForm(prevEntity);
         // 2. 값 변경 -> JPA가 변경 감지 -> UPDATE 쿼리 자동 실행
         prevEntity.updateForm(dto.getFormName(), dto.getTemplate());
+    }
+
+    private void validateEditableAppForm(AppFormEntity form) {
+        if (form.isDefaultForm()) {
+            throw new IllegalStateException("기본 결재 서식은 수정하거나 삭제할 수 없습니다.");
+        }
     }
 
     // [결재선 서식 관리]--------------------------------------------
