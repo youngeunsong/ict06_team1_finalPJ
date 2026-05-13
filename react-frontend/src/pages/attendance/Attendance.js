@@ -521,7 +521,7 @@ const Attendance = () => {
     );
   };
 
-  // 상태 뱃지 색상
+  // 상태 배지 색상
   const getBadgeColor = (status) => {
     if (status === 'ON_TIME' || status === '정상출근') return 'success';
     if (status === 'LATE' || status === '지각') return 'warning';
