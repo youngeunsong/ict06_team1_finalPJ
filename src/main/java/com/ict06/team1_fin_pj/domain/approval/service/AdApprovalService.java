@@ -28,7 +28,7 @@ public interface AdApprovalService {
     public List<AppFormEntity> listAllAppForms();
 
     // 페이징 처리된 list로 받기
-    public Page<AppFormListDto> getAppFormsWithPaging(int page, int size);
+    public Page<AppFormListDto> getAppFormsWithPaging(int page, int size, String keyword);
 
     // 1건 select (상세 화면)
     public AppFormEntity selectAppForm(int id);
@@ -53,7 +53,7 @@ public interface AdApprovalService {
     void applyLineTemplate(Integer formId, Integer templateId);
 
     // 페이징 처리된 list로 받기
-    Page<AppLineFormListDto> getAppLineFormsWithPaging(int page, int size);
+    Page<AppLineFormListDto> getAppLineFormsWithPaging(int page, int size, String keyword);
 
     // 1건 select (상세 화면)
     public AppLineFormDetailDto selectAppLineForm(Integer id);

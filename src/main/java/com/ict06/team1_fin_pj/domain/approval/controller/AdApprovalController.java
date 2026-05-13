@@ -93,9 +93,10 @@ public class AdApprovalController {
     @GetMapping("/getAppForms")
     @ResponseBody
     public Page<AppFormListDto> getAppForms(@RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "10") int size) {
+                                            @RequestParam(defaultValue = "10") int size,
+                                            @RequestParam(required = false) String keyword) {
         System.out.println("[AdApprovalController] - getAppForms()");
-        return service.getAppFormsWithPaging(page, size);
+        return service.getAppFormsWithPaging(page, size, keyword);
     }
 
     // 서식 1건 상세 보기
@@ -234,11 +235,12 @@ public class AdApprovalController {
     @ResponseBody
     public Page<AppLineFormListDto> getAppLineForms(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword
     ) {
         System.out.println("[AdApprovalController] - getAppLineForms()");
 
-        return service.getAppLineFormsWithPaging(page, size);
+        return service.getAppLineFormsWithPaging(page, size, keyword);
     }
 
     // 전자 결재선 서식 1건 상세 조회
@@ -248,6 +250,7 @@ public class AdApprovalController {
             Model model
     ) {
         System.out.println("[AdApprovalController] - appLineFormDetail()");
+        model.addAttribute("activeTab", "appLineForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
         model.addAttribute(
                 "detail",
                 service.selectAppLineForm(id)
@@ -278,6 +281,7 @@ public class AdApprovalController {
             Model model
     ) {
         System.out.println("[AdApprovalController] - editAppLineForm()");
+        model.addAttribute("activeTab", "appLineForm"); // 서브 헤더의 어떤 탭(appForm, appLineForm) 활성화 시킬 지 전달
 
         model.addAttribute(
                 "templateId",

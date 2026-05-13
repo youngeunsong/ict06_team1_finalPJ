@@ -1,7 +1,12 @@
 package com.ict06.team1_fin_pj.domain.approval.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,9 +31,20 @@ public class AppFormEntity extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String template;
 
-    // 값 수정 메서드
+    @Column(name = "is_default")
+    @Builder.Default
+    private Boolean isDefault = false;
+
     public void updateForm(String formName, String template) {
         this.formName = formName;
         this.template = template;
+    }
+
+    public boolean isDefaultForm() {
+        return Boolean.TRUE.equals(this.isDefault);
+    }
+
+    public Boolean getIsDefault() {
+        return this.isDefault;
     }
 }
