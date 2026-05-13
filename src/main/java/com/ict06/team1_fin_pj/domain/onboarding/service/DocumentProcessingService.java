@@ -1,3 +1,17 @@
+/**
+ * @FileName : DocumentProcessingService.java
+ * @Description : 관리자 문서 RAG(Retrieval-Augmented Generation) 처리 Service
+ *                AI 서버 연동을 통한 본문 추출, 청크 분할 및 벡터 임베딩을 처리한다.
+ * @Author : 김다솜
+ * @Date : 2026. 05. 11
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자        수정내용
+ * @ ----------    ---------    -----------------------------------------------
+ * @ 2026.05.11    김다솜        최초 생성/문서 처리 파이프라인(Chunking->Embedding->Publish) 구현
+ * @ 2026.05.12    김다솜        문서 삭제/재처리 시 기존 청크 명시 삭제 및 UTF-8 저장 불가 문자 정제 처리
+ */
+
 package com.ict06.team1_fin_pj.domain.onboarding.service;
 
 import com.ict06.team1_fin_pj.common.dto.onboarding.AiDocumentChunkResponseDto;
@@ -14,6 +28,7 @@ import com.ict06.team1_fin_pj.domain.onboarding.entity.DocVectorEntity;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.DocumentEntity;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.DocumentStage;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.DocumentRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -34,10 +49,12 @@ public class DocumentProcessingService {
     private final DocumentRepository documentRepository;
     private final DocumentProcessLogRepository documentProcessLogRepository;
     private final RestTemplate restTemplate;
+    private final EntityManager entityManager;
 
     @Value("${ai.server.base-url:http://localhost:8000}")
     private String aiServerBaseUrl;
 
+    @Transactional
     public DocumentProcessingResultDto processDocument(Integer docId, EmpEntity processedBy) {
         DocumentEntity document = documentRepository.findById(docId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다."));
@@ -75,11 +92,12 @@ public class DocumentProcessingService {
         documentProcessLogRepository.saveAndFlush(embedLog);
 
         try {
-            document.clearChunks();
-            documentRepository.saveAndFlush(document);
+            deleteExistingChunks(document);
+            document = documentRepository.findById(docId)
+                    .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다."));
             applyChunks(document, response.getChunks());
-            document.updateSummaryPreview(response.getExtractedTextPreview());
-            document.updateStage(DocumentStage.REFLECTED);
+            document.updateSummaryPreview(sanitizeText(response.getExtractedTextPreview()));
+            document.updateStage(DocumentStage.PUBLISHED);
             documentRepository.saveAndFlush(document);
             embedLog.markSuccess();
             documentProcessLogRepository.saveAndFlush(embedLog);
@@ -92,7 +110,7 @@ public class DocumentProcessingService {
             return DocumentProcessingResultDto.builder()
                     .success(true)
                     .message("문서 자동 처리가 완료되었습니다.")
-                    .stage(DocumentStage.REFLECTED)
+                    .stage(DocumentStage.PUBLISHED)
                     .chunkCount(chunkCount)
                     .vectorCount(vectorCount)
                     .build();
@@ -143,15 +161,15 @@ public class DocumentProcessingService {
         for (AiDocumentChunkResponseDto chunkDto : chunkDtos) {
             DocChunkEntity chunk = DocChunkEntity.builder()
                     .chunkNo(chunkDto.getChunkNo())
-                    .content(chunkDto.getContent())
+                    .content(sanitizeText(chunkDto.getContent()))
                     .tokenCount(chunkDto.getTokenCount())
-                    .sectionTitle(chunkDto.getSectionTitle())
+                    .sectionTitle(sanitizeText(chunkDto.getSectionTitle()))
                     .build();
 
             if (chunkDto.getEmbeddingData() != null && !chunkDto.getEmbeddingData().isBlank()) {
                 DocVectorEntity vector = DocVectorEntity.builder()
-                        .embeddingData(chunkDto.getEmbeddingData())
-                        .modelName(chunkDto.getModelName() != null ? chunkDto.getModelName() : "hash-embedding-v1")
+                        .embeddingData(sanitizeText(chunkDto.getEmbeddingData()))
+                        .modelName(sanitizeText(chunkDto.getModelName() != null ? chunkDto.getModelName() : "hash-embedding-v1"))
                         .dimension(chunkDto.getDimension() != null ? chunkDto.getDimension() : 256)
                         .build();
                 chunk.setVector(vector);
@@ -179,11 +197,45 @@ public class DocumentProcessingService {
         documentProcessLogRepository.deleteByDocument_DocId(docId);
         documentProcessLogRepository.flush();
 
-        document.clearChunks();
-        documentRepository.saveAndFlush(document);
+        deleteExistingChunks(document);
 
         documentRepository.delete(document);
         documentRepository.flush();
+    }
+
+    private void deleteExistingChunks(DocumentEntity document) {
+        Integer docId = document.getDocId();
+        if (docId == null) {
+            return;
+        }
+
+        document.clearChunks();
+        entityManager.flush();
+
+        entityManager.createNativeQuery("""
+                DELETE FROM doc_vector
+                WHERE chunk_id IN (
+                    SELECT chunk_id
+                    FROM doc_chunks
+                    WHERE doc_id = :docId
+                )
+                """)
+                .setParameter("docId", docId)
+                .executeUpdate();
+
+        entityManager.createNativeQuery("DELETE FROM doc_chunks WHERE doc_id = :docId")
+                .setParameter("docId", docId)
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
+    }
+
+    private String sanitizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        return value.replace("\u0000", "");
     }
 
     private String extractRootMessage(Throwable throwable) {

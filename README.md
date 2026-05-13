@@ -88,14 +88,18 @@ AI 융합 리액트 기반 사내 그룹웨어 & 교육평가시스템 플랫폼
 
 2. **AI 서버 작업용 폴더로 이동하기**: `Terminal` -> `New Terminal` -> `+` 옆의 `V` -> `Git bash` 선택-> `cd ai_server` 입력
 
-3. **가상환경 실행하기**: (2번의 ai_server 폴더로 이동한 상태에서) `source venv/Scripts/activate` 입력
+3. **가상환경 생성하기**: (2번의 ai_server 폴더로 이동한 상태에서) `python -m venv venv` 입력    
+
+4. **가상환경 활성화 및 라이브러리 설치**: `source venv/Scripts/activate` 입력
    **정상적으로 실행되면 터미널의 경로 앞에 `(venv)` 라는 표시가 생깁니다.**
-   
-4. **AI 가상 서버 띄우기**: (Terminal에서) `uvicorn main:app --reload` 입력 -> 실행 성공 시 터미널에 `INFO: Application startup complete.` 메시지가 뜹니다.
 
-5. **정상 실행되지 않을 시**: (Terminal의 ai_server 폴더에서) `pip install -r requirements.txt` 입력하여 DB 접속 라이브러리를 설치한 후 3,4번을 다시 실행합니다.
+5. **라이브러리 설치**: `pip install -r requirements.txt` 입력
 
-6. **AI 서버 실행 확인**: http://127.0.0.1:8000 로 접속 -> 화면에 응답이 있으면 성공입니다.
+6. **AI 가상 서버 띄우기**: (Terminal에서) `uvicorn main:app --reload` 입력 -> 실행 성공 시 터미널에 `INFO: Application startup complete.` 메시지가 뜹니다.
+
+7. **정상 실행되지 않을 시**: (Terminal의 ai_server 폴더에서) `pip install -r requirements.txt` 입력하여 DB 접속 라이브러리를 설치한 후 3,4번을 다시 실행합니다.
+
+8. **AI 서버 실행 확인**: http://127.0.0.1:8000 로 접속 -> 화면에 응답이 있으면 성공입니다.
 
 
 
