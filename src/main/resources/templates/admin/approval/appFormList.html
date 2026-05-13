@@ -1,4 +1,4 @@
-<!--
+﻿<!--
  * @author : 송영은
  * description : 관리자용 - 전자결재 서식 관리 메인 페이지 (모든 전자 결재 서식 조회 + 추가/수정/삭제 버튼 제공)
  * ========================================
@@ -38,25 +38,40 @@
                 <div class="row">
                     <h3>전자 결재 서식 관리 메인</h3>
                 </div>
-                <!-- end::Row-->
-                <!--버튼 메뉴 시작-->
-                <div class="row">
-                    <div class="d-flex gap-2 mb-2">
-                        <!--선택 일괄 삭제 버튼 시작-->
-                        <button type="button" class="btn btn-danger" id="bulkDeleteBtn">
-                            선택 일괄 삭제
-                        </button>
-                        <!--선택 일괄 삭제 버튼 끝-->
-                        <!-- TODO: 선택 일괄 결재선 서식 설정-->
-                        <!--새 서식 추가 버튼 시작-->
-                        <button type="button" class="btn btn-success" th:onclick="|location.href='@{/admin/approval/createAppForm}'|">
-                            (+) 새 서식 추가
-                        </button>
-                        <!--새 서식 추가 버튼 끝-->
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <!-- 검색바 시작 -->
+                        <div class="input-group">
+                            <input type="text"
+                                   class="form-control"
+                                   id="searchKeyword"
+                                   placeholder="서식 번호 또는 서식명 검색">
+                            <button type="button" class="btn btn-outline-secondary" id="searchBtn">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="resetSearchBtn">
+                                초기화
+                            </button>
+                            <!--새 서식 추가 버튼 시작-->
+                            <div class="d-flex flex-row-reverse">
+                                <button type="button" class="btn btn-success" th:onclick="|location.href='@{/admin/approval/createAppForm}'|">
+                                    (+) 새 서식 추가
+                                </button>
+                            </div>
+                            <!--새 서식 추가 버튼 끝-->
+                        </div>
+                        <!-- 검색바 끝 -->
                     </div>
                 </div>
-                <!--버튼 메뉴 끝-->
+                <!-- end::Row-->
+                <!-- 일괄 관리 버튼 그룹 시작 -->
                 <br>
+                <div class="d-flex gap-2 mb-2">
+                    <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
+                        일괄 삭제
+                    </button>
+                </div>
+                <!-- 일괄 관리 버튼 그룹 끝 -->
                 <!-- begin::서식 표 시작-->
                 <div class="row">
                     <table class="table table-hover align-middle">
@@ -179,7 +194,8 @@
             type: "GET",
             data: {
                 page: page,
-                size: pageSize
+                size: pageSize,
+                keyword: $('#searchKeyword').val()
             },
             success: function (data) {
                 renderTable(data.content);
@@ -337,6 +353,104 @@
     });
 
     // 행 클릭 시 상세 페이지로 이동
+    function getSelectedForms() {
+        return Array.from(selectedFormMap.values());
+    }
+
+    function updateSelectedFormMap(checkbox) {
+        const formId = Number($(checkbox).data('form-id'));
+        if (checkbox.checked) {
+            selectedFormMap.set(formId, {
+                formId: formId,
+                formName: $(checkbox).data('form-name'),
+                isDefault: $(checkbox).data('is-default') === true || $(checkbox).data('is-default') === 'true'
+            });
+        } else {
+            selectedFormMap.delete(formId);
+        }
+    }
+
+    function renderSelectedFormList() {
+        const targets = modalFormTargets.length > 0 ? modalFormTargets : getSelectedForms();
+        if (targets.length === 0) {
+            $('#selectedFormList').html('<span class="text-muted">선택된 결재 서식이 없습니다.</span>');
+            return;
+        }
+
+        $('#selectedFormList').html(
+            targets.map(item => `<span class="badge bg-secondary me-1 mb-1">${item.formName}</span>`).join('')
+        );
+    }
+
+    $(document).on('change', '.app-form-check', function () {
+        updateSelectedFormMap(this);
+    });
+
+    $(document).on('change', '#selectAllForms', function () {
+        $('.app-form-check').each(function () {
+            this.checked = $('#selectAllForms').prop('checked');
+            updateSelectedFormMap(this);
+        });
+    });
+
+    $('#bulkDeleteBtn').on('click', function () {
+        const selectedForms = getSelectedForms();
+        const deletableForms = selectedForms.filter(item => !item.isDefault);
+
+        if (selectedForms.length === 0) {
+            alert('삭제할 결재 서식을 선택해주세요.');
+            return;
+        }
+
+        if (deletableForms.length !== selectedForms.length) {
+            alert('기본 결재 서식은 삭제할 수 없어 제외됩니다.');
+        }
+
+        if (deletableForms.length === 0) {
+            return;
+        }
+
+        if (!confirm(`${deletableForms.length}개 결재 서식을 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        $.ajax({
+            url: '/admin/approval/deleteAppForms',
+            type: 'DELETE',
+            contentType: 'application/json; charset=UTF-8',
+            data: JSON.stringify({
+                formIds: deletableForms.map(item => item.formId)
+            }),
+            success: function () {
+                alert('삭제되었습니다.');
+                selectedFormMap.clear();
+                loadPage(currentPage);
+            },
+            error: function () {
+                alert('삭제 실패');
+            }
+        });
+    });
+
+    $('#searchBtn').on('click', function () {
+        selectedFormMap.clear();
+        loadPage(0);
+    });
+
+    $('#resetSearchBtn').on('click', function () {
+        $('#searchKeyword').val('');
+        selectedFormMap.clear();
+        loadPage(0);
+    });
+
+    $('#searchKeyword').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            selectedFormMap.clear();
+            loadPage(0);
+        }
+    });
+
     $(document).on(
         'click',
         '.app-form-row',

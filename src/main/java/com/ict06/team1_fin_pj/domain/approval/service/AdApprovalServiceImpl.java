@@ -17,6 +17,7 @@ import com.ict06.team1_fin_pj.domain.employee.repository.AdPositionRepository;
 import com.ict06.team1_fin_pj.domain.employee.service.AdEmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -85,7 +86,8 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     @Transactional(readOnly = true)
     public Page<AppFormListDto> getAppFormsWithPaging(
             int page,
-            int size
+            int size,
+            String keyword
     ) {
 
         Pageable pageable = PageRequest.of(
@@ -94,42 +96,55 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 Sort.by("updatedAt").descending()
         );
 
-        return appFormRepository
-                .findAll(pageable)
-                .map(form -> {
+        List<AppFormListDto> filteredForms =
+                appFormRepository.findAll(Sort.by("updatedAt").descending())
+                        .stream()
+                        .filter(form -> matchesAppFormKeyword(form, keyword))
+                        .map(this::toAppFormListDto)
+                        .toList();
 
-                    Optional<AppLineTemplateEntity>
-                            lineTemplateOpt =
+        return toPage(filteredForms, pageable);
+    }
 
-                            appLineTemplateRepository
-                                    .findFirstByForm_FormId(
-                                            form.getFormId()
-                                    );
+    private AppFormListDto toAppFormListDto(AppFormEntity form) {
 
-                    return AppFormListDto.builder()
+        Optional<AppLineTemplateEntity>
+                lineTemplateOpt =
 
-                            .formId(form.getFormId())
+                appLineTemplateRepository
+                        .findFirstByForm_FormId(
+                                form.getFormId()
+                        );
 
-                            .formName(form.getFormName())
+        return AppFormListDto.builder()
+//
+//<<<<<<< HEAD
+//                            .isDefault(form.getIsDefault())
+//
+//                            .updatedAt(form.getUpdatedAt())
+//=======
+                .formId(form.getFormId())
+//>>>>>>> topic/approval_old_v2
 
-                            .isDefault(form.getIsDefault())
+                .formName(form.getFormName())
 
-                            .updatedAt(form.getUpdatedAt())
+                .isDefault(form.getIsDefault())
 
-                            .lineTemplateId(
-                                    lineTemplateOpt
-                                            .map(AppLineTemplateEntity::getTemplateId)
-                                            .orElse(null)
-                            )
+                .updatedAt(form.getUpdatedAt())
 
-                            .lineTemplateName(
-                                    lineTemplateOpt
-                                            .map(AppLineTemplateEntity::getTemplateName)
-                                            .orElse(null)
-                            )
+                .lineTemplateId(
+                        lineTemplateOpt
+                                .map(AppLineTemplateEntity::getTemplateId)
+                                .orElse(null)
+                )
 
-                            .build();
-                });
+                .lineTemplateName(
+                        lineTemplateOpt
+                                .map(AppLineTemplateEntity::getTemplateName)
+                                .orElse(null)
+                )
+
+                .build();
     }
 
     // 1건 select (상세 화면)
@@ -343,7 +358,8 @@ public class AdApprovalServiceImpl implements AdApprovalService {
     @Transactional(readOnly = true)
     public Page<AppLineFormListDto> getAppLineFormsWithPaging(
             int page,
-            int size
+            int size,
+            String keyword
     ) {
 
         Pageable pageable = PageRequest.of(
@@ -352,10 +368,18 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 Sort.by(Sort.Direction.DESC, "templateId")
         );
 
-        Page<AppLineTemplateEntity> result =
-                appLineTemplateRepository.findAll(pageable);
+        List<AppLineFormListDto> filteredTemplates =
+                appLineTemplateRepository.findAll(Sort.by(Sort.Direction.DESC, "templateId"))
+                        .stream()
+                        .filter(template -> matchesAppLineTemplateKeyword(template, keyword))
+                        .map(this::toAppLineFormListDto)
+                        .toList();
 
-        return result.map(entity -> AppLineFormListDto.builder()
+        return toPage(filteredTemplates, pageable);
+    }
+
+    private AppLineFormListDto toAppLineFormListDto(AppLineTemplateEntity entity) {
+        return AppLineFormListDto.builder()
                 .templateId(entity.getTemplateId())
                 .templateName(entity.getTemplateName())
                 .formName(
@@ -373,10 +397,55 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                 + ")"
                                 : "-"
                 )
-                .build());
+                .build();
     }
 
     // 1건 select (상세 화면)
+    private boolean matchesAppFormKeyword(AppFormEntity form, String keyword) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+
+        if (normalizedKeyword.isBlank()) {
+            return true;
+        }
+
+        return String.valueOf(form.getFormId()).contains(normalizedKeyword)
+                || containsIgnoreCase(form.getFormName(), normalizedKeyword);
+    }
+
+    private boolean matchesAppLineTemplateKeyword(
+            AppLineTemplateEntity template,
+            String keyword
+    ) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+
+        if (normalizedKeyword.isBlank()) {
+            return true;
+        }
+
+        return String.valueOf(template.getTemplateId()).contains(normalizedKeyword)
+                || containsIgnoreCase(template.getTemplateName(), normalizedKeyword);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null ? "" : keyword.trim();
+    }
+
+    private boolean containsIgnoreCase(String target, String keyword) {
+        return target != null
+                && target.toLowerCase().contains(keyword.toLowerCase());
+    }
+
+    private <T> Page<T> toPage(List<T> items, Pageable pageable) {
+        int start = Math.min((int) pageable.getOffset(), items.size());
+        int end = Math.min(start + pageable.getPageSize(), items.size());
+
+        return new PageImpl<>(
+                items.subList(start, end),
+                pageable,
+                items.size()
+        );
+    }
+
     @Override
     @Transactional(readOnly = true)
     public AppLineFormDetailDto selectAppLineForm(Integer id) {
