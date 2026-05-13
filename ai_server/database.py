@@ -19,32 +19,7 @@
 from datetime import datetime
 
 import pandas as pd
-import pg8000.native
-
-# PostgreSQL 연결 정보
-db_config = {
-    "host": "192.168.0.13",
-    "port": 5432,
-    "database": "ict06_team1_finalpj",
-    "user": "postgres",
-    "password": "postgre",
-}
-
-conn = None
-
-
-def get_connection():
-    """
-    전역 연결 객체를 재사용해 PostgreSQL 연결을 반환
-    """
-    global conn
-    try:
-        if conn is None:
-            conn = pg8000.native.Connection(**db_config)
-        return conn
-    except Exception as e:
-        print(f"연결 실패: {e}")
-        return None
+from repositories.db_connection import get_connection
 
 
 def fetch_employee_info(emp_no):
