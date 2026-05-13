@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ict06.team1_fin_pj.common.dto.evaluation.AdminQuizGenerationRequestDto;
 import com.ict06.team1_fin_pj.common.dto.evaluation.AdminQuizSaveRequestDto;
 import com.ict06.team1_fin_pj.common.dto.evaluation.AiQuizGenerationResponseDto;
-import com.ict06.team1_fin_pj.common.dto.evaluation.QuizGenerationRuleRequestDto;
+import com.ict06.team1_fin_pj.common.dto.evaluation.AdQuizGenerationRuleRequestDto;
 import com.ict06.team1_fin_pj.domain.evaluation.entity.QuestionType;
 import com.ict06.team1_fin_pj.domain.evaluation.entity.QuizGenerationRuleEntity;
 import com.ict06.team1_fin_pj.domain.evaluation.repository.EvaluationQuestionRepository;
@@ -140,7 +140,7 @@ public class AdEvaluationController {
     // AI 퀴즈 출제 기준 등록
     @PostMapping("/quiz-rules")
     public String createQuizRule(
-            @ModelAttribute QuizGenerationRuleRequestDto requestDto,
+            @ModelAttribute AdQuizGenerationRuleRequestDto requestDto,
             RedirectAttributes redirectAttributes
     ) {
         QuizGenerationRuleEntity rule = QuizGenerationRuleEntity.builder()
@@ -181,7 +181,7 @@ public class AdEvaluationController {
     @PostMapping("/quiz-rules/{ruleId}/edit")
     public String updateQuizRule(
             @PathVariable Integer ruleId,
-            @ModelAttribute QuizGenerationRuleRequestDto requestDto,
+            @ModelAttribute AdQuizGenerationRuleRequestDto requestDto,
             RedirectAttributes redirectAttributes
     ) {
         return quizGenerationRuleRepository.findById(ruleId)
