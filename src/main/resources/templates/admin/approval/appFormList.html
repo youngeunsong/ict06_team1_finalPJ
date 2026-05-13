@@ -440,7 +440,17 @@
 
             function(data){
 
-                let html = '';
+                let html = `
+                    <label class="list-group-item">
+                        <input
+                            type="radio"
+                            name="lineTemplate"
+                            value=""
+                            class="form-check-input me-2"
+                            ${!selectedTemplateId ? 'checked' : ''}>
+                        선택 안 함
+                    </label>
+                `;
 
                 data.forEach(item => {
 
@@ -479,6 +489,8 @@
                     $(
                         `input[name="lineTemplate"][value="${selectedTemplateId}"]`
                     ).trigger('change');
+                } else {
+                    renderNoLineTemplatePreview();
                 }
             }
         );
@@ -592,12 +604,27 @@
         $('#lineTemplatePreview').html(html);
     }
 
+    // 결재선 서식을 연결하지 않는 상태를 미리보기 영역에 표시
+    function renderNoLineTemplatePreview(){
+        $('#lineTemplatePreview').html(`
+            <div class="text-muted">
+                연결된 결재선 서식이 없습니다.
+            </div>
+        `);
+    }
+
     // 결재선 서식 선택 변경 이벤트
     $(document).on(
         'change',
         'input[name="lineTemplate"]',
         function(){
             const templateId = $(this).val();
+
+            if(!templateId){
+                renderNoLineTemplatePreview();
+                return;
+            }
+
             $.get(
                 `/admin/approval/appLineFormDetailData/${templateId}`,
 
@@ -617,11 +644,6 @@
                 $('input[name="lineTemplate"]:checked')
                     .val();
 
-            if(!templateId){
-                alert('결재선을 선택하세요.');
-                return;
-            }
-
             $.ajax({
                 url: `/admin/approval/appForms/${currentFormId}/lineTemplate`,
                 type: 'PUT',
@@ -631,7 +653,7 @@
                 },
 
                 success: function(){
-                    alert('결재선 적용 완료');
+                    alert('결재선 설정 저장 완료');
                     $('#lineTemplateModal').modal('hide');
                     location.reload();
                 }

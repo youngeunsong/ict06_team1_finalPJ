@@ -299,6 +299,13 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                         .orElseThrow(() ->
                                 new IllegalArgumentException("결재 서식 없음"));
 
+        // templateId가 null이면 결재선 서식 연결을 해제합니다.
+        // APP_FORM.line_template_id가 nullable FK이므로 JPA 변경 감지로 null 업데이트됩니다.
+        if (templateId == null) {
+            form.updateLineTemplate(null);
+            return;
+        }
+
         AppLineTemplateEntity template =
                 appLineTemplateRepository.findById(templateId)
                         .orElseThrow(() ->

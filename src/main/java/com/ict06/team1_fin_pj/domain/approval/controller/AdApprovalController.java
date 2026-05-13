@@ -124,10 +124,18 @@ public class AdApprovalController {
     @ResponseBody
     public ResponseEntity<?> applyLineTemplate(
             @PathVariable Integer formId,
-            @RequestParam Integer templateId
+            @RequestParam(required = false) String templateId
     ) {
         System.out.println("[AdApprovalController] - applyLineTemplate()");
-        service.applyLineTemplate(formId,templateId);
+
+        // templateId가 비어 있으면 결재 서식과 결재선 서식의 연결을 해제합니다.
+        // 관리자가 모달에서 "선택 안 함"을 고른 경우 이 경로를 사용합니다.
+        Integer parsedTemplateId =
+                templateId == null || templateId.isBlank()
+                        ? null
+                        : Integer.valueOf(templateId);
+
+        service.applyLineTemplate(formId, parsedTemplateId);
         return ResponseEntity.ok().build();
     }
 
