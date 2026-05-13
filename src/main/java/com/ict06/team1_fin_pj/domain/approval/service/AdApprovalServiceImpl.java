@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -97,35 +96,22 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         return appFormRepository
                 .findAll(pageable)
                 .map(form -> {
-
-                    Optional<AppLineTemplateEntity>
-                            lineTemplateOpt =
-
-                            appLineTemplateRepository
-                                    .findFirstByForm_FormId(
-                                            form.getFormId()
-                                    );
+                    AppLineTemplateEntity lineTemplate = form.getLineTemplate();
 
                     return AppFormListDto.builder()
-
                             .formId(form.getFormId())
-
                             .formName(form.getFormName())
-
                             .updatedAt(form.getUpdatedAt())
-
                             .lineTemplateId(
-                                    lineTemplateOpt
-                                            .map(AppLineTemplateEntity::getTemplateId)
-                                            .orElse(null)
+                                    lineTemplate != null
+                                            ? lineTemplate.getTemplateId()
+                                            : null
                             )
-
                             .lineTemplateName(
-                                    lineTemplateOpt
-                                            .map(AppLineTemplateEntity::getTemplateName)
-                                            .orElse(null)
+                                    lineTemplate != null
+                                            ? lineTemplate.getTemplateName()
+                                            : null
                             )
-
                             .build();
                 });
     }
@@ -263,11 +249,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 .map(t -> AppLineFormListDto.builder()
                         .templateId(t.getTemplateId())
                         .templateName(t.getTemplateName())
-                        .formName(
-                                t.getForm() != null
-                                        ? t.getForm().getFormName()
-                                        : "-"
-                        )
+                        .formName(getConnectedFormNames(t.getTemplateId()))
                         .createdBy( // 작성자: 이름(사번) 형식
                                 t.getCreatedBy() != null
                                         ? t.getCreatedBy().getName()
@@ -313,7 +295,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                 new IllegalArgumentException("결재선 없음"));
 
         // 결재선 서식에 결재 서식 연결
-        template.updateForm(form);
+        form.updateLineTemplate(template);
     }
 
     // 페이징 처리된 list로 받기
@@ -336,11 +318,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         return result.map(entity -> AppLineFormListDto.builder()
                 .templateId(entity.getTemplateId())
                 .templateName(entity.getTemplateName())
-                .formName(
-                        entity.getForm() != null
-                                ? entity.getForm().getFormName()
-                                : "-"
-                )
+                .formName(getConnectedFormNames(entity.getTemplateId()))
                 .isDefault(entity.getIsDefault())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(
@@ -389,11 +367,7 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         return AppLineFormDetailDto.builder()
                 .templateId(template.getTemplateId())
                 .templateName(template.getTemplateName())
-                .formName(
-                        template.getForm() != null
-                                ? template.getForm().getFormName()
-                                : "-"
-                )
+                .formName(getConnectedFormNames(template.getTemplateId()))
                 .isDefault(template.getIsDefault())
                 .steps(steps)
                 .build();
@@ -488,6 +462,23 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 .build();
     }
 
+    /**
+     * 결재선 서식을 사용 중인 결재 서식명을 쉼표로 묶어 표시합니다.
+     * 새 DB 구조에서는 하나의 결재선 서식을 여러 결재 서식이 공유할 수 있습니다.
+     */
+    private String getConnectedFormNames(Integer templateId) {
+        List<AppFormEntity> forms =
+                appFormRepository.findByLineTemplate_TemplateId(templateId);
+
+        if (forms.isEmpty()) {
+            return "-";
+        }
+
+        return forms.stream()
+                .map(AppFormEntity::getFormName)
+                .collect(Collectors.joining(", "));
+    }
+
     // delete
     @Override
     @Transactional
@@ -497,6 +488,10 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                 appLineTemplateRepository.findById(id)
                         .orElseThrow(() ->
                                 new RuntimeException("결재선 서식 없음"));
+
+        if (!appFormRepository.findByLineTemplate_TemplateId(id).isEmpty()) {
+            throw new IllegalStateException("결재 서식에서 사용 중인 결재선 서식은 삭제할 수 없습니다.");
+        }
 
         appLineTemplateRepository.delete(template);
     }

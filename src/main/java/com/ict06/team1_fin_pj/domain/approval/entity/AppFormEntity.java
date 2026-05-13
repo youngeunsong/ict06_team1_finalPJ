@@ -1,7 +1,15 @@
 package com.ict06.team1_fin_pj.domain.approval.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,9 +34,24 @@ public class AppFormEntity extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String template;
 
-    // 값 수정 메서드
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "line_template_id")
+    private AppLineTemplateEntity lineTemplate;
+
+    /**
+     * 결재 서식의 기본 정보를 수정합니다.
+     * 결재선 서식 연결은 별도 메서드로 분리해 화면의 저장 책임을 명확히 합니다.
+     */
     public void updateForm(String formName, String template) {
         this.formName = formName;
         this.template = template;
+    }
+
+    /**
+     * 결재 서식에서 사용할 결재선 서식을 연결합니다.
+     * 여러 결재 서식이 같은 결재선 서식을 공유할 수 있도록 APP_FORM이 FK를 가집니다.
+     */
+    public void updateLineTemplate(AppLineTemplateEntity lineTemplate) {
+        this.lineTemplate = lineTemplate;
     }
 }
