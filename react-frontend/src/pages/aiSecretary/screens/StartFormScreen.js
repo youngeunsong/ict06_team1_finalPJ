@@ -1,155 +1,221 @@
-/* AiSecretary.js 전용 문서 작성 시작 화면 */
+﻿/* AI 비서 문서 작성 시작 화면 */
 // src/pages/aiSecretary/screens/StartFormScreen.js
 
-/*
-  StartFormScreen 역할
-  --------------------------------------------------
-  1. AI 비서 문서 작성을 시작하기 전 입력값을 받는 화면
-  2. 문서 유형(REPORT / MINUTES / APPROVAL)에 따라 입력 라벨과 placeholder를 변경
-  3. 사용자가 입력한 formData를 상위 AiSecretary.js로 전달
-  4. AI 초안 생성 버튼 클릭 시 onGenerateDraft 실행
-
-  문서 유형 기준
-  --------------------------------------------------
-  백엔드 / DB / 프론트 문서 유형값은 대문자로 통일한다.
-
-  - REPORT   : 보고서 초안
-  - MINUTES  : 회의록 정리
-  - APPROVAL : 결재 사유
-
-  주의
-  --------------------------------------------------
-  - template은 문서 유형이 아니라 템플릿 생성 화면 탭이다.
-  - 따라서 template은 소문자로 유지한다.
-*/
-
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AppButton from "../components/AppButton";
-import Chip from "../components/Chip";
 import Field from "../components/Field";
 import TextInput from "../components/TextInput";
+import OrganizationSelector from "../components/OrganizationSelector";
 import { docMeta } from "../constants/aiSecretaryData";
 import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
 
 export default function StartFormScreen({
-  formType, // 현재 문서 유형: REPORT / MINUTES / APPROVAL
-  formData, // 입력값
-  onChangeFormType, // 상단 문서 유형 탭 변경
-  onChangeFormData, // 입력값 변경
-  onGenerateDraft, // AI 초안 생성 버튼 클릭 시 실행
-  onOpenTemplate, // 템플릿 탭 클릭 시 실행
-  generating = false, // AI 초안 생성 중 여부
-  error = "", // 입력 검증/API 오류 메시지
+  formType,
+  formData,
+  templateSeed = null,
+  initialOrganizationSeed = null,
+  onChangeFormType,
+  onChangeFormData,
+  onGenerateDraft,
+  onOpenTemplate,
+  generating = false,
+  error = "",
 }) {
-  /**
-   * 상단 탭 목록
-   *
-   * REPORT / MINUTES / APPROVAL:
-   * - 문서 유형
-   *
-   * template:
-   * - 문서 유형이 아니라 TemplateScreen으로 이동하는 화면 탭
-   */
   const tabs = ["REPORT", "MINUTES", "APPROVAL", "template"];
+  const amountOptions = [
+    { value: "short", label: "짧게" },
+    { value: "normal", label: "보통" },
+    { value: "detail", label: "자세히" },
+    { value: "custom", label: "직접 입력" },
+  ];
 
-  /**
-   * formType 안전 보정
-   *
-   * 혹시 잘못된 값이 들어오면 REPORT 기준으로 fallback한다.
-   */
+  const [amountMode, setAmountMode] = useState("normal");
+  const [customAmount, setCustomAmount] = useState("");
+  const referenceInputRef = useRef(null);
+
+  const maxReferenceFiles = 3;
+  const maxReferenceFileSize = 10 * 1024 * 1024;
+  const referenceInputId = "ai-secretary-reference-files";
+
   const safeFormType =
     formType === "REPORT" || formType === "MINUTES" || formType === "APPROVAL"
       ? formType
       : "REPORT";
 
-  /**
-   * formData 안전 보정
-   *
-   * 상위 상태가 아직 초기화되지 않았거나 일부 필드가 undefined여도
-   * 화면이 깨지지 않도록 기본값을 지정한다.
-   */
   const safeFormData = {
     title: formData?.title || "",
     purpose: formData?.purpose || "",
     audience: formData?.audience || "",
-    targets: Array.isArray(formData?.targets) ? formData.targets : [],
+    targets: Array.isArray(formData?.targets)
+      ? formData.targets
+      : [],
     detail: formData?.detail || "",
     amount: formData?.amount || "",
+    referenceFiles: Array.isArray(formData?.referenceFiles)
+      ? formData.referenceFiles
+      : [],
+    referenceMemo: formData?.referenceMemo || "",
   };
 
-  /**
-   * 문서 유형별 입력 필드 메타 정보
-   */
+  const organizationSeed =
+    templateSeed?.organizationSeed ||
+    (templateSeed?.deptText ? { deptText: templateSeed.deptText } : null) ||
+    initialOrganizationSeed ||
+    null;
+
+  const normalizeAmountMode = (amountValue) => {
+    const normalized = String(amountValue || "").trim();
+    if (normalized === "짧게") return "short";
+    if (normalized === "보통" || normalized === "") return "normal";
+    if (normalized === "자세히") return "detail";
+    return "custom";
+  };
+
+  const formatReferenceFileSize = (size) => {
+    const bytes = Number(size || 0);
+
+    if (!bytes) return "0 KB";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleReferenceFilesChange = (event) => {
+    const selectedFiles = Array.from(event.target.files || [])
+      .filter((file) => Number(file?.size || 0) <= maxReferenceFileSize)
+      .slice(0, maxReferenceFiles);
+
+    const mergedFiles = [...safeFormData.referenceFiles, ...selectedFiles];
+    const dedupedFiles = mergedFiles.filter(
+      (file, index, list) =>
+        index ===
+        list.findIndex(
+          (item) =>
+            item?.name === file?.name &&
+            item?.size === file?.size &&
+            item?.lastModified === file?.lastModified
+        )
+    );
+
+    onChangeFormData("referenceFiles", dedupedFiles.slice(0, maxReferenceFiles));
+    event.target.value = "";
+  };
+
+  const handleRemoveReferenceFile = (removeIndex) => {
+    const nextFiles = safeFormData.referenceFiles.filter(
+      (_, index) => index !== removeIndex
+    );
+
+    onChangeFormData("referenceFiles", nextFiles);
+  };
+
   const baseFields = {
     REPORT: {
-      title: "문서 제목",
-      titlePlaceholder: "예) 3분기 마케팅 성과 보고서 초안",
-
+      title: "보고서 제목",
+      titlePlaceholder: "예: 3분기 마케팅 성과 보고 초안",
       purpose: "작성 목적",
       purposePlaceholder:
-        "예) 3분기 마케팅 활동 성과를 정리하고 향후 전략 방향을 제시하기 위함",
-
-      target: "대상 독자",
-      targetPlaceholder: "예) 마케팅팀 팀장 및 유관 부서 담당자",
-
-      detail: "핵심 내용",
+        "예: 부서 성과를 정리하고 다음 분기 계획을 공유하기 위함",
+      detail: "상세 내용",
       detailPlaceholder:
-        "주요 이슈, 배경, 현황, 분석, 시사점, 제안 등을 자유롭게 작성해 주세요.",
-
-      amount: "원하는 분량",
-      amountPlaceholder: "예) A4 3~5페이지 분량",
+        "주요 내용, 배경, 현황, 분석, 제안 등을 작성하세요.",
+      amount: "작성 분량",
+      amountPlaceholder: "예: A4 3~5페이지 분량",
     },
-
     MINUTES: {
       title: "회의 제목",
-      titlePlaceholder: "예) 4월 주간 운영회의 회의록",
-
+      titlePlaceholder: "예: 4월 2주차 영업회의 회의록",
       purpose: "회의 목적",
-      purposePlaceholder: "예) 주간 진행 현황 공유 및 이슈 정리",
-
-      target: "참석자/공유 대상",
-      targetPlaceholder: "예) 전략기획팀, 디자인팀, 개발팀",
-
+      purposePlaceholder: "예: 진행 상황 공유 및 의사결정 정리",
       detail: "회의 내용",
       detailPlaceholder:
-        "회의 발언 내용, 안건, 의사결정 사항, 액션아이템을 입력해 주세요.",
-
-      amount: "정리 방식",
-      amountPlaceholder: "예) 결정사항 중심 / 액션아이템 중심",
+        "회의 발언 내용, 안건, 의사결정 사항, 액션아이템을 입력하세요.",
+      amount: "작성 분량",
+      amountPlaceholder: "예: 결정사항 중심 / 액션아이템 중심",
     },
-
     APPROVAL: {
       title: "결재 제목",
-      titlePlaceholder: "예) 외부 교육 참가 결재 요청",
-
+      titlePlaceholder: "예: 외부 전시회 참가 결재 요청",
       purpose: "요청 배경",
       purposePlaceholder:
-        "예) 프로젝트 수행 역량 강화를 위한 외부 교육 참가 필요",
-
-      target: "결재 대상",
-      targetPlaceholder: "예) 팀장, 부서장",
-
+        "예: 프로젝트 수행을 위해 필요한 승인 사항을 설명",
       detail: "결재 사유",
       detailPlaceholder:
-        "필요성, 예상 효과, 일정, 비용 등을 포함해 주세요.",
-
-      amount: "강조 포인트",
-      amountPlaceholder: "예) 비용 대비 효과 / 긴급성 / 업무 연관성",
+        "요청의 필요성, 기대 효과, 비용을 포함해 작성하세요.",
+      amount: "작성 분량",
+      amountPlaceholder: "예: 비용 상세 / 간결한 요약 / 업무 경과",
     },
   };
 
   const f = baseFields[safeFormType] || baseFields.REPORT;
+  const organizationLabel =
+    safeFormType === "MINUTES"
+      ? "정리 대상 선택"
+      : safeFormType === "APPROVAL"
+      ? "결재 라인 참고 대상"
+      : "보고 대상 선택";
 
-  /**
-   * 상단 탭 클릭 처리
-   *
-   * template:
-   * - TemplateScreen으로 이동
-   *
-   * REPORT / MINUTES / APPROVAL:
-   * - 해당 문서 작성 폼으로 이동
-   */
+  useEffect(() => {
+    if (templateSeed) {
+      const seededAmount = String(templateSeed.amount || "보통").trim() || "보통";
+
+      onChangeFormData("title", templateSeed.title || "");
+      onChangeFormData("purpose", templateSeed.purpose || "");
+      onChangeFormData("detail", templateSeed.detail || "");
+      onChangeFormData("amount", seededAmount);
+      onChangeFormData("referenceFiles", []);
+      onChangeFormData("referenceMemo", "");
+
+      if (referenceInputRef.current) {
+        referenceInputRef.current.value = "";
+      }
+
+      const nextMode = normalizeAmountMode(seededAmount);
+      setAmountMode(nextMode);
+      setCustomAmount(
+        nextMode === "custom" ? seededAmount : ""
+      );
+      return;
+    }
+
+    onChangeFormData("title", "");
+    onChangeFormData("purpose", "");
+    onChangeFormData("audience", "");
+    onChangeFormData("targets", []);
+    onChangeFormData("detail", "");
+    onChangeFormData("amount", "보통");
+    onChangeFormData("referenceFiles", []);
+    onChangeFormData("referenceMemo", "");
+    if (referenceInputRef.current) {
+      referenceInputRef.current.value = "";
+    }
+    setAmountMode("normal");
+    setCustomAmount("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeFormType, templateSeed]);
+
+  const handleAmountModeChange = (nextMode) => {
+    setAmountMode(nextMode);
+
+    if (nextMode === "short") {
+      onChangeFormData("amount", "짧게");
+      return;
+    }
+
+    if (nextMode === "normal") {
+      onChangeFormData("amount", "보통");
+      return;
+    }
+
+    if (nextMode === "detail") {
+      onChangeFormData("amount", "자세히");
+      return;
+    }
+
+    onChangeFormData("amount", customAmount || "");
+  };
+
   const handleTopTabClick = (tab) => {
     if (tab === "template") {
       onOpenTemplate();
@@ -159,29 +225,8 @@ export default function StartFormScreen({
     onChangeFormType(tab);
   };
 
-  /**
-   * 정리 대상 / 보고 대상 / 결재 라인 chip 목록
-   */
-  const targetOptions =
-    safeFormType === "MINUTES"
-      ? ["참석자 공유", "의사결정자", "액션아이템 중심"]
-      : safeFormType === "APPROVAL"
-      ? ["팀장", "부서장", "전사 공유"]
-      : ["팀장", "부서장", "전사 공유"];
-
-  /**
-   * 현재 문서 유형에 따라 중간 필드 라벨 변경
-   */
-  const targetGroupLabel =
-    safeFormType === "MINUTES"
-      ? "정리 대상"
-      : safeFormType === "APPROVAL"
-      ? "결재 라인"
-      : "보고 대상";
-
   return (
     <div style={styles.page}>
-      {/* 상단 제목 영역 */}
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 16, color: C.sub, fontWeight: 700 }}>
           AI 비서
@@ -199,11 +244,10 @@ export default function StartFormScreen({
         </h1>
 
         <p style={{ margin: "10px 0 0", color: C.sub, fontSize: 16 }}>
-          문서 유형에 맞는 입력 항목을 작성하면 더 정확한 초안을 생성합니다.
+          문서 유형에 맞는 입력 항목을 작성하면 AI가 자연스럽고 정확한 초안을 생성합니다.
         </p>
       </div>
 
-      {/* 상단 문서 유형 탭 */}
       <div
         style={{
           display: "grid",
@@ -213,8 +257,7 @@ export default function StartFormScreen({
         }}
       >
         {tabs.map((tab) => {
-          const active =
-            tab === "template" ? false : safeFormType === tab;
+          const active = tab === "template" ? false : safeFormType === tab;
 
           const icon =
             tab === "REPORT"
@@ -250,7 +293,6 @@ export default function StartFormScreen({
                 }}
               >
                 <Icon>{icon}</Icon>
-
                 <span style={{ fontSize: 15, fontWeight: 800 }}>
                   {docMeta?.[tab]?.label || tab}
                 </span>
@@ -273,7 +315,6 @@ export default function StartFormScreen({
         })}
       </div>
 
-      {/* 입력 안내 박스 */}
       <div
         style={{
           ...styles.card,
@@ -283,20 +324,18 @@ export default function StartFormScreen({
         }}
       >
         <div style={{ color: C.accent, fontWeight: 900, fontSize: 15 }}>
-          입력값이 구체적일수록 초안 품질이 높아집니다.
+          입력값이 구체적일수록 초안이 더 정확해집니다.
         </div>
 
         <div style={{ marginTop: 8, color: C.sub, fontSize: 14 }}>
-          문서 목적, 대상, 핵심 내용을 명확히 입력하면 AI가 더 정확하고
-          실무적인 결과를 생성합니다. 초안 생성 후에는 채팅으로 추가 수정도
-          가능합니다.
+          문서 목적, 상세 내용, 참고 사항을 명확히 입력하면 AI가 더 정확하고
+          업무적인 결과를 생성합니다. 초안 생성 전에는 항목별로 한 번 더
+          점검해 주세요.
         </div>
       </div>
 
-      {/* 입력 폼 카드 */}
       <div style={{ ...styles.card, padding: 24 }}>
         <div style={{ display: "grid", gap: 16 }}>
-          {/* 제목 */}
           <Field label={f.title} required>
             <TextInput
               value={safeFormData.title}
@@ -305,7 +344,6 @@ export default function StartFormScreen({
             />
           </Field>
 
-          {/* 작성 목적 */}
           <Field label={f.purpose} required>
             <TextInput
               value={safeFormData.purpose}
@@ -314,37 +352,6 @@ export default function StartFormScreen({
             />
           </Field>
 
-          {/* 대상 독자 */}
-          <Field label={f.target} required>
-            <TextInput
-              value={safeFormData.audience}
-              onChange={(e) => onChangeFormData("audience", e.target.value)}
-              placeholder={f.targetPlaceholder}
-            />
-          </Field>
-
-          {/* 보고 대상 / 정리 대상 / 결재 라인 */}
-          <Field label={targetGroupLabel} required>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {targetOptions.map((item) => (
-                <Chip
-                  key={item}
-                  active={safeFormData.targets.includes(item)}
-                  onClick={() => {
-                    const next = safeFormData.targets.includes(item)
-                      ? safeFormData.targets.filter((value) => value !== item)
-                      : [...safeFormData.targets, item];
-
-                    onChangeFormData("targets", next);
-                  }}
-                >
-                  {item}
-                </Chip>
-              ))}
-            </div>
-          </Field>
-
-          {/* 핵심 내용 */}
           <Field label={f.detail} required>
             <div>
               <TextInput
@@ -367,58 +374,191 @@ export default function StartFormScreen({
             </div>
           </Field>
 
-          {/* 원하는 분량 / 정리 방식 / 강조 포인트 */}
           <Field label={f.amount}>
-            <div
-              style={{
-                height: 46,
-                border: `1px solid ${C.border}`,
-                borderRadius: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "0 14px",
-                color: safeFormData.amount ? C.text : C.sub,
-                fontSize: 14,
-                background: "#fff",
-              }}
-            >
-              <span>{safeFormData.amount || f.amountPlaceholder}</span>
-              <Icon>{I.down}</Icon>
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={amountMode}
+                  onChange={(e) => handleAmountModeChange(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 46,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 10,
+                    background: "#fff",
+                    color: C.text,
+                    fontSize: 14,
+                    padding: "0 40px 0 14px",
+                    boxSizing: "border-box",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                  }}
+                >
+                  {amountOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                    color: C.sub,
+                  }}
+                >
+                  <Icon>{I.down}</Icon>
+                </div>
+              </div>
+
+              {amountMode === "custom" && (
+                <TextInput
+                  value={customAmount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCustomAmount(value);
+                    onChangeFormData("amount", value);
+                  }}
+                  placeholder={f.amountPlaceholder}
+                />
+              )}
             </div>
           </Field>
 
-          {/* 참고 자료 첨부 - 현재는 UI만 제공 */}
           <Field label="참고 자료 첨부">
-            <div
-              style={{
-                border: `1px dashed ${C.border}`,
-                borderRadius: 12,
-                padding: 18,
-                color: C.sub,
-                background: "#FBFDFF",
-              }}
-            >
-              <div
+            <div style={{ display: "grid", gap: 10 }}>
+              <label
+                htmlFor={referenceInputId}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontWeight: 700,
+                  border: `1px dashed ${C.border}`,
+                  borderRadius: 12,
+                  padding: 16,
+                  color: C.sub,
+                  background: "#FBFDFF",
+                  cursor: "pointer",
+                  display: "block",
                 }}
               >
-                <Icon>{I.clip}</Icon>
-                파일을 드래그하거나 클릭하여 첨부하세요 (최대 10MB)
-              </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontWeight: 700,
+                    color: C.text,
+                  }}
+                >
+                  <Icon>{I.clip}</Icon>
+                  파일을 선택해 첨부해 주세요. 파일당 10MB 이하, 최대 3개
+                </div>
 
-              <div style={{ marginTop: 10, fontSize: 13 }}>
-                PDF, PPT, DOCX, XLSX, PNG, JPG 파일 지원
-              </div>
+                <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6 }}>
+                  PDF, DOCX, TXT 파일만 지원합니다.
+                  <br />
+                  선택한 파일명과 참고 메모가 문서 작성 참고 정보로 반영됩니다.
+                  현재 단계에서는 파일 본문 자동 분석은 지원하지 않습니다.
+                </div>
+
+                <input
+                  ref={referenceInputRef}
+                  id={referenceInputId}
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  onChange={handleReferenceFilesChange}
+                  style={{ display: "none" }}
+                />
+              </label>
+
+              {safeFormData.referenceFiles.length > 0 && (
+                <div
+                  style={{
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 12,
+                    padding: 12,
+                    background: "#fff",
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  {safeFormData.referenceFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        fontSize: 13,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            color: C.text,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {file.name}
+                        </div>
+                        <div style={{ marginTop: 3, color: C.sub }}>
+                          {formatReferenceFileSize(file.size)}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveReferenceFile(index)}
+                        style={{
+                          border: `1px solid ${C.border}`,
+                          background: "#fff",
+                          color: C.sub,
+                          borderRadius: 8,
+                          height: 30,
+                          padding: "0 10px",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          flexShrink: 0,
+                        }}
+                      >
+                        제거
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <TextInput
+                textarea
+                value={safeFormData.referenceMemo}
+                onChange={(e) =>
+                  onChangeFormData("referenceMemo", e.target.value)
+                }
+                placeholder="참고 자료에서 특히 반영할 내용이나 요약 메모를 입력하세요."
+              />
             </div>
+          </Field>
+
+          <Field label={organizationLabel}>
+            <OrganizationSelector
+              key={safeFormType}
+              formType={safeFormType}
+              audience={safeFormData.audience}
+              targets={safeFormData.targets}
+              initialOrganizationSeed={organizationSeed}
+              onChangeFormData={onChangeFormData}
+            />
           </Field>
         </div>
 
-        {/* 버튼 영역 */}
         <div
           style={{
             display: "flex",
@@ -429,7 +569,6 @@ export default function StartFormScreen({
             flexWrap: "wrap",
           }}
         >
-          {/* 입력 초기화 */}
           <AppButton
             variant="secondary"
             onClick={() => {
@@ -438,28 +577,30 @@ export default function StartFormScreen({
               onChangeFormData("audience", "");
               onChangeFormData("targets", []);
               onChangeFormData("detail", "");
-              onChangeFormData("amount", "");
+              onChangeFormData("amount", "보통");
+              onChangeFormData("referenceFiles", []);
+              onChangeFormData("referenceMemo", "");
+              if (referenceInputRef.current) {
+                referenceInputRef.current.value = "";
+              }
+              setAmountMode("normal");
+              setCustomAmount("");
             }}
           >
-            초기화
-          </AppButton>
+            초기화          </AppButton>
 
-          {/* AI 초안 생성 */}
           <AppButton onClick={onGenerateDraft} disabled={generating}>
             <Icon>{I.spark}</Icon>
             {generating ? "AI 초안 생성 중..." : "AI 초안 생성"}
           </AppButton>
         </div>
 
-        {/* 에러 메시지 */}
         {error && (
           <div
             style={{
               marginTop: 12,
               color: "#d32f2f",
               fontSize: 13,
-              fontWeight: 700,
-              textAlign: "right",
             }}
           >
             {error}
@@ -469,3 +610,4 @@ export default function StartFormScreen({
     </div>
   );
 }
+

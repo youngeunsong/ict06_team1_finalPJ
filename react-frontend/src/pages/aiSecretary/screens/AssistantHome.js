@@ -86,7 +86,7 @@ export default function AssistantHome({
    */
   const safeRecents = Array.isArray(recents) ? recents : [];
 
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 5;
   const [recentPage, setRecentPage] = useState(1);
 
   const totalRecentPages = Math.ceil(safeRecents.length / PAGE_SIZE) || 1;
@@ -119,6 +119,7 @@ export default function AssistantHome({
     REPORT: "보고서 초안",
     MINUTES: "회의록 정리",
     APPROVAL: "결재 사유",
+    TEMPLATE: "템플릿 생성",
     template: "템플릿 생성",
   };
 

@@ -12,6 +12,8 @@ export const initialFormData = {
   targets: ["팀장"], // 보고 대상 / 정리 대상 / 결재 라인 chip 선택값
   detail: "", // 핵심 내용 / 회의 내용 / 결재 사유
   amount: "", // 원하는 분량 / 정리 방식 / 강조 포인트
+  referenceFiles: [], // 참고 자료 첨부 파일 목록
+  referenceMemo: "", // 참고 자료 메모
 };
 
 // 문장 다듬기 초기값 (사용: CorrectionScreen)

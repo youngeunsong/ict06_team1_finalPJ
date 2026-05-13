@@ -7,6 +7,7 @@ import axios from "axios";
 import { useUser } from "src/api/UserContext";
 import { correctText, unwrapApiData } from "../api/aiSecretaryApi";
 import { C, styles } from "../styles/aiSecretaryTheme";
+import { PATH } from 'src/constants/path';
 
 /**
  * 문장 다듬기 모드 목록
@@ -106,7 +107,7 @@ export default function CorrectionScreen() {
     setError("");
 
     try {
-      const response = await axios.get("http://localhost:8081/api/user/welcome", {
+      const response = await axios.get(PATH.AUTH.WELCOME, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -14,10 +14,11 @@
  */
 
 import axios from "axios";
+import { PATH } from 'src/constants/path';
 
 // AI 비서 전용 axios instance
 const api = axios.create({
-  baseURL: "http://localhost:8081",
+  baseURL: PATH.API.BASE,
   withCredentials: true, // CORS 상황에서 쿠키/인증 정보를 허용
 });
 
@@ -83,12 +84,12 @@ const normalizeDocumentPayload = (payload = {}) => ({
  * 따라서 이 함수는 단독 테스트 또는 예비용에 가깝다.
  */
 export const createSession = (payload) =>
-  api.post("/api/ai-secretary/sessions", payload);
+  api.post("/ai-secretary/sessions", payload);
 
 
 // CHATBOT 최근 세션 조회 또는 생성
 export const getOrCreateChatbotSession = (empNo) =>
-  api.post("/api/ai-secretary/chatbot/session", null, {
+  api.post("/ai-secretary/chatbot/session", null, {
     params: {
       empNo: String(empNo),
     },
@@ -96,7 +97,7 @@ export const getOrCreateChatbotSession = (empNo) =>
 
 // AI 비서 최근 작성 목록 조회
 export const getAssistantSessionList = (empNo) =>
-  api.get("/api/ai-secretary/sessions", {
+  api.get("/ai-secretary/sessions", {
     params: {
       empNo: String(empNo),
       sessionType: "ASSISTANT",
@@ -105,7 +106,7 @@ export const getAssistantSessionList = (empNo) =>
 
 // 공통 세션 목록 조회
 export const getSessionList = (empNo, sessionType) =>
-  api.get("/api/ai-secretary/sessions", {
+  api.get("/ai-secretary/sessions", {
     params: {
       empNo: String(empNo),
       sessionType,
@@ -114,11 +115,11 @@ export const getSessionList = (empNo, sessionType) =>
 
 // 세션 내 메시지 목록 조회 (챗봇 메시지 재조회/ 최근 작성 문서 클릭 시 ASSISTANT 세션 메시지 로딩)
 export const getMessages = (sessionId) =>
-  api.get(`/api/ai-secretary/sessions/${sessionId}/messages`);
+  api.get(`/ai-secretary/sessions/${sessionId}/messages`);
 
 // 세션 내 메시지 저장
 export const sendMessage = (sessionId, payload) =>
-  api.post(`/api/ai-secretary/sessions/${sessionId}/messages`, payload);
+  api.post(`/ai-secretary/sessions/${sessionId}/messages`, payload);
 
 // -----------------------------------------------------
 // 챗봇 API
@@ -134,7 +135,7 @@ export const sendMessage = (sessionId, payload) =>
  * - AI_LOG 저장
  */
 export const askChatbot = (payload) =>
-  api.post("/api/ai-secretary/chatbot/ask", payload);
+  api.post("/ai-secretary/chatbot/ask", payload);
 
 // -----------------------------------------------------
 // 문장 다듬기 API
@@ -150,7 +151,7 @@ export const askChatbot = (payload) =>
  * - AI_LOG 저장
  */
 export const correctText = (payload) =>
-  api.post("/api/ai-secretary/correction", payload);
+  api.post("/ai-secretary/correction", payload);
 
 // -----------------------------------------------------
 // AI 비서 문서 작성 API
@@ -159,14 +160,14 @@ export const correctText = (payload) =>
 // AI 비서 문서 초안 생성
 export const createAssistantDraft = (payload) =>
   api.post(
-    "/api/ai-secretary/assistant/draft",
+    "/ai-secretary/assistant/draft",
     normalizeDocumentPayload(payload)
   );
 
 // AI 비서 문서 추가 수정 (WriterScreen에서 “더 간결하게”, “표로 정리해줘” 등 추가 수정 요청)
 export const reviseAssistantDraft = (payload) =>
   api.post(
-    "/api/ai-secretary/assistant/revise",
+    "/ai-secretary/assistant/revise",
     normalizeDocumentPayload(payload)
   );
 
@@ -177,13 +178,13 @@ export const reviseAssistantDraft = (payload) =>
 // 추천 템플릿 목록 추가 요청 저장
 export const createTemplateRequest = (payload) =>
   api.post(
-    "/api/ai-secretary/template-request",
+    "/ai-secretary/template-request",
     normalizeDocumentPayload(payload)
   );
 
 // 내 추천 템플릿 추가 요청 목록 조회
 export const getMyTemplateRequests = (empNo) =>
-  api.get("/api/ai-secretary/template-request/my", {
+  api.get("/ai-secretary/template-request/my", {
     params: {
       empNo: String(empNo),
     },
@@ -191,7 +192,21 @@ export const getMyTemplateRequests = (empNo) =>
 
 // AI 템플릿 생성
 export const createAssistantTemplate = (payload) =>
-  api.post("/api/ai-secretary/assistant/template", {
+  api.post("/ai-secretary/assistant/template", {
     ...payload,
     type: payload?.type ? toApiDocumentType(payload.type) : undefined,
+  });
+
+// -----------------------------------------------------
+// 조직 조회 API
+// -----------------------------------------------------
+
+export const getDepartmentTree = () =>
+  api.get("/organization/departments/tree");
+
+export const getEmployeesByDepartment = (deptId) =>
+  api.get("/organization/employees", {
+    params: {
+      deptId: String(deptId),
+    },
   });
