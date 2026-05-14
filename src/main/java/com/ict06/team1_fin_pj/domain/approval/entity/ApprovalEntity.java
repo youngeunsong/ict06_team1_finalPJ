@@ -19,6 +19,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,12 @@ public class ApprovalEntity extends BaseTimeEntity {
     @Column(length = 200)
     private String title;
 
+    /*
+     * DB의 approval.content 컬럼은 jsonb 타입입니다.
+     * String 필드만 선언하면 Hibernate가 일반 varchar로 바인딩하므로,
+     * PostgreSQL jsonb 컬럼에 그대로 저장될 수 있도록 JSON 타입 코드를 명시합니다.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String content;
 
@@ -77,8 +85,9 @@ public class ApprovalEntity extends BaseTimeEntity {
     private List<AppFileEntity> files = new ArrayList<>();
 
     /**
-     * 결재 문서에 실제 결재자 또는 참조자를 한 명 추가합니다.
-     * ApprovalEntity가 연관관계의 주인은 아니지만, 자식 엔티티에 부모를 지정해 양방향 관계를 일관되게 유지합니다.
+     * 결재 문서에 실제 결재자 또는 참조자 한 명을 추가합니다.
+     * ApprovalEntity가 연관관계의 주인은 아니지만, 자식 엔티티에 부모를 지정해
+     * 양방향 연관관계를 일관되게 유지합니다.
      */
     public void addLine(AppLineEntity line) {
         this.lines.add(line);
@@ -100,7 +109,7 @@ public class ApprovalEntity extends BaseTimeEntity {
     }
 
     /**
-     * 결재 문서에 첨부파일을 추가합니다.
+     * 결재 문서에 첨부 파일을 추가합니다.
      * 파일 엔티티가 approval_id를 가진 주인 쪽이므로, 부모 문서 참조도 함께 세팅합니다.
      */
     public void addFile(AppFileEntity file) {
@@ -120,7 +129,7 @@ public class ApprovalEntity extends BaseTimeEntity {
 
     /**
      * 임시저장 문서의 기본 내용을 수정합니다.
-     * 작성자와 상태값은 이 메서드에서 변경하지 않아, 서비스 계층의 권한/상태 검증 흐름을 유지합니다.
+     * 작성자와 상태값은 서비스 계층에서 권한/상태 검증을 거친 뒤 변경합니다.
      */
     public void updateDraftContent(AppFormEntity form, String title, String content) {
         this.form = form;
@@ -131,7 +140,7 @@ public class ApprovalEntity extends BaseTimeEntity {
 
     /**
      * 문서를 상신 상태로 전환하고 첫 번째 결재자를 현재 결재자로 지정합니다.
-     * 이후 승인/반려 처리에서 currentStep과 currentApprover를 다음 단계로 이동시키게 됩니다.
+     * 이후 승인/반려 처리에서 currentStep과 currentApprover를 다음 단계로 이동시킵니다.
      */
     public void submit(EmpEntity firstApprover, Integer maxStep) {
         this.status = ApprovalStatus.IN_PROGRESS;
@@ -150,8 +159,8 @@ public class ApprovalEntity extends BaseTimeEntity {
     }
 
     /**
-     * 모든 결재 단계가 승인된 문서를 완료 상태로 전환합니다.
-     * 완료 문서는 더 이상 현재 결재자가 없으므로 currentApprover를 비웁니다.
+     * 모든 결재 단계가 승인되면 문서를 완료 상태로 전환합니다.
+     * 완료 문서에는 더 이상 현재 결재자가 없으므로 currentApprover를 비웁니다.
      */
     public void complete() {
         this.status = ApprovalStatus.COMPLETED;
@@ -161,7 +170,7 @@ public class ApprovalEntity extends BaseTimeEntity {
 
     /**
      * 결재자가 반려한 문서를 반려 상태로 전환합니다.
-     * 반려 후에는 결재 흐름이 종료되므로 currentApprover를 비웁니다.
+     * 반려 이후에는 결재 흐름이 종료되므로 currentApprover를 비웁니다.
      */
     public void reject() {
         this.status = ApprovalStatus.REJECTED;
@@ -170,7 +179,7 @@ public class ApprovalEntity extends BaseTimeEntity {
 
     /**
      * 상신자가 결재 진행 전 문서를 취소 상태로 전환합니다.
-     * 취소 문서는 이력으로 남기되 더 이상 현재 결재자가 없도록 currentApprover를 비웁니다.
+     * 취소 문서는 이력으로 남기지만 더 이상 현재 결재자가 없도록 currentApprover를 비웁니다.
      */
     public void cancel() {
         this.status = ApprovalStatus.CANCELED;

@@ -5,6 +5,7 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +35,13 @@ public interface ApprovalService {
      * 사용자가 목록에서 서식을 선택했을 때 최신 template JSON과 기본 결재선 연결 정보를 확인하는 용도입니다.
      */
     ApprovalFormResponseDto getFormDetail(Integer formId, PrincipalDetails principal);
+
+    /**
+     * 결재 서식에 연결된 기본 결재선 서식 상세 정보를 조회합니다.
+     *
+     * 직원 작성 화면에서는 관리자 URL을 직접 호출하지 않고 이 API를 통해 기본 결재선 미리보기만 사용합니다.
+     */
+    AppLineFormDetailDto getLineTemplateDetail(Integer templateId, PrincipalDetails principal);
 
     /**
      * 새 결재 문서를 임시저장합니다.
