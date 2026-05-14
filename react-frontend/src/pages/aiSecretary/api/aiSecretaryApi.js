@@ -125,15 +125,8 @@ export const sendMessage = (sessionId, payload) =>
 // 챗봇 API
 // -----------------------------------------------------
 
-/**
- * Gemini 기반 챗봇 질문
- *
- * 처리 흐름:
- * - USER 메시지 저장
- * - Gemini 호출
- * - ASSISTANT 메시지 저장
- * - AI_LOG 저장
- */
+// Gemini 기반 챗봇 질문
+// USER 메시지 저장 → Gemini 호출 → ASSISTANT 메시지 저장 → AI_LOG 저장
 export const askChatbot = (payload) =>
   api.post("/ai-secretary/chatbot/ask", payload);
 
@@ -141,15 +134,8 @@ export const askChatbot = (payload) =>
 // 문장 다듬기 API
 // -----------------------------------------------------
 
-/**
- * 문장 다듬기 프롬프트 실행
- *
- * 처리 흐름:
- * - 입력 문장과 mode 전달
- * - Gemini 문장 다듬기
- * - fallback 처리
- * - AI_LOG 저장
- */
+// 문장 다듬기 프롬프트 실행
+// 입력 문장과 mode 전달 → Gemini 문장 다듬기 → fallback 처리 → AI_LOG 저장
 export const correctText = (payload) =>
   api.post("/ai-secretary/correction", payload);
 
@@ -201,6 +187,7 @@ export const createAssistantTemplate = (payload) =>
 // 조직 조회 API
 // -----------------------------------------------------
 
+// 
 export const getDepartmentTree = () =>
   api.get("/organization/departments/tree");
 
