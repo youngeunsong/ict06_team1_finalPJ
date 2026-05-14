@@ -44,19 +44,19 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
     private List<AppLineTemplateDetailEntity> details = new ArrayList<>();
 
     // 비즈니스 메서드
-        public void addDetail(AppLineTemplateDetailEntity detail) {
-            this.details.add(detail);
-            detail.setTemplate(this);
-        }
+    public void addDetail(AppLineTemplateDetailEntity detail) {
+        this.details.add(detail);
+        detail.setTemplate(this);
+    }
 
-        // 기본 정보 수정
-        public void updateNameIsDefault(String templateName, Boolean isDefault){
-            this.templateName = templateName;
-            this.isDefault = isDefault;
-        }
+    // 기본 정보 수정
+    public void updateNameIsDefault(String templateName, Boolean isDefault){
+        this.templateName = templateName;
+        this.isDefault = isDefault;
+    }
 
-        // 연결된 결재 서식 수정
-        public void updateForm(AppFormEntity form){
-            this.form = form;
+    // 연결된 결재 서식 수정
+    public void updateForm(AppFormEntity form){
+        this.form = form;
     }
 }
