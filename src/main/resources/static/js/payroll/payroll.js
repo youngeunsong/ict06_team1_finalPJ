@@ -668,11 +668,16 @@ $(document).ready(function () {
            success: function (result) {
 
                currentBaseSalaryInfo = result;
-
                $('#baseSalaryInput').val(numberFormat(result.baseSalary));
 
+               /**
+                * 기본급 출처 문구 표시
+                *
+                * - NEW 상태에서만 표시
+                * - DRAFT 이상은 저장된 값이므로 출처 문구 숨김
+                */
+               renderBaseSalarySource(result);
                renderBaseSalaryWarning(result);
-
                applyButtonState(currentPayrollStatus);
            },
            error: function (xhr) {
@@ -711,6 +716,81 @@ $(document).ready(function () {
            $('#keepSavedSalaryBtn').addClass('d-none');
        }
    }
+
+   /**
+    * 기본급 출처 표시
+    *
+    * 역할:
+    * - 기본급 자동 로딩 결과가 어디서 왔는지 사용자에게 안내한다.
+    *
+    * 표시 조건:
+    * - 미작성(NEW) 상태에서만 표시한다.
+    *
+    * 숨김 조건:
+    * - 작성중(DRAFT)
+    * - 확정(CONFIRMED)
+    * - 지급완료(PAID)
+    *
+    * 이유:
+    * - DRAFT부터는 저장된 기본급이 연봉협상, 관리자 수정, 예외 조정 등으로
+    *   바뀌었을 수 있으므로 최초 출처를 표시하지 않는다.
+    */
+   function renderBaseSalarySource(result) {
+
+       // 기본은 항상 숨김 상태로 초기화
+       $('#salarySourceRow').addClass('d-none');
+       $('#salarySourceText').text('');
+
+       if (!result) {
+           return;
+       }
+
+       // NEW 상태가 아니면 출처 문구 표시하지 않음
+       if (currentPayrollStatus !== 'NEW') {
+           return;
+       }
+
+       let sourceText = '';
+
+       /**
+        * 백단에서 내려주는 salarySource 코드값을
+        * 화면에 보여줄 한글 문구로 변환한다.
+        */
+       if (result.salarySource === 'RECENT_CONFIRMED') {
+
+           sourceText = '최근 확정/지급완료 급여대장 기준 기본급';
+
+       } else if (result.salarySource === 'POLICY') {
+
+           sourceText = '기본급 정책 기준 기본급';
+
+       } else if (result.salarySource === 'MANUAL') {
+
+           sourceText = '기본급 정책 없음 - 직접 입력 필요';
+
+       } else if (result.salarySource === 'PROMOTION_POLICY') {
+
+           sourceText = '승진 후 기본급 정책 기준 기본급';
+
+       } else if (result.salarySource === 'PROMOTION_RECENT_HIGHER') {
+
+           sourceText = '최근 확정 기본급 유지';
+
+       } else if (result.salarySource === 'DEMOTION_POLICY') {
+
+           sourceText = '변경된 기본급 정책 기준 기본급';
+       }
+
+       // 표시할 문구가 없으면 그대로 숨김
+       if (!sourceText) {
+           return;
+       }
+
+       $('#salarySourceText').text(sourceText);
+       $('#salarySourceRow').removeClass('d-none');
+   }
+
+
 
    /**
     * 변경된 기본급 적용
@@ -877,6 +957,13 @@ $(document).ready(function () {
      * 사용자가 값을 수정하면 계산 미리보기 결과를 다시 받아야 한다.
      */
     $('#baseSalaryInput').on('input', function () {
+
+
+    if (currentPayrollStatus === 'NEW') {
+
+        $('#salarySourceText').text('관리자 직접 입력');
+        $('#salarySourceRow').removeClass('d-none');
+    }
 
         resetPreviewResult();
         savePayrollTempState();
@@ -1778,8 +1865,7 @@ $(document).ready(function () {
     function renderSavedInsurance(result) {
 
        if (!result
-               || result.payrollStatus === 'NEW'
-               || result.payrollStatus === 'DRAFT') {
+               || result.payrollStatus === 'NEW') {
            return;
        }
 

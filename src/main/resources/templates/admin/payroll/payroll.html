@@ -314,6 +314,18 @@
                                  disabled>
                         </td>
                       </tr>
+                      <!--
+                        기본급 출처 표시 영역
+                        - 미작성(NEW) 상태에서만 표시
+                        - 작성중(DRAFT), 확정(CONFIRMED), 지급완료(PAID) 상태에서는 JS에서 숨김 처리
+                        - DB 컬럼 추가 없이 기본급 조회 응답 DTO의 salarySource 값을 화면용 문구로 변환해서 표시
+                      -->
+                      <tr id="salarySourceRow" class="d-none">
+                        <td colspan="3" class="text-start small text-muted bg-light">
+                          <i class="fa-solid fa-circle-info me-1"></i>
+                          <span id="salarySourceText"></span>
+                        </td>
+                      </tr>
                       </tbody>
                       <tbody id="allowanceTableBody">
                       </tbody>
