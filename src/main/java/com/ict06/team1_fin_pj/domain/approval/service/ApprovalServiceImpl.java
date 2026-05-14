@@ -4,6 +4,7 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFileResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
@@ -22,6 +23,7 @@ import com.ict06.team1_fin_pj.domain.employee.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -57,6 +59,44 @@ public class ApprovalServiceImpl implements ApprovalService {
     private final AppFileRepository appFileRepository;
     private final AppFormRepository appFormRepository;
     private final EmployeeRepository employeeRepository;
+
+    /**
+     * 직원이 새 결재 문서를 작성할 때 선택할 수 있는 결재 서식 목록을 조회합니다.
+     *
+     * 관리자 화면에서 관리하는 APP_FORM 전체를 대상으로 하며,
+     * React 화면은 응답의 template JSON을 파싱해 text/date/time/select 등의 입력 필드를 렌더링합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ApprovalFormResponseDto> getAvailableForms(PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        return appFormRepository.findAll(Sort.by("formName").ascending().and(Sort.by("formId").ascending()))
+                .stream()
+                .map(this::toFormResponse)
+                .toList();
+    }
+
+    /**
+     * 특정 결재 서식의 상세 정보를 조회합니다.
+     *
+     * 목록 응답 이후에도 관리자가 서식을 수정했을 수 있으므로,
+     * 실제 작성 화면 진입 시에는 이 API로 최신 template을 한 번 더 확인할 수 있습니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalFormResponseDto getFormDetail(Integer formId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (formId == null) {
+            throw new IllegalArgumentException("결재 서식 ID가 필요합니다.");
+        }
+
+        AppFormEntity form = appFormRepository.findById(formId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 서식입니다."));
+
+        return toFormResponse(form);
+    }
 
     /**
      * 새 결재 문서를 임시저장합니다.
@@ -913,5 +953,30 @@ public class ApprovalServiceImpl implements ApprovalService {
                         .fileSize(file.getFileSize())
                         .build())
                 .toList();
+    }
+
+    /**
+     * APP_FORM Entity를 직원 화면용 응답 DTO로 변환합니다.
+     *
+     * 결재선 서식 연결은 선택 사항이므로 null 검사를 거쳐 내려줍니다.
+     * 이렇게 해두면 관리자가 결재선이 연결되지 않은 서식으로 설정해도 React 화면에서 오류 없이 처리할 수 있습니다.
+     */
+    private ApprovalFormResponseDto toFormResponse(AppFormEntity form) {
+        return ApprovalFormResponseDto.builder()
+                .formId(form.getFormId())
+                .formName(form.getFormName())
+                .template(form.getTemplate())
+                .isDefault(form.getIsDefault())
+                .lineTemplateId(
+                        form.getLineTemplate() != null
+                                ? form.getLineTemplate().getTemplateId()
+                                : null
+                )
+                .lineTemplateName(
+                        form.getLineTemplate() != null
+                                ? form.getLineTemplate().getTemplateName()
+                                : null
+                )
+                .build();
     }
 }
