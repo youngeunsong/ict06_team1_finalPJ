@@ -3,7 +3,9 @@ package com.ict06.team1_fin_pj.domain.approval.service;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,28 @@ import java.util.List;
  * 이 서비스는 React 사용자 화면에서 사용하는 문서 작성, 임시저장, 상신, 개인 문서함 조회를 담당합니다.
  */
 public interface ApprovalService {
+
+    /**
+     * React 문서 작성 화면에서 선택할 수 있는 결재 서식 목록을 조회합니다.
+     *
+     * template JSON까지 함께 내려주므로 프론트에서는 목록 선택 후 즉시 동적 입력 폼을 구성할 수 있습니다.
+     * 필요하면 추후 목록용 DTO와 상세용 DTO를 분리해 응답 크기를 줄일 수 있습니다.
+     */
+    List<ApprovalFormResponseDto> getAvailableForms(PrincipalDetails principal);
+
+    /**
+     * 특정 결재 서식의 상세 정보를 조회합니다.
+     *
+     * 사용자가 목록에서 서식을 선택했을 때 최신 template JSON과 기본 결재선 연결 정보를 확인하는 용도입니다.
+     */
+    ApprovalFormResponseDto getFormDetail(Integer formId, PrincipalDetails principal);
+
+    /**
+     * 결재 서식에 연결된 기본 결재선 서식 상세 정보를 조회합니다.
+     *
+     * 직원 작성 화면에서는 관리자 URL을 직접 호출하지 않고 이 API를 통해 기본 결재선 미리보기만 사용합니다.
+     */
+    AppLineFormDetailDto getLineTemplateDetail(Integer templateId, PrincipalDetails principal);
 
     /**
      * 새 결재 문서를 임시저장합니다.

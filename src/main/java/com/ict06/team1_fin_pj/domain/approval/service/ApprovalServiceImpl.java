@@ -4,24 +4,32 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFileResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormStepDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormTargetDto;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFileEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppLineEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
+import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalEntity;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalLineStatus;
 import com.ict06.team1_fin_pj.domain.approval.entity.ApprovalStatus;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFileRepository;
 import com.ict06.team1_fin_pj.domain.approval.repository.AppFormRepository;
+import com.ict06.team1_fin_pj.domain.approval.repository.AppLineTemplateRepository;
 import com.ict06.team1_fin_pj.domain.approval.repository.ApprovalRepository;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
 import com.ict06.team1_fin_pj.domain.employee.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,8 +41,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 일반 직원용 전자결재 서비스 구현체입니다.
@@ -56,7 +66,86 @@ public class ApprovalServiceImpl implements ApprovalService {
     private final ApprovalRepository approvalRepository;
     private final AppFileRepository appFileRepository;
     private final AppFormRepository appFormRepository;
+    private final AppLineTemplateRepository appLineTemplateRepository;
     private final EmployeeRepository employeeRepository;
+
+    /**
+     * 직원이 새 결재 문서를 작성할 때 선택할 수 있는 결재 서식 목록을 조회합니다.
+     *
+     * 관리자 화면에서 관리하는 APP_FORM 전체를 대상으로 하며,
+     * React 화면은 응답의 template JSON을 파싱해 text/date/time/select 등의 입력 필드를 렌더링합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ApprovalFormResponseDto> getAvailableForms(PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        return appFormRepository.findAll(Sort.by("formName").ascending().and(Sort.by("formId").ascending()))
+                .stream()
+                .map(this::toFormResponse)
+                .toList();
+    }
+
+    /**
+     * 특정 결재 서식의 상세 정보를 조회합니다.
+     *
+     * 목록 응답 이후에도 관리자가 서식을 수정했을 수 있으므로,
+     * 실제 작성 화면 진입 시에는 이 API로 최신 template을 한 번 더 확인할 수 있습니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalFormResponseDto getFormDetail(Integer formId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (formId == null) {
+            throw new IllegalArgumentException("결재 서식 ID가 필요합니다.");
+        }
+
+        AppFormEntity form = appFormRepository.findById(formId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재 서식입니다."));
+
+        return toFormResponse(form);
+    }
+
+    /**
+     * 결재 서식에 연결된 기본 결재선 서식의 상세 정보를 조회합니다.
+     *
+     * 관리자 페이지와 같은 DTO 구조를 사용하지만, 직원 화면에서는 읽기 전용 미리보기와 USER 타입 결재자 자동 채우기에만 사용합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AppLineFormDetailDto getLineTemplateDetail(Integer templateId, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (templateId == null) {
+            throw new IllegalArgumentException("결재선 서식 ID가 필요합니다.");
+        }
+
+        AppLineTemplateEntity template = appLineTemplateRepository.findDetailById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결재선 서식입니다."));
+
+        Map<Integer, List<AppLineTemplateDetailEntity>> groupedDetails = template.getDetails()
+                .stream()
+                .collect(Collectors.groupingBy(AppLineTemplateDetailEntity::getStepOrder));
+
+        List<AppLineFormStepDto> steps = groupedDetails.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> AppLineFormStepDto.builder()
+                        .stepOrder(entry.getKey())
+                        .targets(entry.getValue().stream()
+                                .map(this::toLineTemplateTargetResponse)
+                                .toList())
+                        .build())
+                .toList();
+
+        return AppLineFormDetailDto.builder()
+                .templateId(template.getTemplateId())
+                .templateName(template.getTemplateName())
+                .isDefault(template.getIsDefault())
+                .steps(steps)
+                .build();
+    }
 
     /**
      * 새 결재 문서를 임시저장합니다.
@@ -913,5 +1002,84 @@ public class ApprovalServiceImpl implements ApprovalService {
                         .fileSize(file.getFileSize())
                         .build())
                 .toList();
+    }
+
+    /**
+     * APP_FORM Entity를 직원 화면용 응답 DTO로 변환합니다.
+     *
+     * 결재선 서식 연결은 선택 사항이므로 null 검사를 거쳐 내려줍니다.
+     * 이렇게 해두면 관리자가 결재선이 연결되지 않은 서식으로 설정해도 React 화면에서 오류 없이 처리할 수 있습니다.
+     */
+    private ApprovalFormResponseDto toFormResponse(AppFormEntity form) {
+        return ApprovalFormResponseDto.builder()
+                .formId(form.getFormId())
+                .formName(form.getFormName())
+                .template(form.getTemplate())
+                .isDefault(form.getIsDefault())
+                .lineTemplateId(
+                        form.getLineTemplate() != null
+                                ? form.getLineTemplate().getTemplateId()
+                                : null
+                )
+                .lineTemplateName(
+                        form.getLineTemplate() != null
+                                ? form.getLineTemplate().getTemplateName()
+                                : null
+                )
+                .build();
+    }
+
+    /**
+     * 결재선 서식 상세 Entity를 React 화면에서 표시하기 좋은 대상 DTO로 변환합니다.
+     *
+     * 실제 상신 API는 현재 사원 번호 기반 결재선만 받기 때문에 USER 타입은 approverNo로 사용할 수 있는 id를 내려주고,
+     * DEPT/POSITION 타입은 화면에서 참고 정보로 보여주되 사용자가 실제 결재자를 확정하도록 안내합니다.
+     */
+    private AppLineFormTargetDto toLineTemplateTargetResponse(AppLineTemplateDetailEntity detail) {
+        String id = "";
+        String name = "-";
+        String dept = "";
+        String position = "";
+        Integer positionId = 0;
+
+        switch (detail.getApproverType()) {
+            case USER -> {
+                if (detail.getApprover() != null) {
+                    id = detail.getApprover().getEmpNo();
+                    name = detail.getApprover().getName();
+                    if (detail.getApprover().getDepartment() != null) {
+                        dept = detail.getApprover().getDepartment().getDeptName();
+                    }
+                    if (detail.getApprover().getPosition() != null) {
+                        position = detail.getApprover().getPosition().getPositionName();
+                        positionId = detail.getApprover().getPosition().getPositionId();
+                    }
+                }
+            }
+            case DEPT -> {
+                if (detail.getDepartment() != null) {
+                    id = String.valueOf(detail.getDepartment().getDeptId());
+                    name = detail.getDepartment().getDeptName();
+                    dept = detail.getDepartment().getDeptName();
+                }
+            }
+            case POSITION -> {
+                if (detail.getMinPosition() != null) {
+                    id = String.valueOf(detail.getMinPosition().getPositionId());
+                    name = detail.getMinPosition().getPositionName();
+                    position = detail.getMinPosition().getPositionName();
+                    positionId = detail.getMinPosition().getPositionId();
+                }
+            }
+        }
+
+        return AppLineFormTargetDto.builder()
+                .id(id)
+                .name(name)
+                .dept(dept)
+                .position(position)
+                .positionId(positionId)
+                .type(detail.getApproverType().name())
+                .build();
     }
 }

@@ -36,8 +36,13 @@ public class AppLineEntity {
     @JoinColumn(name = "approval_id", nullable = false)
     private ApprovalEntity approval;
 
+    /*
+     * APP_LINE 테이블의 결재자 FK 컬럼명은 approver_id입니다.
+     * 실제 값은 사번(emp_no)을 참조하지만, DB 설계 컬럼명과 엔티티 매핑명이 다르면
+     * Hibernate가 다른 컬럼에 값을 넣어 NOT NULL 제약조건 오류가 발생할 수 있습니다.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approver_no", nullable = false)
+    @JoinColumn(name = "approver_id", nullable = false)
     private EmpEntity approver;
 
     @Column(name = "step_order", nullable = false)
