@@ -33,6 +33,8 @@ public class ScheduleListResponseDto {
 
     private Boolean isPublic;
 
+    private String repeatRule;
+
     private String creatorNo;
 
 }

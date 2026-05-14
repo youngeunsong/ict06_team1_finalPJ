@@ -2,12 +2,12 @@
  * @FileName : QuizGenerationRuleEntity.java
  * @Description : AI 퀴즈 출제 기준 Entity
  * @Author : 김다솜
- * @Date : 2026. 05. 10
+ * @Date : 2026. 05. 11
  * @Modification_History
  * @
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
- * @ 2026.05.10    김다솜        최초 생성 및 카테고리별 퀴즈 출제 기준 관리 필드 추가
+ * @ 2026.05.11    김다솜        최초 생성 및 카테고리별 퀴즈 출제 기준 관리 필드 추가
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.entity;

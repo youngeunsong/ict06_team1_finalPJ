@@ -1,3 +1,15 @@
+#
+#  @FileName : document_processing_service.py
+#  @Description : 문서 본문 추출/청크 분할/벡터 생성 서비스 모듈
+#  @Author : 김다솜
+#  @Date : 2026. 05. 12
+#  @Modification_History
+#  @
+#  @ 수정일자        수정자          수정내용
+#  @ ----------    ---------    -------------------------------
+#  @ 2026.05.12    김다솜        문서 자동 처리 파이프라인 구현, 원격 문서 요청 timeout/User-Agent 보강 및 상단 주석 보강
+#
+
 import hashlib
 import html
 import json
@@ -10,7 +22,7 @@ import pdfplumber
 import requests
 from pypdf import PdfReader
 
-from services.ollama_client import summarize_document, suggest_section_title
+from services.ollama_client import summarize_document
 from schemas.document_schema import (
     DocumentChunkResponse,
     DocumentProcessRequest,
@@ -19,6 +31,16 @@ from schemas.document_schema import (
 
 MAX_CHUNK_CHARS = 900
 EMBED_DIMENSION = 256
+REMOTE_CONNECT_TIMEOUT = 10
+REMOTE_READ_TIMEOUT = 90
+REMOTE_REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/pdf,text/plain,application/json,*/*",
+}
 
 
 def process_document(req: DocumentProcessRequest) -> DocumentProcessResponse:
@@ -75,7 +97,18 @@ def extract_text(file_path: str) -> tuple[str, str]:
 
 def extract_remote_text(file_path: str) -> tuple[str, str]:
     request_url = normalize_drive_url(file_path)
-    response = requests.get(request_url, timeout=30)
+    try:
+        response = requests.get(
+            request_url,
+            headers=REMOTE_REQUEST_HEADERS,
+            timeout=(REMOTE_CONNECT_TIMEOUT, REMOTE_READ_TIMEOUT),
+        )
+    except requests.Timeout as exc:
+        raise TimeoutError(
+            f"원격 문서 응답 시간이 {REMOTE_READ_TIMEOUT}초를 초과했습니다. "
+            "해당 URL을 브라우저에서 열어 접근 가능한지 확인하거나 파일을 로컬/드라이브 문서로 등록해 주세요."
+        ) from exc
+
     response.raise_for_status()
 
     content_type = response.headers.get("content-type", "").lower()
@@ -262,13 +295,6 @@ def build_preview_text(text: str) -> str:
 
 
 def build_section_title(document_title: str, chunk_no: int, text: str) -> str | None:
-    try:
-        title = suggest_section_title(text)
-        if title and is_readable_title(title):
-            return title[:120]
-    except Exception:
-        pass
-
     extracted_title = extract_section_title(text)
     if extracted_title and is_readable_title(extracted_title):
         return extracted_title[:120]
