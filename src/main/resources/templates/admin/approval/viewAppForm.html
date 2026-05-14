@@ -74,10 +74,11 @@
                     <a th:href="@{/admin/approval/appFormList}" class="btn btn-secondary">목록</a>
 
                     <a th:href="@{/admin/approval/editAppForm/{formId}(formId=${form.formId})}"
-                       class="btn btn-primary">
+                       class="btn btn-primary"
+                       th:unless="${form.isDefault}">
                         수정
                     </a>
-                    <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
+                    <button type="button" class="btn btn-danger btn-sm" th:unless="${form.isDefault}" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
                 </div>
                 <!-- 목록, 수정, 삭제 버튼 바 끝 -->
             </div>
@@ -114,7 +115,12 @@
         // input 태그 유형 따라 가져오기 
         templateJson.fields.forEach(field => {
             html += `<div class="input-group mb-3 border-0 p-2 position-relative gap-3 align-items-center">`;
+            html += `<div class="flex-grow-1">`;
             html += `<label class="mb-0">${field.label}</label>`;
+            if(field.description){
+                html += `<div class="small text-muted">${field.description}</div>`;
+            }
+            html += `</div>`;
 
             if(field.type === 'text'){
                 html += `<input type="text" class="form-control" placeholder="${field.placeholder}">`;
@@ -129,7 +135,9 @@
                 html += `<input type="time" class="form-control" value="${now}">`;
             }
             if(field.type === 'amount'){
-                html += `<input type="number" class="form-control" placeholder="${field.placeholder}">`;
+                const amount = String(field.placeholder || '').replace(/[^\d]/g, '');
+                const formattedAmount = amount ? Number(amount).toLocaleString('ko-KR') + ' 원' : '';
+                html += `<input type="text" class="form-control" inputmode="numeric" placeholder="0 원" value="${formattedAmount}">`;
             }
 
             html += `</div>`;
