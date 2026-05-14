@@ -1,6 +1,14 @@
-/* AiSecretary.js 전용 초기 상태 묶음 */
-// src/pages/aiSecretary/constants/aiSecretaryInitialState.js
-
+/**
+ * @FileName : aiSecretaryInitialState.js
+ * @Description : AI 비서 전용 초기 상태 묶음
+ * @Author : 송혜진
+ * @Date : 2026. 04. 28
+ * @Modification_History
+ * @
+ * @ 수정일       수정자       수정내용
+ * @ ----------  ---------   ----------------------------------------
+ * @ 2026.04.28  송혜진       최초 생성
+ */
 
 /* AI 비서 문서 작성 시작 폼 초기값 (사용 : StartFormScreen)
    - 문서 유형 자체는 formData에 저장하지 않음
@@ -12,6 +20,8 @@ export const initialFormData = {
   targets: ["팀장"], // 보고 대상 / 정리 대상 / 결재 라인 chip 선택값
   detail: "", // 핵심 내용 / 회의 내용 / 결재 사유
   amount: "", // 원하는 분량 / 정리 방식 / 강조 포인트
+  referenceFiles: [], // 참고 자료 첨부 파일 목록
+  referenceMemo: "", // 참고 자료 메모
 };
 
 // 문장 다듬기 초기값 (사용: CorrectionScreen)

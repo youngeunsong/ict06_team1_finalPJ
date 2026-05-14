@@ -1,622 +1,500 @@
-<!--
- * @author : 송혜진
- * description : 관리자 AI 데이터 운영 대시보드
- *               - 관리자용 사내 AI 포털 운영 현황 화면
- *               - 챗봇, AI 비서, 문장 다듬기, 템플릿 생성 등 AI 기능 사용량 확인
- *               - AI 호출 성공/실패, fallback 여부, 평균 응답 속도 등을 운영 관점에서 확인
- *               - 추후 AI_LOG, AI_CHAT_SESSION, AI_CHAT_MESSAGE 기반 실제 통계로 교체
- * ========================================
- * DATE         AUTHOR      NOTE
- * 2026-05-11   송혜진       최초 생성
--->
-
-<!--
-[관리자용 페이지 템플릿 사용 방법]
-
-1. 핵심 콘텐츠 작성법
-<div class="container-fluid">
-    이 사이에 넣을 핵심 콘텐츠에 필요한 타임리프 코드를 작성한다.
-</div>
-
-2. 모든 관리자용 페이지에 반드시 포함시킬 파일
-- /admin/common/head.html
-- /admin/common/header
-- /admin/common/sidebar
-- /admin/common/footer
-- /admin/common/commonJs
-
-위 공통 파일들은 수정 시 반드시 팀원들과 협의한다.
--->
-
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
-
-<!-- begin::Head -->
 <head th:include="/admin/common/head.html :: common_header">
-    <!-- 해당 페이지별 title -->
-    <title id="page_title">AI 데이터 운영 대시보드</title>
+    <title id="page_title">AI 비서 운영 대시보드</title>
 </head>
-<!-- end::Head -->
-
-<!-- begin::Body -->
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .flatpickr-calendar {
+        z-index: 9999 !important;
+    }
 
-<!-- begin::App Wrapper -->
+    .flatpickr-calendar:not(.open) {
+        display: none !important;
+    }
+
+    .flatpickr-calendar .flatpickr-prev-month,
+    .flatpickr-calendar .flatpickr-next-month {
+        width: 34px !important;
+        height: 34px !important;
+        padding: 8px !important;
+        line-height: 1 !important;
+        color: #334155 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 0 !important;
+        text-indent: -9999px !important;
+        overflow: hidden !important;
+        position: relative !important;
+    }
+
+    .flatpickr-calendar .flatpickr-prev-month svg,
+    .flatpickr-calendar .flatpickr-next-month svg {
+        width: 14px !important;
+        height: 14px !important;
+        display: block !important;
+    }
+
+    .flatpickr-calendar .flatpickr-prev-month svg path,
+    .flatpickr-calendar .flatpickr-next-month svg path {
+        fill: currentColor !important;
+    }
+
+    .flatpickr-calendar .flatpickr-prev-month:before,
+    .flatpickr-calendar .flatpickr-next-month:before,
+    .flatpickr-calendar .flatpickr-prev-month:after,
+    .flatpickr-calendar .flatpickr-next-month:after {
+        display: none !important;
+        content: none !important;
+    }
+
+    .dashboard-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: .5rem;
+    }
+
+    .dashboard-filter-bar .btn-group,
+    .dashboard-filter-bar form {
+        flex: 0 0 auto;
+    }
+
+    .dashboard-filter-bar .dashboard-filter-range {
+        min-width: 240px;
+        width: clamp(240px, 24vw, 320px);
+        flex: 0 1 clamp(240px, 24vw, 320px);
+    }
+
+    .dashboard-filter-bar .dashboard-filter-range input {
+        min-height: 31px;
+    }
+
+    .dashboard-filter-bar .dashboard-filter-range .form-control {
+        width: 100%;
+    }
+
+    .dashboard-filter-bar .btn {
+        white-space: nowrap;
+    }
+
+    @media (min-width: 992px) {
+        .dashboard-filter-bar {
+            flex-wrap: nowrap;
+        }
+    }
+</style>
 <div class="app-wrapper">
-
-    <!-- 헤더 시작 -->
     <th:block th:replace="~{/admin/common/header}"></th:block>
-    <!-- 헤더 끝 -->
-
-    <!-- 사이드바 시작 -->
     <th:block th:replace="~{/admin/common/sidebar}"></th:block>
-    <!-- 사이드바 끝 -->
 
-    <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
-
-        <!-- begin::App Content -->
         <div class="app-content">
-
-            <!-- begin::Container -->
-            <div class="container-fluid">
-                <br>
-
-                <!--
-                ============================================================
-                1. 페이지 상단 타이틀 영역
-                ============================================================
-
-                역할:
-                - 현재 페이지가 AI 운영 대시보드임을 표시한다.
-                - 관리자가 확인할 수 있는 주요 운영 지표를 안내한다.
-
-                추후 기능:
-                - 기간 필터
-                - 부서 필터
-                - AI 기능별 필터
-                - CSV/엑셀 다운로드
-                -->
+            <div class="container-fluid py-3">
                 <div class="row mb-3">
-                    <div class="col-12 d-flex justify-content-between align-items-start">
-
-                        <!-- 페이지 제목/설명 영역 -->
+                    <div class="col-12 d-flex justify-content-between align-items-start gap-3 flex-wrap">
                         <div>
-                            <h3 class="fw-bold mb-2">AI 데이터 운영 대시보드</h3>
-                            <p class="text-muted mb-0">
-                                챗봇, AI 비서, 문장 다듬기 등 사내 AI 기능의 사용량과 응답 상태를 확인합니다.
-                            </p>
+                            <h3 class="fw-bold mb-2">AI 비서 운영 대시보드</h3>
+                            <p class="text-muted mb-0">관리자 AI 사용 현황과 최근 로그를 한눈에 확인할 수 있습니다.</p>
                         </div>
 
-                        <!-- 기간 필터 영역 -->
-                        <!-- 현재는 UI만 구성, 실제 검색 조건은 추후 Controller/Service 연동 -->
-                        <!-- 기간 필터 영역 -->
-                        <!--
-                        현재는 더미 UI이지만, 추후 period 파라미터를 Controller에서 받아서
-                        summaryCards의 비교 문구를 변경한다.
+                        <div class="dashboard-filter-bar">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="최근 AI 사용 기간 빠른 선택">
+                                <a class="btn btn-outline-primary"
+                                   th:href="@{/admin/AiSecretary/dashboard(period=7, page=1)}">최근 7일</a>
+                                <a class="btn btn-outline-primary"
+                                   th:href="@{/admin/AiSecretary/dashboard(period=30, page=1)}">최근 30일</a>
+                            </div>
 
-                        period=today : 전일 대비
-                        period=week  : 전주 대비
-                        period=month : 전달 대비
-                        -->
-                        <form th:action="@{/admin/AiSecretary/dashboard}" method="get" class="d-flex gap-2">
-                            <select class="form-select form-select-sm" name="period">
-                                <option value="today" th:selected="${selectedPeriod == 'today'}">오늘</option>
-                                <option value="week" th:selected="${selectedPeriod == 'week'}">최근 7일</option>
-                                <option value="month" th:selected="${selectedPeriod == 'month'}">최근 30일</option>
-                            </select>
+                            <form th:action="@{/admin/AiSecretary/dashboard}" method="get"
+                                  id="dashboardDateFilterForm"
+                                  class="d-flex flex-wrap gap-2 align-items-end">
+                                <input type="hidden" name="period" th:value="${selectedPeriod}">
+                                <input type="hidden" name="department" th:value="${selectedDepartment}">
+                                <input type="hidden" name="aiType" th:value="${selectedAiType}">
+                                <input type="hidden" name="result" th:value="${selectedResult}">
+                                <input type="hidden" name="page" value="1">
+                                <input type="hidden" name="startDate" th:value="${selectedStartDate}">
+                                <input type="hidden" name="endDate" th:value="${selectedEndDate}">
 
-                            <button type="submit" class="btn btn-sm btn-outline-primary">
-                                조회
-                            </button>
-                        </form>
+                                <div class="dashboard-filter-range">
+                                    <input type="text"
+                                           class="form-control form-control-sm"
+                                           id="dashboardDateRangePicker"
+                                           placeholder="2026-05-08 ~ 2026-05-14">
+                                </div>
+
+                                <button type="submit" class="btn btn-sm btn-primary">조회</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
-                <!--
-                ============================================================
-                2. AI 운영 KPI 요약 카드 영역
-                ============================================================
-
-                model attribute:
-                - summaryCards
-
-                예상 데이터 구조:
-                summaryCards = [
-                    {
-                        label: "챗봇 질문 수",
-                        value: "128",
-                        unit: "건",
-                        changeRate: "+12%",
-                        compareText: "전일 대비 증가",
-                        trend: "up"
-                    }
-                ]
-
-                화면 표시 예:
-                챗봇 질문 수
-                128 건  +12%
-                +12% 전일 대비 증가
-
-                기간별 비교 문구:
-                - 오늘       : 전일 대비
-                - 최근 7일   : 전주 대비
-                - 최근 30일  : 전달 대비
-                -->
                 <div class="row mb-4">
-
-                    <!-- KPI 카드 반복 출력 -->
-                    <div class="col-md-3"
-                         th:each="card : ${summaryCards}">
-
+                    <div class="col-md-3 mb-3" th:each="card : ${summaryCards}">
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-body">
-
-                                <!-- KPI 제목 -->
-                                <p class="text-muted fw-bold mb-2"
-                                   th:text="${card.label}">
-                                    챗봇 질문 수
-                                </p>
-
-                                <!-- KPI 메인 수치 영역 -->
+                                <p class="text-muted fw-bold mb-2" th:text="${card.label}">전체 AI 요청 수</p>
                                 <div class="d-flex align-items-end gap-2 mb-2">
-
-                                    <!-- 현재 수치 -->
-                                    <h3 class="fw-bold mb-0"
-                                        th:text="${card.value}">
-                                        128
-                                    </h3>
-
-                                    <!-- 단위 -->
-                                    <span class="fw-bold text-muted mb-1"
-                                          th:text="${card.unit}">
-                        건
-                    </span>
-
-                                    <!-- 증감률 badge -->
+                                    <h3 class="fw-bold mb-0" th:text="${card.value}">0</h3>
+                                    <span class="fw-bold text-muted mb-1" th:text="${card.unit}">건</span>
                                     <span class="badge mb-1"
                                           th:classappend="${card.trend == 'up'} ? ' text-bg-success' :
                                           (${card.trend == 'down'} ? ' text-bg-danger' : ' text-bg-secondary')"
                                           th:text="${card.changeRate}">
-                        +12%
-                    </span>
+                                        0.0%
+                                    </span>
                                 </div>
-
-                                <!-- 비교 기준 설명 -->
                                 <div class="small fw-bold"
                                      th:classappend="${card.trend == 'up'} ? ' text-success' :
                                      (${card.trend == 'down'} ? ' text-danger' : ' text-muted')">
-
-                                    <!--
-                                    예:
-                                    +12% 전일 대비 증가
-                                    -5% 전일 대비 감소
-                                    -->
-                                    <span th:text="${card.changeRate}">
-                        +12%
-                    </span>
-                                    <span th:text="' ' + ${card.compareText}">
-                        전일 대비 증가
-                    </span>
+                                    <span th:text="${card.changeRate}">0.0%</span>
+                                    <span th:text="${' ' + card.compareText}">전기간 대비</span>
                                 </div>
-
                             </div>
                         </div>
                     </div>
 
-                    <!-- KPI 데이터가 없을 때 -->
-                    <div class="col-12"
-                         th:if="${summaryCards == null or #lists.isEmpty(summaryCards)}">
-                        <div class="alert alert-secondary mb-0">
-                            표시할 AI 운영 지표가 없습니다.
-                        </div>
+                    <div class="col-12" th:if="${summaryCards == null or #lists.isEmpty(summaryCards)}">
+                        <div class="alert alert-secondary mb-0">표시할 요약 데이터가 없습니다.</div>
                     </div>
                 </div>
 
-                <!--
-                ============================================================
-                3. AI 활용량 추이 영역
-                ============================================================
-
-                현재 상태:
-                - 차트 자리만 구성
-                - 실제 차트는 추후 Chart.js / ECharts / ApexCharts 등으로 연결 가능
-
-                추후 연결:
-                - AI_LOG.created_at 기준 일자별 집계
-                - CHATBOT / ASSISTANT / CORRECTION / TEMPLATE 등 기능별 사용량 집계
-
-                권장:
-                - 기존 프로젝트에서 차트 라이브러리 기준이 있다면 그 기준을 따를 것
-                -->
                 <div class="row mb-4">
-
-                    <!-- AI 활용량 추이 차트 카드 -->
-                    <div class="col-md-8">
+                    <div class="col-lg-8 mb-3">
                         <div class="card shadow-sm border-0 h-100">
-
-                            <!-- 카드 헤더 -->
-                            <div class="card-header bg-white">
-                                <h5 class="fw-bold mb-1">AI 활용량 추이</h5>
-                                <p class="text-muted mb-0">
-                                    기간별 AI 기능 사용량 변화를 확인합니다.
-                                </p>
+                            <div class="card-header bg-white border-0 pb-0">
+                                <h5 class="fw-bold mb-1">AI 사용 추이</h5>
+                                <p class="text-muted mb-0">선택한 기간의 전체 요청 수와 기능별 추이를 확인합니다.</p>
                             </div>
-
-                            <!-- 카드 바디 -->
                             <div class="card-body">
-
-                                <!-- 차트 placeholder -->
-                                <!-- 추후 id="aiUsageChart" 기준으로 JS 차트 렌더링 -->
-                                <div id="aiUsageChart"
-                                     class="d-flex align-items-center justify-content-center bg-light rounded"
-                                     style="height: 280px;">
-                                    <div class="text-center text-muted">
-                                        <div class="fw-bold mb-1">AI 활용량 차트 영역</div>
-                                        <div>추후 AI_LOG 일자별 집계 데이터로 연결 예정</div>
+                                <div class="bg-light rounded p-3">
+                                    <div id="aiUsageTrendChart"
+                                         style="min-height: 280px;"
+                                         th:classappend="${usageTrendList == null or #lists.isEmpty(usageTrendList)} ? ' d-none'"></div>
+                                    <div id="aiUsageTrendEmptyState"
+                                         class="text-center text-muted py-4"
+                                         th:classappend="${usageTrendList != null and !#lists.isEmpty(usageTrendList)} ? ' d-none'">
+                                        표시할 사용 추이 데이터가 없습니다.
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- AI 기능별 사용 비율 카드 -->
-                    <div class="col-md-4">
+                    <div class="col-lg-4 mb-3">
                         <div class="card shadow-sm border-0 h-100">
-
-                            <!-- 카드 헤더 -->
-                            <div class="card-header bg-white">
-                                <h5 class="fw-bold mb-1">기능별 사용 비율</h5>
-                                <p class="text-muted mb-0">
-                                    AI 기능별 사용 분포입니다.
-                                </p>
+                            <div class="card-header bg-white border-0 pb-0">
+                                <h5 class="fw-bold mb-1">기능별 사용량</h5>
+                                <p class="text-muted mb-0">챗봇, AI 비서, 문장 다듬기, 템플릿 생성의 비중을 확인합니다.</p>
                             </div>
-
-                            <!-- 카드 바디 -->
                             <div class="card-body">
-
-                                <!-- 현재는 정적 UI -->
-                                <!-- 추후 AI_LOG.type 또는 기능 코드 기준 집계 -->
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold">챗봇</span>
-                                        <span class="text-muted">48%</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar" style="width: 48%"></div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold">AI 비서</span>
-                                        <span class="text-muted">32%</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" style="width: 32%"></div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold">문장 다듬기</span>
-                                        <span class="text-muted">14%</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" style="width: 14%"></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="fw-bold">템플릿 생성</span>
-                                        <span class="text-muted">6%</span>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-warning" style="width: 6%"></div>
-                                    </div>
+                                <div id="featureUsageChart"
+                                     style="min-height: 300px;"
+                                     th:classappend="${featureUsageList == null or #lists.isEmpty(featureUsageList)} ? ' d-none'"></div>
+                                <div id="featureUsageEmptyState"
+                                     class="text-center text-muted py-4"
+                                     th:classappend="${featureUsageList != null and !#lists.isEmpty(featureUsageList)} ? ' d-none'">
+                                    표시할 기능별 사용량 데이터가 없습니다.
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!--
-                ============================================================
-                4. 최근 AI 이용 로그 영역
-                ============================================================
-
-                model attribute:
-                - recentLogs
-
-                표시 컬럼:
-                1. 사용자
-                2. 부처
-                3. AI 기능
-                4. 수행 작업
-                5. 처리 결과
-                6. 사용 시각
-
-                추후 연결 테이블:
-                - AI_LOG
-                - EMPLOYEE
-                - DEPARTMENT
-
-                정리 기준:
-                - FALLBACK은 별도 컬럼이 아니라 처리 결과의 한 종류로 표시한다.
-                - 응답 시간은 최근 로그 기본 컬럼에서 제외한다.
-                  추후 상세 모달 또는 로그 상세 페이지에서 확인하는 것이 적절하다.
-                -->
                 <div class="row mb-4">
                     <div class="col-12">
-
                         <div class="card shadow-sm border-0">
-
-                            <!--
-                            카드 헤더:
-                            - 제목/설명
-                            - CSV / 엑셀 다운로드 버튼
-                            -->
-                            <div class="card-header bg-white">
-
-                                <div class="d-flex justify-content-between align-items-start gap-3">
-
-                                    <!-- 제목 영역 -->
+                            <div class="card-header bg-white border-0 pb-0">
+                                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
                                     <div>
-                                        <h5 class="fw-bold mb-1">최근 AI 이용 로그</h5>
-                                        <p class="text-muted mb-0">
-                                            사용자별 AI 기능 이용 내역과 처리 결과를 확인합니다.
-                                        </p>
+                                        <h5 class="fw-bold mb-1">최근 AI 사용 로그</h5>
+                                        <p class="text-muted mb-0">최근 10건씩 페이징하여 선택한 기간 내 로그를 확인합니다.</p>
                                     </div>
-
                                 </div>
 
-                                <!--
-                                최근 AI 이용 로그 필터 영역
+                                <form th:action="@{/admin/AiSecretary/dashboard}" method="get"
+                                      class="row g-2 mt-3 align-items-end">
+                                    <input type="hidden" name="period" th:value="${selectedPeriod}">
+                                    <input type="hidden" name="startDate" th:value="${selectedStartDate}">
+                                    <input type="hidden" name="endDate" th:value="${selectedEndDate}">
+                                    <input type="hidden" name="page" value="1">
 
-                                필터 항목:
-                                - 부처
-                                - AI 기능
-                                - 처리 결과
-                                - 기간
-
-                                현재는 화면 골격.
-                                추후 GET /admin/AiSecretary/dashboard 요청 파라미터로 연결 가능.
-
-                                예:
-                                /admin/AiSecretary/dashboard?department=개발팀&aiType=CHATBOT&result=SUCCESS&logPeriod=week
-                                -->
-                                <form th:action="@{/admin/AiSecretary/dashboard}"
-                                      method="get"
-                                      class="row g-2 mt-3">
-
-                                    <!-- 부처 필터 -->
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-bold text-muted">부처</label>
+                                        <label class="form-label small fw-bold text-muted">부서</label>
                                         <select class="form-select form-select-sm" name="department">
-                                            <option value="">전체 부처</option>
-                                            <option value="개발팀"
-                                                    th:selected="${selectedDepartment == '개발팀'}">
-                                                개발팀
-                                            </option>
-                                            <option value="인사팀"
-                                                    th:selected="${selectedDepartment == '인사팀'}">
-                                                인사팀
-                                            </option>
-                                            <option value="총무팀"
-                                                    th:selected="${selectedDepartment == '총무팀'}">
-                                                총무팀
-                                            </option>
-                                            <option value="교육팀"
-                                                    th:selected="${selectedDepartment == '교육팀'}">
-                                                교육팀
-                                            </option>
+                                            <option value="" th:selected="${selectedDepartment == null or selectedDepartment == ''}">전체 부서</option>
+                                            <option value="경영지원팀" th:selected="${selectedDepartment == '경영지원팀'}">경영지원팀</option>
+                                            <option value="인사팀" th:selected="${selectedDepartment == '인사팀'}">인사팀</option>
+                                            <option value="개발1팀(BE)" th:selected="${selectedDepartment == '개발1팀(BE)'}">개발1팀(BE)</option>
+                                            <option value="개발2팀(FE)" th:selected="${selectedDepartment == '개발2팀(FE)'}">개발2팀(FE)</option>
+                                            <option value="디자인팀" th:selected="${selectedDepartment == '디자인팀'}">디자인팀</option>
                                         </select>
                                     </div>
 
-                                    <!-- AI 기능 필터 -->
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-muted">AI 기능</label>
                                         <select class="form-select form-select-sm" name="aiType">
-                                            <option value="">전체 기능</option>
-                                            <option value="CHATBOT"
-                                                    th:selected="${selectedAiType == 'CHATBOT'}">
-                                                챗봇
-                                            </option>
-                                            <option value="ASSISTANT"
-                                                    th:selected="${selectedAiType == 'ASSISTANT'}">
-                                                AI 비서
-                                            </option>
-                                            <option value="CORRECTION"
-                                                    th:selected="${selectedAiType == 'CORRECTION'}">
-                                                문장 다듬기
-                                            </option>
-                                            <option value="TEMPLATE"
-                                                    th:selected="${selectedAiType == 'TEMPLATE'}">
-                                                템플릿 생성
-                                            </option>
+                                            <option value="" th:selected="${selectedAiType == null or selectedAiType == ''}">전체 기능</option>
+                                            <option value="CHATBOT" th:selected="${selectedAiType == 'CHATBOT'}">챗봇</option>
+                                            <option value="ASSISTANT" th:selected="${selectedAiType == 'ASSISTANT'}">AI 비서</option>
+                                            <option value="CORRECTION" th:selected="${selectedAiType == 'CORRECTION'}">문장 다듬기</option>
+                                            <option value="TEMPLATE" th:selected="${selectedAiType == 'TEMPLATE'}">템플릿 생성</option>
                                         </select>
                                     </div>
 
-                                    <!-- 처리 결과 필터 -->
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold text-muted">처리 결과</label>
                                         <select class="form-select form-select-sm" name="result">
-                                            <option value="">전체 결과</option>
-                                            <option value="SUCCESS"
-                                                    th:selected="${selectedResult == 'SUCCESS'}">
-                                                성공
-                                            </option>
-                                            <option value="FALLBACK"
-                                                    th:selected="${selectedResult == 'FALLBACK'}">
-                                                대체 응답
-                                            </option>
-                                            <option value="FAIL"
-                                                    th:selected="${selectedResult == 'FAIL'}">
-                                                실패
-                                            </option>
+                                            <option value="" th:selected="${selectedResult == null or selectedResult == ''}">전체 결과</option>
+                                            <option value="SUCCESS" th:selected="${selectedResult == 'SUCCESS'}">성공</option>
+                                            <option value="FALLBACK" th:selected="${selectedResult == 'FALLBACK'}">대체 응답</option>
+                                            <option value="FAIL" th:selected="${selectedResult == 'FAIL'}">실패</option>
                                         </select>
                                     </div>
 
-                                    <!-- 기간 필터 -->
-                                    <div class="col-md-2">
-                                        <label class="form-label small fw-bold text-muted">기간</label>
-                                        <select class="form-select form-select-sm" name="logPeriod">
-                                            <option value="today"
-                                                    th:selected="${selectedLogPeriod == 'today'}">
-                                                오늘
-                                            </option>
-                                            <option value="week"
-                                                    th:selected="${selectedLogPeriod == 'week'}">
-                                                최근 7일
-                                            </option>
-                                            <option value="month"
-                                                    th:selected="${selectedLogPeriod == 'month'}">
-                                                최근 30일
-                                            </option>
-                                        </select>
-                                    </div>
-
-                                    <!-- 조회 버튼 -->
-                                    <div class="col-md-1 d-flex align-items-end">
-                                        <button type="submit"
-                                                class="btn btn-sm btn-primary w-100">
-                                            조회
-                                        </button>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-sm btn-primary w-100">필터 적용</button>
                                     </div>
                                 </form>
                             </div>
 
-                            <!-- 카드 바디 -->
                             <div class="card-body p-0">
-
                                 <div class="table-responsive">
                                     <table class="table table-hover align-middle mb-0">
                                         <thead class="table-light">
                                         <tr>
                                             <th>사용자</th>
-                                            <th>부처</th>
+                                            <th>부서</th>
                                             <th>AI 기능</th>
-                                            <th>수행 작업</th>
+                                            <th>요청 요약</th>
+                                            <th>상세</th>
                                             <th>처리 결과</th>
+                                            <th>응답 소요 시간</th>
                                             <th>사용 시각</th>
                                         </tr>
                                         </thead>
-
                                         <tbody>
-
-                                        <!-- 최근 로그 반복 출력 -->
-                                        <tr th:each="log : ${recentLogs}">
-
-                                            <!-- 사용자 -->
-                                            <td th:text="${log.user}">
-                                                송혜진
-                                            </td>
-
-                                            <!-- 부처 -->
-                                            <td th:text="${log.department}">
-                                                개발팀
-                                            </td>
-
-                                            <!-- AI 기능 유형 -->
-                                            <td th:text="${log.type}">
-                                                AI 비서
-                                            </td>
-
-                                            <!-- 수행 작업 -->
-                                            <td class="fw-bold"
-                                                th:text="${log.action}">
-                                                보고서 초안 생성
-                                            </td>
-
-                                            <!-- 처리 결과 -->
+                                        <tr th:each="log : ${recentLogList}">
+                                            <td th:text="${log.user}">홍길동</td>
+                                            <td th:text="${log.department}">인사팀</td>
+                                            <td th:text="${log.type}">AI 비서</td>
+                                            <td th:text="${log.requestSummary}">요청 요약</td>
                                             <td>
-                                <span class="badge"
-                                      th:classappend="${log.result == 'SUCCESS'} ? ' text-bg-success' :
-                                                      (${log.result == 'FALLBACK'} ? ' text-bg-warning' : ' text-bg-danger')"
-                                      th:text="${log.resultLabel}">
-                                    성공
-                                </span>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary ai-log-detail-btn"
+                                                        th:attr="data-log-id=${log.logId},
+                                                                 data-user=${log.user},
+                                                                 data-department=${log.department},
+                                                                 data-type=${log.type},
+                                                                 data-request-summary=${log.requestSummary},
+                                                                 data-response-summary=${log.responseSummary},
+                                                                 data-result=${log.result},
+                                                                 data-result-label=${log.resultLabel},
+                                                                 data-duration-text=${log.durationText},
+                                                                 data-created-at=${log.createdAt},
+                                                                 data-error-message=${log.errorMessage},
+                                                                 data-message-content=${log.messageContent},
+                                                                 data-session-id=${log.sessionId},
+                                                                 data-message-id=${log.messageId},
+                                                                 data-fallback=${log.fallback}">
+                                                    상세
+                                                </button>
                                             </td>
-
-                                            <!-- 사용 시각 -->
-                                            <td th:text="${log.createdAt}">
-                                                2026-05-11 14:20
+                                            <td>
+                                                <span class="badge"
+                                                      th:classappend="${log.result == 'SUCCESS'} ? ' text-bg-success' :
+                                                                      (${log.result == 'FALLBACK'} ? ' text-bg-warning' : ' text-bg-danger')"
+                                                      th:text="${log.resultLabel}">
+                                                    성공
+                                                </span>
                                             </td>
+                                            <td th:text="${log.durationText}">0.0초</td>
+                                            <td th:text="${log.createdAt}">2026-05-14 09:00</td>
                                         </tr>
-
-                                        <!-- 로그가 없을 때 -->
-                                        <tr th:if="${recentLogs == null or #lists.isEmpty(recentLogs)}">
-                                            <td colspan="6" class="text-center text-muted py-4">
-                                                조건에 해당하는 AI 이용 로그가 없습니다.
-                                            </td>
+                                        <tr th:if="${recentLogList == null or #lists.isEmpty(recentLogList)}">
+                                            <td colspan="8" class="text-center text-muted py-4">표시할 로그가 없습니다.</td>
                                         </tr>
-
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
 
-                            <!--
-                            카드 푸터:
-                            - 현재 조회 조건 기준 다운로드 안내
-                            - 실제 다운로드 API 연결 전까지는 버튼만 상단에 위치
-                            -->
-                            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-                                <small class="text-muted"
-                                       th:text="'총 ' + ${recentLogs == null ? 0 : #lists.size(recentLogs)} + '건'">
-                                    총 0건
-                                </small>
+                            <div class="card-footer bg-white">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                    <small class="text-muted"
+                                           th:text="${'총 ' + totalLogCount + '건 | ' + currentPage + ' / ' + totalPages + ' 페이지'}">
+                                        총 0건 | 1 / 1 페이지
+                                    </small>
 
-                                <div class="d-flex gap-2">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-secondary"
-                                            id="downloadAiLogCsvBtn">
-                                        CSV 다운로드
-                                    </button>
+                                    <nav th:if="${totalPages != null and totalPages > 1}" aria-label="최근 AI 사용 로그 페이지 이동">
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item" th:classappend="${!hasPrevious} ? ' disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/AiSecretary/dashboard(period=${selectedPeriod}, startDate=${selectedStartDate}, endDate=${selectedEndDate}, department=${selectedDepartment}, aiType=${selectedAiType}, result=${selectedResult}, page=${currentPage - 1})}">
+                                                    이전
+                                                </a>
+                                            </li>
+                                            <li class="page-item"
+                                                th:each="pageNo : ${#numbers.sequence(1, totalPages)}"
+                                                th:classappend="${pageNo == currentPage} ? ' active'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/AiSecretary/dashboard(period=${selectedPeriod}, startDate=${selectedStartDate}, endDate=${selectedEndDate}, department=${selectedDepartment}, aiType=${selectedAiType}, result=${selectedResult}, page=${pageNo})}"
+                                                   th:text="${pageNo}">1</a>
+                                            </li>
+                                            <li class="page-item" th:classappend="${!hasNext} ? ' disabled'">
+                                                <a class="page-link"
+                                                   th:href="@{/admin/AiSecretary/dashboard(period=${selectedPeriod}, startDate=${selectedStartDate}, endDate=${selectedEndDate}, department=${selectedDepartment}, aiType=${selectedAiType}, result=${selectedResult}, page=${currentPage + 1})}">
+                                                    다음
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </nav>
 
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-success"
-                                            id="downloadAiLogExcelBtn">
-                                        엑셀 다운로드
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="downloadAiLogCsvBtn">CSV 다운로드</button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" id="downloadAiLogExcelBtn">엑셀 다운로드</button>
+                                    </div>
                                 </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0 bg-primary text-white">
+                            <div class="card-header bg-primary border-0 pb-0 text-white">
+                                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                    <div>
+                                        <h5 class="fw-bold mb-1 text-white" th:text="${documentStatusTitle}">5월 2째 주 문서 처리 상태 요약</h5>
+                                        <p class="mb-0 text-white-50">문서 처리 단계별 상태를 확인합니다.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row row-cols-1 row-cols-md-5 g-3"
+                                     th:if="${documentStatusList != null and !#lists.isEmpty(documentStatusList)}">
+                                    <div class="col" th:each="status : ${documentStatusList}">
+                                        <div class="card h-100 border border-white border-opacity-25 shadow-sm bg-white bg-opacity-10 text-white">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                                    <div>
+                                                        <span class="badge mb-2 bg-white text-primary" th:text="${status.key}">UPLOADED</span>
+                                                        <h6 class="fw-bold mb-1 text-white" th:text="${status.title}">업로드 완료</h6>
+                                                    </div>
+                                                    <h3 class="fw-bold mb-0 text-white" th:text="${status.count}">0</h3>
+                                                </div>
+                                                <p class="mb-0 text-white-75" th:text="${status.description}">
+                                                    문서 처리 단계별 상태를 확인합니다.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div th:if="${documentStatusList == null or #lists.isEmpty(documentStatusList)}"
+                                     class="text-center text-white-50 py-4">등록된 문서 처리 상태가 없습니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="aiLogDetailModal" tabindex="-1" aria-labelledby="aiLogDetailModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="aiLogDetailModalLabel">최근 AI 사용 로그 상세</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                            </div>
+                            <div class="modal-body">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-3 text-muted">사용자</dt>
+                                    <dd class="col-sm-9" data-log-field="user">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">부서</dt>
+                                    <dd class="col-sm-9" data-log-field="department">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">AI 기능</dt>
+                                    <dd class="col-sm-9" data-log-field="type">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">처리 결과</dt>
+                                    <dd class="col-sm-9" data-log-field="resultLabel">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">응답 소요 시간</dt>
+                                    <dd class="col-sm-9" data-log-field="durationText">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">사용 시각</dt>
+                                    <dd class="col-sm-9" data-log-field="createdAt">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">세션 ID</dt>
+                                    <dd class="col-sm-9" data-log-field="sessionId">-</dd>
+
+                                    <dt class="col-sm-3 text-muted">메시지 ID</dt>
+                                    <dd class="col-sm-9" data-log-field="messageId">-</dd>
+                                </dl>
+
+                                <div class="mt-4">
+                                    <div class="fw-bold mb-2">요청 요약</div>
+                                    <div class="border rounded p-3 bg-light text-dark"
+                                         data-log-summary-field="requestSummary"
+                                         style="white-space: pre-wrap; max-height: 180px; overflow: auto;">-</div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div class="fw-bold mb-2">응답 요약</div>
+                                    <div class="border rounded p-3 bg-light text-dark"
+                                         data-log-summary-field="responseSummary"
+                                         style="white-space: pre-wrap; max-height: 180px; overflow: auto;">-</div>
+                                </div>
+
+                                <div class="mt-4 d-none" data-log-fallback-box>
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="fw-bold mb-2">대체 응답 사용</div>
+                                        <div data-log-fallback-message>AI 응답 생성 중 오류가 발생하여 대체 응답이 사용되었습니다.</div>
+                                        <div class="mt-2 small" data-log-fallback-error></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div class="fw-bold mb-2">메시지 내용</div>
+                                    <div class="border rounded p-3 bg-light text-dark"
+                                         data-log-summary-field="messageContent"
+                                         style="white-space: pre-wrap; max-height: 220px; overflow: auto;">연결된 메시지가 없습니다.</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <!-- end::Container -->
-
         </div>
-        <!-- end::App Content -->
-
     </main>
-    <!-- 메인 콘텐츠 끝 -->
 
-    <!-- 푸터 시작 -->
     <th:block th:replace="~{/admin/common/footer}"></th:block>
-    <!-- 푸터 끝 -->
-
 </div>
-<!-- end::App Wrapper -->
 
-
-<!-- 스크립트 시작 -->
-
-<!-- 공통 사용 스크립트 불러오기 -->
+<script th:inline="javascript">
+    window.adAiDashboardData = {
+        usageTrendList: /*[[${usageTrendList}]]*/ [],
+        featureUsageList: /*[[${featureUsageList}]]*/ [],
+        period: /*[[${selectedPeriod}]]*/ 7,
+        selectedPeriod: /*[[${selectedPeriod}]]*/ 7,
+        startDate: /*[[${selectedStartDate}]]*/ '',
+        endDate: /*[[${selectedEndDate}]]*/ '',
+        selectedStartDate: /*[[${selectedStartDate}]]*/ '',
+        selectedEndDate: /*[[${selectedEndDate}]]*/ ''
+    };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <th:block th:replace="~{/admin/common/commonJs}"></th:block>
-
-<!--
-[페이지 전용 스크립트]
-- 추후 AI 활용량 차트 렌더링
-- 기간 필터 이벤트
-- 전체 로그 조회 모달 또는 페이지 이동
--->
-<!-- <script th:src="@{/admin/js/aiSecretary/adAiDashboard.js}"></script> -->
-
-<!-- 스크립트 끝 -->
-
+<script th:src="@{/js/aiSecretary/adAiDashboard.js}"></script>
 </body>
-<!-- end::Body -->
 </html>
