@@ -10,11 +10,16 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * 결재 서식(APP_FORM) Repository입니다.
- */
+ * @author : 송영은
+ * description : App_Form와 연결하는 Repository. Jpa와 QueryDSL 활용
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-04-29   송영은       최초 생성
+ **/
 @Repository
 public interface AppFormRepository extends JpaRepository<AppFormEntity, Integer> {
 
+    // @NonNull : 부모의 "null 안전 보장" 규칙을 자식이 이어받기
     @NonNull
     Page<AppFormEntity> findAll(@NonNull Pageable pageable);
 

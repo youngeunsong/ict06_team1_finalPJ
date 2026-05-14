@@ -12,7 +12,11 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * 결재선 서식(APP_LINE_TEMPLATE) Repository입니다.
+ * @author : 송영은$
+ * description : 결재선 서식(APP_LINE_TEMPLATE) Repository입니다.
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-05-06   송영은       최초 생성
  */
 @Repository
 public interface AppLineTemplateRepository extends JpaRepository<AppLineTemplateEntity, Integer> {
