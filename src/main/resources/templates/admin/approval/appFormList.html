@@ -67,6 +67,9 @@
                 <!-- 일괄 관리 버튼 그룹 시작 -->
                 <br>
                 <div class="d-flex gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="bulkLineTemplateBtn">
+                        결재선 일괄 설정
+                    </button>
                     <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
                         일괄 삭제
                     </button>
@@ -351,6 +354,29 @@
                 alert('삭제 실패');
             }
         });
+    });
+
+    $('#bulkLineTemplateBtn').on('click', function () {
+        const selectedForms = getSelectedForms();
+
+        if (selectedForms.length === 0) {
+            alert('결재선을 설정할 결재 서식을 선택해주세요.');
+            return;
+        }
+
+        currentFormId = null;
+        selectedTemplateId = null;
+        modalFormTargets = selectedForms;
+
+        loadLineTemplates();
+        renderSelectedFormList();
+
+        const modal =
+            new bootstrap.Modal(
+                document.getElementById('lineTemplateModal')
+            );
+
+        modal.show();
     });
 
     $('#searchBtn').on('click', function () {
@@ -643,6 +669,32 @@
             const templateId =
                 $('input[name="lineTemplate"]:checked')
                     .val();
+
+            const isBulkMode =
+                currentFormId === null
+                && modalFormTargets.length > 0;
+
+            if (isBulkMode) {
+                $.ajax({
+                    url: '/admin/approval/appForms/lineTemplate',
+                    type: 'PUT',
+                    contentType: 'application/json; charset=UTF-8',
+                    data: JSON.stringify({
+                        formIds: modalFormTargets.map(item => item.formId),
+                        templateId: templateId
+                    }),
+                    success: function(){
+                        alert('결재선 일괄 설정 저장 완료');
+                        $('#lineTemplateModal').modal('hide');
+                        selectedFormMap.clear();
+                        location.reload();
+                    },
+                    error: function(){
+                        alert('결재선 일괄 설정 실패');
+                    }
+                });
+                return;
+            }
 
             $.ajax({
                 url: `/admin/approval/appForms/${currentFormId}/lineTemplate`,

@@ -82,11 +82,11 @@ public class AdApprovalServiceImpl implements AdApprovalService {
         Pageable pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by("updatedAt").descending()
+                Sort.by("formId").descending() // 번호 순 정렬이 더 직관적인 것 같아 수정
         );
 
         List<AppFormListDto> filteredForms =
-                appFormRepository.findAll(Sort.by("updatedAt").descending())
+                appFormRepository.findAll(Sort.by("formId").descending()) // 번호 순 정렬이 더 직관적인 것 같아 수정
                         .stream()
                         .filter(form -> matchesAppFormKeyword(form, keyword))
                         .map(this::toAppFormListDto)
@@ -312,6 +312,36 @@ public class AdApprovalServiceImpl implements AdApprovalService {
                                 new IllegalArgumentException("결재선 서식 없음"));
 
         form.updateLineTemplate(template);
+    }
+
+    /**
+     * 여러 결재 서식에 같은 결재선 서식을 한 번에 적용합니다.
+     * templateId가 null이면 선택된 결재 서식들의 결재선 연결을 일괄 해제합니다.
+     */
+    @Transactional
+    @Override
+    public void applyLineTemplateToForms(List<Integer> formIds, Integer templateId) {
+        if (formIds == null || formIds.isEmpty()) {
+            throw new IllegalArgumentException("결재선 서식을 적용할 결재 서식을 선택해주세요.");
+        }
+
+        List<AppFormEntity> forms = appFormRepository.findAllById(formIds);
+
+        if (forms.size() != formIds.size()) {
+            throw new IllegalArgumentException("존재하지 않는 결재 서식이 포함되어 있습니다.");
+        }
+
+        AppLineTemplateEntity template = null;
+
+        if (templateId != null) {
+            template = appLineTemplateRepository.findById(templateId)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("결재선 서식 없음"));
+        }
+
+        for (AppFormEntity form : forms) {
+            form.updateLineTemplate(template);
+        }
     }
 
     @Override

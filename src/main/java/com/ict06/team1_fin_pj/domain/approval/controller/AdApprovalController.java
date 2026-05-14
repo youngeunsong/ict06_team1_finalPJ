@@ -139,6 +139,29 @@ public class AdApprovalController {
         return ResponseEntity.ok().build();
     }
 
+    // 여러 결재 서식에 같은 결재선 서식을 일괄 적용하거나 연결을 해제합니다.
+    @PutMapping("/appForms/lineTemplate")
+    @ResponseBody
+    public ResponseEntity<?> applyLineTemplateToForms(
+            @RequestBody Map<String, Object> body
+    ) {
+        System.out.println("[AdApprovalController] - applyLineTemplateToForms()");
+
+        List<Integer> formIds = ((List<?>) body.get("formIds"))
+                .stream()
+                .map(value -> Integer.valueOf(value.toString()))
+                .toList();
+
+        Object templateIdValue = body.get("templateId");
+        Integer templateId =
+                templateIdValue == null || templateIdValue.toString().isBlank()
+                        ? null
+                        : Integer.valueOf(templateIdValue.toString());
+
+        service.applyLineTemplateToForms(formIds, templateId);
+        return ResponseEntity.ok().build();
+    }
+
     // [전자 결재 서식 삭제] ----------------------------------------------------------------------------
     @DeleteMapping("/deleteAppForm/{formId}")
     @ResponseBody
