@@ -1,143 +1,113 @@
+/**
+ * @FileName : AdAiSecretaryController.java
+ * @Description : 사내 AI 포털 관리자 페이지 위한 관리자 컨트롤러
+ * @Author : 송혜진
+ * @Date : 2026. 05. 12
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자        수정내용
+ * @ ----------    ---------    -----------------------------------------------
+ * @ 2026.05.12    송혜진        최초 생성 및 AI 데이터 운영 대시보드 기본 구조 설계
+
+ */
+
+
 package com.ict06.team1_fin_pj.domain.aiSecretary.controller;
 
+import com.ict06.team1_fin_pj.common.dto.aiSecretary.AdAiDashboardResponseDto;
+import com.ict06.team1_fin_pj.domain.aiSecretary.service.AdAiSecretaryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
 @RequestMapping("/admin/AiSecretary")
 @Controller
+@RequiredArgsConstructor
 public class AdAiSecretaryController {
+
+    private final AdAiSecretaryService adAiSecretaryService;
 
     // 관리자 AI 데이터 운영 대시보드
     @GetMapping("/dashboard")
     public String aiDashboard(
-            @RequestParam(defaultValue = "today") String period,
+            @RequestParam(defaultValue = "7") int period,
+            @RequestParam(defaultValue = "") String startDate,
+            @RequestParam(defaultValue = "") String endDate,
+            @RequestParam(defaultValue = "") String department,
+            @RequestParam(defaultValue = "") String aiType,
+            @RequestParam(defaultValue = "") String result,
+            @RequestParam(defaultValue = "1") int page,
             Model model
     ) {
-        /*
-         * [기간 필터]
-         *
-         * today : 전일 대비
-         * week  : 전주 대비
-         * month : 전달 대비
-         */
-        String compareLabel = switch (period) {
-            case "week" -> "전주 대비";
-            case "month" -> "전달 대비";
-            default -> "전일 대비";
-        };
+        AdAiDashboardResponseDto dashboard = adAiSecretaryService.getDashboardData(
+                period,
+                startDate,
+                endDate,
+                department,
+                aiType,
+                result,
+                page
+        );
 
         model.addAttribute("selectedPeriod", period);
+        model.addAttribute("selectedStartDate", startDate);
+        model.addAttribute("selectedEndDate", endDate);
+        model.addAttribute("selectedDepartment", department);
+        model.addAttribute("selectedAiType", aiType);
+        model.addAttribute("selectedResult", result);
+        model.addAttribute("currentPage", dashboard.getCurrentPage());
+        model.addAttribute("totalPages", dashboard.getTotalPages());
+        model.addAttribute("totalLogCount", dashboard.getTotalLogCount());
+        model.addAttribute("hasPrevious", dashboard.isHasPrevious());
+        model.addAttribute("hasNext", dashboard.isHasNext());
+        model.addAttribute("documentStatusTitle", dashboard.getDocumentStatusTitle());
 
-        /*
-         * [최상단 KPI 카드]
-         */
-        model.addAttribute("summaryCards", List.of(
-                Map.of(
-                        "label", "챗봇 질문 수",
-                        "value", "128",
-                        "unit", "건",
-                        "changeRate", "+12%",
-                        "compareText", compareLabel + " 증가",
-                        "trend", "up"
-                ),
-                Map.of(
-                        "label", "AI 비서 사용량",
-                        "value", "42",
-                        "unit", "건",
-                        "changeRate", "+8%",
-                        "compareText", compareLabel + " 증가",
-                        "trend", "up"
-                ),
-                Map.of(
-                        "label", "평균 응답 속도",
-                        "value", "1.8",
-                        "unit", "초",
-                        "changeRate", "-5%",
-                        "compareText", compareLabel + " 감소",
-                        "trend", "down"
-                ),
-                Map.of(
-                        "label", "실패율",
-                        "value", "2.1",
-                        "unit", "%",
-                        "changeRate", "+0.3%",
-                        "compareText", compareLabel + " 증가",
-                        "trend", "up"
-                )
-        ));
-
-        /*
-         * [최근 AI 이용 로그 더미 데이터]
-         *
-         * 사용자 / 부처 / AI 기능 / 수행 작업 / 처리 결과 / 사용 시각 기준
-         *
-         * 추후 실제 연동 시:
-         * - AI_LOG
-         * - EMPLOYEE
-         * - DEPARTMENT
-         * 조인 또는 DTO 가공으로 구성한다.
-         */
-        model.addAttribute("recentLogs", List.of(
-                Map.of(
-                        "user", "송혜진",
-                        "department", "개발팀",
-                        "type", "AI 비서",
-                        "action", "보고서 초안 생성",
-                        "result", "SUCCESS",
-                        "resultLabel", "성공",
-                        "createdAt", "2026-05-11 14:20"
-                ),
-                Map.of(
-                        "user", "김민수",
-                        "department", "인사팀",
-                        "type", "챗봇",
-                        "action", "연차 신청 절차 질문",
-                        "result", "SUCCESS",
-                        "resultLabel", "성공",
-                        "createdAt", "2026-05-11 14:12"
-                ),
-                Map.of(
-                        "user", "박지은",
-                        "department", "총무팀",
-                        "type", "문장 다듬기",
-                        "action", "메일 문구 교정",
-                        "result", "FALLBACK",
-                        "resultLabel", "대체 응답",
-                        "createdAt", "2026-05-11 13:58"
-                ),
-                Map.of(
-                        "user", "이도윤",
-                        "department", "교육팀",
-                        "type", "템플릿 생성",
-                        "action", "회의록 템플릿 생성",
-                        "result", "FAIL",
-                        "resultLabel", "실패",
-                        "createdAt", "2026-05-11 13:34"
-                )
-        ));
-
-        /*
-         * [최근 로그 필터 기본값]
-         *
-         * 현재는 화면 골격용.
-         * 추후 request parameter로 department / aiType / result / logPeriod를 받아서
-         * Service 조회 조건으로 넘긴다.
-         */
-        model.addAttribute("selectedDepartment", "");
-        model.addAttribute("selectedAiType", "");
-        model.addAttribute("selectedResult", "");
-        model.addAttribute("selectedLogPeriod", "today");
+        model.addAttribute("summaryCards", dashboard.getSummaryCards());
+        model.addAttribute("featureUsageList", dashboard.getFeatureUsageList());
+        model.addAttribute("usageTrendList", dashboard.getUsageTrendList());
+        model.addAttribute("recentLogList", dashboard.getRecentLogList());
+        model.addAttribute("documentStatusList", dashboard.getDocumentStatusList());
+        String activeDateFilterLabel = buildDateFilterLabel(period, startDate, endDate);
+        String dateFilterResetUrl = buildDateFilterResetUrl(period, department, aiType, result);
+        model.addAttribute("activeDateFilterLabel", activeDateFilterLabel);
+        model.addAttribute("dateFilterResetUrl", dateFilterResetUrl);
 
         return "admin/aiSecretary/adAiDashboard";
     }
 
-    // 관리자 지식 베이스 및 RAG 관리
+    @GetMapping("/dashboard/download/csv")
+    public ResponseEntity<byte[]> downloadDashboardCsv(
+            @RequestParam(defaultValue = "7") int period,
+            @RequestParam(defaultValue = "") String startDate,
+            @RequestParam(defaultValue = "") String endDate,
+            @RequestParam(defaultValue = "") String department,
+            @RequestParam(defaultValue = "") String aiType,
+            @RequestParam(defaultValue = "") String result
+    ) {
+        byte[] csvBytes = adAiSecretaryService.downloadRecentLogCsv(period, startDate, endDate, department, aiType, result);
+        String fileName = "ai_dashboard_logs_" + LocalDate.now(ZoneId.of("Asia/Seoul")) + ".csv";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv;charset=UTF-8"));
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(csvBytes == null ? new byte[0] : csvBytes);
+    }
+
     @GetMapping("/rag")
     public String aiRagManage(
             /*
@@ -772,9 +742,39 @@ public class AdAiSecretaryController {
                 )
         ));
 
-
-
-
         return "admin/aiSecretary/adAiSecurity";
     }
+
+    private String buildDateFilterLabel(int period, String startDate, String endDate) {
+        if (hasText(startDate) && hasText(endDate)) {
+            return "Period: " + startDate + " ~ " + endDate;
+        }
+
+        if (period == 30) {
+            return "Period: Recent 30 days";
+        }
+
+        return "Period: Recent 7 days";
+    }
+
+    private String buildDateFilterResetUrl(
+            int period,
+            String department,
+            String aiType,
+            String result
+    ) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/admin/AiSecretary/dashboard")
+                .queryParam("period", 7)
+                .queryParam("department", department)
+                .queryParam("aiType", aiType)
+                .queryParam("result", result)
+                .queryParam("page", 1);
+
+        return builder.build().encode().toUriString();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 }
+
