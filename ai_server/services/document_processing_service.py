@@ -14,12 +14,14 @@ import hashlib
 import html
 import json
 import math
+import os
 import re
 from io import BytesIO
 from urllib.parse import parse_qs, urlparse
 
 import pdfplumber
 import requests
+from groq import Groq
 from pypdf import PdfReader
 
 from services.ollama_client import summarize_document
@@ -27,6 +29,8 @@ from schemas.document_schema import (
     DocumentChunkResponse,
     DocumentProcessRequest,
     DocumentProcessResponse,
+    DocumentQuestionRequest,
+    DocumentQuestionResponse,
 )
 
 MAX_CHUNK_CHARS = 900
@@ -57,7 +61,7 @@ def process_document(req: DocumentProcessRequest) -> DocumentProcessResponse:
     if not chunks:
         raise ValueError("청크를 생성할 수 없습니다.")
 
-    preview_text = build_preview_text(cleaned_text)
+    preview_text = build_preview_text(req.title, cleaned_text)
     response_chunks: list[DocumentChunkResponse] = []
     for index, chunk_text in enumerate(chunks, start=1):
         token_count = estimate_token_count(chunk_text)
@@ -82,6 +86,109 @@ def process_document(req: DocumentProcessRequest) -> DocumentProcessResponse:
         vectorCount=len(response_chunks),
         chunks=response_chunks,
     )
+
+
+def answer_document_question(req: DocumentQuestionRequest) -> DocumentQuestionResponse:
+    question = (req.question or "").strip()
+    if not question:
+        raise ValueError("질문 내용을 입력해 주세요.")
+
+    context_chunks = [chunk.strip() for chunk in req.chunks if chunk and chunk.strip()]
+    if not context_chunks and not (req.summaryPreview or "").strip():
+        raise ValueError("문서 요약 또는 청크가 없어 답변을 생성할 수 없습니다.")
+
+    context_text = "\n\n".join(
+        f"[참고 청크 {index}]\n{chunk[:1200]}"
+        for index, chunk in enumerate(context_chunks[:5], start=1)
+    )
+    summary_text = (req.summaryPreview or "").strip()
+
+    answer = generate_document_answer(req.title, question, summary_text, context_text)
+    return DocumentQuestionResponse(
+        answer=answer,
+        usedChunkCount=min(len(context_chunks), 5),
+    )
+
+
+def generate_document_answer(title: str, question: str, summary_text: str, context_text: str) -> str:
+    prompt = f"""
+당신은 사내 온보딩 문서를 설명하는 도우미입니다.
+아래 문서 요약과 참고 청크만 근거로 답변하세요.
+문서에 없는 내용은 추측하지 말고, 부족하면 부족하다고 말하세요.
+답변은 한국어 3~5문장으로 간결하게 작성하세요.
+
+[문서 제목]
+{title}
+
+[문서 요약]
+{summary_text or "없음"}
+
+[참고 청크]
+{context_text or "없음"}
+
+[질문]
+{question}
+"""
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "당신은 온보딩 문서 질의응답 도우미입니다. 반드시 문서 근거 중심으로만 답변하세요.",
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperature=0.2,
+        )
+
+        answer = (response.choices[0].message.content or "").strip()
+        if answer:
+            return answer
+    except Exception:
+        pass
+
+    return build_document_answer_fallback(title, question, summary_text, context_text)
+
+
+def build_document_answer_fallback(title: str, question: str, summary_text: str, context_text: str) -> str:
+    summary = summary_text.strip() if summary_text else ""
+    sentences = split_summary_sentences(context_text)
+    relevant_sentences = select_relevant_sentences(question, sentences)
+
+    parts: list[str] = []
+    if summary:
+        parts.append(f"{title} 문서는 {summary}")
+
+    if relevant_sentences:
+        parts.append("관련 내용으로는 " + " ".join(relevant_sentences[:2]))
+
+    if not parts:
+        return "현재 문서에서 질문과 직접 연결되는 내용을 충분히 찾지 못했습니다. 문서를 다시 재처리하거나 질문을 더 구체적으로 입력해 주세요."
+
+    parts.append("필요하면 질문을 더 구체적으로 입력하면 관련 부분을 다시 찾아드릴 수 있습니다.")
+    return " ".join(parts)
+
+
+def select_relevant_sentences(question: str, sentences: list[str]) -> list[str]:
+    question_terms = extract_summary_tokens(question)
+    if not question_terms:
+        return sentences[:2]
+
+    scored = []
+    for sentence in sentences:
+        normalized = sentence.lower()
+        score = sum(1 for term in question_terms if term in normalized)
+        if score > 0:
+            scored.append((score, sentence))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [sentence for _, sentence in scored[:3]]
 
 
 def extract_text(file_path: str) -> tuple[str, str]:
@@ -283,13 +390,19 @@ def extract_section_title(text: str) -> str | None:
     return first_line[:120] if first_line else None
 
 
-def build_preview_text(text: str) -> str:
+def build_preview_text(title: str, text: str) -> str:
     try:
-        summary = summarize_document(text)
+        summary = summarize_document(title, text)
         if summary:
-            return summary
+            normalized_summary = normalize_summary_text(summary)
+            if normalized_summary and not looks_like_leading_copy(normalized_summary, text):
+                return normalized_summary
     except Exception:
         pass
+
+    extracted_summary = build_extractive_summary(title, text)
+    if extracted_summary:
+        return extracted_summary
 
     return text[:300]
 
@@ -300,6 +413,122 @@ def build_section_title(document_title: str, chunk_no: int, text: str) -> str | 
         return extracted_title[:120]
 
     return f"{document_title} - Chunk {chunk_no}"
+
+
+def build_extractive_summary(title: str, text: str) -> str | None:
+    sentences = split_summary_sentences(text)
+    if not sentences:
+        return None
+
+    title_tokens = set(extract_summary_tokens(title))
+    text_tokens = extract_summary_tokens(text[:4000])
+    token_weights: dict[str, int] = {}
+    for token in text_tokens:
+        token_weights[token] = token_weights.get(token, 0) + 1
+
+    scored_sentences: list[tuple[float, int, str]] = []
+    for index, sentence in enumerate(sentences[:20]):
+        score = score_summary_sentence(sentence, title_tokens, token_weights)
+        if score > 0:
+            scored_sentences.append((score, index, sentence))
+
+    if not scored_sentences:
+        return None
+
+    selected = sorted(
+        sorted(scored_sentences, key=lambda item: item[0], reverse=True)[:2],
+        key=lambda item: item[1],
+    )
+    sentences = [sentence for _, _, sentence in selected]
+    if not sentences:
+        return None
+
+    if len(sentences) == 1:
+        summary = f"{title} 문서는 {trim_summary_clause(sentences[0])}"
+        return normalize_summary_text(summary)
+
+    summary = (
+        f"{title} 문서는 {trim_summary_clause(sentences[0])} "
+        f"{trim_summary_clause(sentences[1])}"
+    )
+    return normalize_summary_text(summary)
+
+
+def split_summary_sentences(text: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", text)
+    parts = re.split(r"(?<=[.!?。다요])\s+", normalized)
+    results: list[str] = []
+    for part in parts:
+        sentence = part.strip()
+        if len(sentence) < 20:
+            continue
+        if is_navigation_like_sentence(sentence):
+            continue
+        results.append(sentence[:180])
+    return results
+
+
+def extract_summary_tokens(text: str) -> list[str]:
+    tokens = re.findall(r"[A-Za-z가-힣0-9]{2,}", text.lower())
+    stopwords = {
+        "the", "and", "for", "with", "that", "this", "from", "into", "http", "https",
+        "docs", "main", "menu", "skip", "content", "home", "guide", "page",
+        "문서", "내용", "관련", "대한", "위한", "에서", "으로", "하는", "하기", "있습니다",
+    }
+    return [token for token in tokens if token not in stopwords]
+
+
+def score_summary_sentence(sentence: str, title_tokens: set[str], token_weights: dict[str, int]) -> float:
+    sentence_tokens = extract_summary_tokens(sentence)
+    if not sentence_tokens:
+        return 0.0
+
+    unique_tokens = set(sentence_tokens)
+    title_bonus = sum(3 for token in unique_tokens if token in title_tokens)
+    frequency_score = sum(min(token_weights.get(token, 0), 4) for token in unique_tokens)
+    length_penalty = 0.0 if len(sentence) <= 150 else 1.5
+    return float(title_bonus + frequency_score - length_penalty)
+
+
+def normalize_summary_text(text: str) -> str:
+    summary = re.sub(r"\s+", " ", text).strip()
+    summary = re.sub(r"^(skip to .*? )", "", summary, flags=re.IGNORECASE)
+    summary = re.sub(r"(skip to .*?$)", "", summary, flags=re.IGNORECASE)
+    return summary[:240].strip()
+
+
+def trim_summary_clause(sentence: str) -> str:
+    trimmed = sentence.strip()
+    trimmed = re.sub(r"^(이 문서는|본 문서는|문서는)\s*", "", trimmed)
+    trimmed = re.sub(r"\s+", " ", trimmed)
+    return trimmed[:120].rstrip(" ,")
+
+
+def looks_like_leading_copy(summary: str, text: str) -> bool:
+    original = re.sub(r"\s+", " ", text).strip()
+    if not original:
+        return False
+
+    leading = original[:400]
+    if summary in leading:
+        return True
+
+    summary_tokens = extract_summary_tokens(summary)
+    leading_tokens = extract_summary_tokens(leading)
+    if not summary_tokens or not leading_tokens:
+        return False
+
+    overlap = sum(1 for token in summary_tokens if token in leading_tokens)
+    return overlap / max(1, len(summary_tokens)) > 0.85
+
+
+def is_navigation_like_sentence(sentence: str) -> bool:
+    lowered = sentence.lower()
+    markers = [
+        "skip to main", "skip to search", "main content", "breadcrumb",
+        "navigation", "menu", "sign in", "log in", "home /", "search",
+    ]
+    return any(marker in lowered for marker in markers)
 
 
 def is_readable_title(text: str) -> bool:

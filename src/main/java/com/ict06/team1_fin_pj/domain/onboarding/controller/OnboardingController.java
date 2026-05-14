@@ -13,9 +13,12 @@
 
 package com.ict06.team1_fin_pj.domain.onboarding.controller;
 
+import com.ict06.team1_fin_pj.common.dto.onboarding.OnContentDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.onboarding.OnboardingDashboardResponse;
+import com.ict06.team1_fin_pj.domain.onboarding.repository.OnContentRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.service.OnboardingDashboardServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class OnboardingController {
 
     private final OnboardingDashboardServiceImpl dashboardService;
+    private final OnContentRepository onContentRepository;
 
     /**
      * @MethodName : getDashboard
@@ -36,5 +40,33 @@ public class OnboardingController {
     @GetMapping("/{empNo}")
     public OnboardingDashboardResponse getDashboard(@PathVariable String empNo) {
         return dashboardService.getDashboard(empNo);
+    }
+
+    /**
+     * @MethodName : getContentDetail
+     * @Description : 학습 상세 화면용 콘텐츠 정보 조회
+     *
+     * @param contentId 콘텐츠 식별자
+     * @return 콘텐츠 상세 응답 DTO
+     */
+    @GetMapping("/content/{contentId}")
+    public ResponseEntity<?> getContentDetail(@PathVariable Integer contentId) {
+        return onContentRepository.findById(contentId)
+                .<ResponseEntity<?>>map(content -> ResponseEntity.ok(
+                        OnContentDetailResponseDto.builder()
+                                .contentId(content.getContentId())
+                                .title(content.getTitle())
+                                .type(content.getType() != null ? content.getType().name() : null)
+                                .category(content.getCategory())
+                                .subCategory(content.getSubCategory())
+                                .targetPosition(content.getTargetPosition())
+                                .difficulty(content.getDifficulty() != null ? content.getDifficulty().name() : null)
+                                .estimatedTime(content.getEstimatedTime())
+                                .tags(content.getTags())
+                                .isMandatory(content.getIsMandatory())
+                                .path(content.getPath())
+                                .build()
+                ))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

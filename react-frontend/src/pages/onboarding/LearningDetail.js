@@ -145,8 +145,7 @@ const LearningDetail = () => {
         setLoading(true);
         setError(null);
 
-        const url = `${PATH.AI_API.BASE}${PATH.AI_API.CONTENT_DETAIL(contentId)}`;
-        const response = await axios.get(url);
+        const response = await axiosInstance.get(PATH.API.ONBOARDING.CONTENT_DETAIL(contentId));
 
         if (!response.data || response.data.error) {
           setContent(null);

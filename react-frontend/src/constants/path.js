@@ -126,6 +126,7 @@ export const PATH = {
     ONBOARDING: {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
       DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
+      CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
