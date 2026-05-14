@@ -128,6 +128,7 @@ export const PATH = {
       FORM_DETAIL: (formId) => `/approval/forms/${formId}`,
       LINE_TEMPLATE_DETAIL: (templateId) => `/approval/line-templates/${templateId}`,
       EMPLOYEES: '/approval/employees',
+      EMPLOYEE_SIGN: (empNo) => `/approval/employees/${empNo}/sign`,
       DRAFTS: '/approval/drafts',
       SUBMIT: '/approval/submit',
     },

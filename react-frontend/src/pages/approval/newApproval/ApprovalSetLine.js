@@ -25,6 +25,21 @@ import { containerStyle } from 'src/styles/js/demoPageStyle';
 
 const CANDIDATE_PAGE_SIZE = 5;
 
+const EMPLOYEE_SIGN_MISSING_MESSAGE =
+  '해당 결재자의 인감 이미지가 아직 등록되지 않았습니다. 추후 관리자에게 등록을 요청해주세요.';
+
+const buildResourceUrl = (path) => {
+  if (!path) {
+    return '';
+  }
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  return `${PATH.API.BASE.replace(/\/api$/, '')}${path}`;
+};
+
 const createRequestPart = (payload, files) => {
   if (!files || files.length === 0) {
     return { body: payload };
@@ -208,6 +223,29 @@ const EmployeeCandidatePicker = ({
           )}
         </div>
 
+        {stepOrder > 0 && selectedEmployees.some((employee) => employee.signImg) && (
+          <div className="d-flex flex-wrap gap-3 mb-3">
+            {selectedEmployees
+              .filter((employee) => employee.signImg)
+              .map((employee) => (
+                <div
+                  className="border rounded bg-light p-2 text-center"
+                  style={{ width: '120px' }}
+                  key={`${employee.empNo}-sign`}
+                >
+                  <img
+                    src={buildResourceUrl(employee.signImg)}
+                    alt={`${employee.name} 인감`}
+                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                  />
+                  <div className="small text-truncate mt-1" title={employee.name}>
+                    {employee.name}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="py-4 text-center">
             <CSpinner size="sm" className="me-2" />
@@ -365,7 +403,36 @@ const ApprovalSetLine = () => {
   }), [approvalLines, location.state?.content, location.state?.documentTitle, selectedForm?.formId, selectedForm?.formName]);
 
   const toggleSelection = (groupKey, employee) => {
-    setSelectedMap((prev) => toggleEmployee(prev, groupKey, employee));
+    const selectedEmployees = getSelectedEmployees(selectedMap, groupKey);
+    const alreadySelected = selectedEmployees.some((item) => item.empNo === employee.empNo);
+
+    if (alreadySelected || !groupKey.startsWith('approval-')) {
+      setSelectedMap((prev) => toggleEmployee(prev, groupKey, employee));
+      return;
+    }
+
+    /*
+     * 실제 결재자를 새로 선택할 때 인감 이미지 경로를 함께 조회합니다.
+     * 이 경로는 현재 화면의 미리보기뿐 아니라 향후 PDF 출력에서 결재자 도장 이미지를 구성하는 기준 데이터가 됩니다.
+     */
+    axiosInstance.get(PATH.API.APPROVAL.EMPLOYEE_SIGN(employee.empNo))
+      .then((response) => {
+        const employeeWithSign = {
+          ...employee,
+          signImg: response.data?.signImg || '',
+        };
+
+        if (!employeeWithSign.signImg) {
+          alert(EMPLOYEE_SIGN_MISSING_MESSAGE);
+        }
+
+        setSelectedMap((prev) => toggleEmployee(prev, groupKey, employeeWithSign));
+      })
+      .catch((error) => {
+        console.error('결재자 인감 이미지 조회 실패:', error);
+        alert('결재자 인감 이미지 정보를 확인하지 못했습니다.');
+        setSelectedMap((prev) => toggleEmployee(prev, groupKey, employee));
+      });
   };
 
   const validateLines = (forSubmit) => {

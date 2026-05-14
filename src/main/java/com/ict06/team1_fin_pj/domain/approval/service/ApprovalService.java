@@ -5,6 +5,7 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalEmployeeSignResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
 import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import org.springframework.data.domain.Page;
@@ -42,6 +43,14 @@ public interface ApprovalService {
      * 직원 작성 화면에서는 관리자 URL을 직접 호출하지 않고 이 API를 통해 기본 결재선 미리보기만 사용합니다.
      */
     AppLineFormDetailDto getLineTemplateDetail(Integer templateId, PrincipalDetails principal);
+
+    /**
+     * 결재자로 선택한 사원의 인감 이미지 경로를 조회합니다.
+     *
+     * 결재선 설정 화면에서는 이 응답으로 인감 미리보기를 보여주고,
+     * signImg가 비어 있으면 사용자에게 관리자 등록 요청 안내를 띄웁니다.
+     */
+    ApprovalEmployeeSignResponseDto getEmployeeSign(String empNo, PrincipalDetails principal);
 
     /**
      * 새 결재 문서를 임시저장합니다.

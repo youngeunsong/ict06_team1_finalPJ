@@ -5,6 +5,7 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalCreateResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalDetailResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalEmployeeSignResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeListDto;
 import com.ict06.team1_fin_pj.common.dto.employee.EmployeeSearchConditionDto;
@@ -103,6 +104,21 @@ public class ApprovalApiController {
         }
 
         return adEmployeeService.findEmployees(conditionDto, pageable);
+    }
+
+    /**
+     * 결재자 인감 이미지 조회 API
+     *
+     * - React 결재선 설정 화면에서 결재 대상자를 선택하는 순간 호출합니다.
+     * - 응답의 signImg가 비어 있으면 화면에서 관리자 등록 요청 alert를 띄웁니다.
+     * - 향후 PDF 출력 시에도 같은 signImg 경로를 결재자 인감 이미지로 사용할 수 있습니다.
+     */
+    @GetMapping("/employees/{empNo}/sign")
+    public ApprovalEmployeeSignResponseDto getApprovalEmployeeSign(
+            @PathVariable String empNo,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        return approvalService.getEmployeeSign(empNo, principal);
     }
 
     /**

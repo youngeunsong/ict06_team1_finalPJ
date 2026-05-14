@@ -8,6 +8,7 @@ import com.ict06.team1_fin_pj.common.dto.approval.ApprovalFormResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineRequestDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalLineResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.ApprovalListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.approval.ApprovalEmployeeSignResponseDto;
 import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
 import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormStepDto;
 import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormTargetDto;
@@ -144,6 +145,31 @@ public class ApprovalServiceImpl implements ApprovalService {
                 .templateName(template.getTemplateName())
                 .isDefault(template.getIsDefault())
                 .steps(steps)
+                .build();
+    }
+
+    /**
+     * 결재자로 선택한 사원의 인감 이미지 경로를 조회합니다.
+     *
+     * APP_LINE에는 결재자 사번만 저장하지만, 작성 화면의 인감 미리보기와 향후 PDF 출력에서는
+     * EMPLOYEE.sign_img 경로가 필요하므로 전자결재 전용 읽기 API로 제공합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalEmployeeSignResponseDto getEmployeeSign(String empNo, PrincipalDetails principal) {
+        validatePrincipal(principal);
+
+        if (empNo == null || empNo.isBlank()) {
+            throw new IllegalArgumentException("사원 번호가 필요합니다.");
+        }
+
+        EmpEntity employee = employeeRepository.findByEmpNo(empNo)
+                .orElseThrow(() -> new IllegalArgumentException("사원 정보를 찾을 수 없습니다."));
+
+        return ApprovalEmployeeSignResponseDto.builder()
+                .empNo(employee.getEmpNo())
+                .name(employee.getName())
+                .signImg(employee.getSignImg())
                 .build();
     }
 
