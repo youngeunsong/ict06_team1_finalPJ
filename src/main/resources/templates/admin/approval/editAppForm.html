@@ -116,7 +116,7 @@
                             <div class="d-flex justify-content-end gap-2">
                                 <a th:href="@{/admin/approval/viewAppForm/{id}(id=${form.formId})}" class="btn btn-secondary">돌아가기</a>
                                 <button type="submit" id="" class="btn btn-primary">수정 완료</button>
-                                <button type="button" class="btn btn-danger btn-sm" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
+                                <button type="button" class="btn btn-danger btn-sm" th:unless="${form.isDefault}" th:onclick="|deleteAppForm(${form.formId})|">삭제</button> <!-- 타임리프에서 js 함수 쓰는 방법 -->
                             </div>
                             <!-- 목록, 수정, 삭제 버튼 바 끝 -->
                         </form>
@@ -159,7 +159,7 @@
 
         // 3. 필드 복원
         template.fields.forEach(field => {
-            addField(field.type, field.label, field.placeholder);
+            addField(field.type, field.label, field.placeholder, field.description);
         });
 
         // 4. 파일 여부
@@ -187,13 +187,17 @@
             const type = field.data('type');          // data-type
             const label = field.find('.field-label').val();
             const input = field.find('.field-placeholder');
-            const placeholder = input.attr('placeholder') || '';
+            const placeholder = type === 'amount'
+                ? unformatKrwAmount(input.val())
+                : input.attr('placeholder') || '';
+            const description = field.find('.field-description').val();
 
             formData.fields.push({
                 id: id,
                 type: type,
                 label: label,
-                placeholder: placeholder
+                placeholder: placeholder,
+                description: description
             });
         });
 

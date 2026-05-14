@@ -1,0 +1,38 @@
+/**
+ * COREWORK Admin - Onboarding Style (Thymeleaf 전용)
+ */
+
+:root {
+    --core-primary: #321fdb;
+    --core-dark: #3c4b64;
+    --core-gray: #f8f9fa;
+}
+
+.card-core {
+    border: none !important;
+    border-top: 4px solid var(--core-primary) !important;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+    border-radius: 0.5rem !important;
+}
+
+.badge.badge-ai-tag {
+    background-color: #f8f9fa !important;
+    color: #321fdb !important;
+    --bs-badge-color: #321fdb !important;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    vertical-align: middle;
+    border: 1px solid #ced4da !important;
+    display: inline-block;
+    line-height: 1.2;
+}
+
+.user-welcome-section {
+    background: linear-gradient(90deg, #321fdb 0%, #1f2a56 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+}

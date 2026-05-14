@@ -2,7 +2,6 @@ package com.ict06.team1_fin_pj.domain.aiSecretary.entity;
 
 import com.ict06.team1_fin_pj.common.dto.BaseTimeEntity;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
-
 import com.ict06.team1_fin_pj.domain.onboarding.entity.DocumentEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
