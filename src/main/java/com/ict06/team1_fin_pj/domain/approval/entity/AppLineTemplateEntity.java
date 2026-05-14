@@ -51,7 +51,7 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
 
     /**
      * 결재선 서식에 상세 결재 조건을 추가합니다.
-     * 양방향 연관관계를 한 곳에서 관리해 템플릿과 상세 항목의 연결이 어긋나지 않게 합니다.
+     * 양방향 연관관계를 한 곳에서 맞춰 템플릿과 상세 항목의 연결이 어긋나지 않게 합니다.
      */
     public void addDetail(AppLineTemplateDetailEntity detail) {
         this.details.add(detail);
@@ -59,7 +59,7 @@ public class AppLineTemplateEntity extends BaseTimeEntity {
     }
 
     /**
-     * 결재선 서식의 이름과 기본 서식 여부를 수정합니다.
+     * 결재선 서식의 이름과 기본 결재선 여부를 수정합니다.
      */
     public void updateNameIsDefault(String templateName, Boolean isDefault) {
         this.templateName = templateName;
