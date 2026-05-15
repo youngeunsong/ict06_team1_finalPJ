@@ -79,6 +79,12 @@ const getGroupKey = (kind, stepOrder) => `${kind}-${stepOrder}`;
 
 const getSelectedEmployees = (selectedMap, groupKey) => selectedMap[groupKey] || [];
 
+const hasSelectedEmployeeInGroupKind = (selectedMap, groupKind, empNo) =>
+  Object.entries(selectedMap).some(([key, employees]) =>
+    key.startsWith(`${groupKind}-`)
+    && employees.some((employee) => employee.empNo === empNo)
+  );
+
 const toggleEmployee = (selectedMap, groupKey, employee) => {
   const selectedEmployees = getSelectedEmployees(selectedMap, groupKey);
   const exists = selectedEmployees.some((item) => item.empNo === employee.empNo);
@@ -405,8 +411,29 @@ const ApprovalSetLine = () => {
   const toggleSelection = (groupKey, employee) => {
     const selectedEmployees = getSelectedEmployees(selectedMap, groupKey);
     const alreadySelected = selectedEmployees.some((item) => item.empNo === employee.empNo);
+    const isApprovalGroup = groupKey.startsWith('approval-');
+    const isReferenceGroup = groupKey.startsWith('reference-');
 
-    if (alreadySelected || !groupKey.startsWith('approval-')) {
+    if (alreadySelected) {
+      setSelectedMap((prev) => toggleEmployee(prev, groupKey, employee));
+      return;
+    }
+
+    /*
+     * 같은 사람이 결재자이면서 참조자가 되면 권한 의미가 섞입니다.
+     * 결재자는 처리 책임이 있고 참조자는 열람 권한만 있으므로, 상신 전 화면에서 중복 지정을 차단합니다.
+     */
+    if (isApprovalGroup && hasSelectedEmployeeInGroupKind(selectedMap, 'reference', employee.empNo)) {
+      alert('참조 대상으로 선택된 직원은 결재자로 중복 지정할 수 없습니다.');
+      return;
+    }
+
+    if (isReferenceGroup && hasSelectedEmployeeInGroupKind(selectedMap, 'approval', employee.empNo)) {
+      alert('결재자로 선택된 직원은 참조 대상으로 중복 지정할 수 없습니다.');
+      return;
+    }
+
+    if (!isApprovalGroup) {
       setSelectedMap((prev) => toggleEmployee(prev, groupKey, employee));
       return;
     }

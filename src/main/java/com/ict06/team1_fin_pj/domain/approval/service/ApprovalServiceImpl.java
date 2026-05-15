@@ -419,8 +419,8 @@ public class ApprovalServiceImpl implements ApprovalService {
     /**
      * 작성자가 상신한 결재 문서를 취소 처리합니다.
      *
-     * 결재자가 이미 승인 또는 반려한 문서는 결재 이력이 생긴 상태이므로 취소할 수 없습니다.
-     * 아직 모든 결재선이 WAITING 상태인 진행중 문서만 CANCELED 상태로 전환합니다.
+     * 결재가 모두 완료되기 전이라면 작성자가 직접 상신 취소할 수 있습니다.
+     * 이미 처리된 결재선 이력은 그대로 남겨 두고, 문서 전체 상태만 CANCELED로 전환합니다.
      */
     @Override
     @Transactional
@@ -559,7 +559,10 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
-     * 상신 취소가 가능한 문서를 조회하고 작성자 권한과 결재 진행 여부를 검증합니다.
+     * 상신 취소가 가능한 문서를 조회하고 작성자 권한과 문서 진행 상태를 검증합니다.
+     *
+     * COMPLETED/REJECTED/CANCELED처럼 결재 흐름이 이미 종료된 문서는 취소할 수 없고,
+     * IN_PROGRESS 상태의 문서만 작성자가 취소할 수 있게 제한합니다.
      */
     private ApprovalEntity getCancelableApproval(Integer approvalId, PrincipalDetails principal) {
         validatePrincipal(principal);
@@ -580,14 +583,6 @@ public class ApprovalServiceImpl implements ApprovalService {
 
         if (approval.getStatus() != ApprovalStatus.IN_PROGRESS) {
             throw new IllegalArgumentException("진행 중인 결재 문서만 상신 취소할 수 있습니다.");
-        }
-
-        boolean hasProcessedLine = approval.getLines().stream()
-                .anyMatch(line -> line.getStatus() == ApprovalLineStatus.APPROVED
-                        || line.getStatus() == ApprovalLineStatus.REJECTED);
-
-        if (hasProcessedLine) {
-            throw new IllegalArgumentException("이미 결재자가 처리한 문서는 상신 취소할 수 없습니다.");
         }
 
         return approval;

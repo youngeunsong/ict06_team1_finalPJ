@@ -43,6 +43,7 @@ export const PATH = {
     TMP: "/approval/tmpApprovals",                          // 임시저장함 페이지
     PERSONAL: "/approval/personalApprovals",                // 개인 문서함 페이지
     PERSONAL_DETAIL: "/approval/personalApprovals/detail",  // 개인 문서 상세 페이지
+    PERSONAL_DETAIL_WITH_ID: (approvalId) => `/approval/personalApprovals/detail?approvalId=${approvalId}`,
     PENDING: "/approval/pendingApprovals",                  // 결재 대기 문서함 페이지
     PENDING_DETAIL: "/approval/pendingApprovals/detail",    // 결재 대기 문서 상세 페이지
     UPCOMING: "/approval/upcomingApprovals",                // 결재 예정 문서함 페이지
@@ -129,6 +130,10 @@ export const PATH = {
       LINE_TEMPLATE_DETAIL: (templateId) => `/approval/line-templates/${templateId}`,
       EMPLOYEES: '/approval/employees',
       EMPLOYEE_SIGN: (empNo) => `/approval/employees/${empNo}/sign`,
+      MY_DOCUMENTS: '/approval/my-documents',
+      REFERENCED_DOCUMENTS: '/approval/referenced-documents',
+      DETAIL: (approvalId) => `/approval/${approvalId}`,
+      CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
       DRAFTS: '/approval/drafts',
       SUBMIT: '/approval/submit',
     },
