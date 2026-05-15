@@ -102,6 +102,21 @@ const formatFieldValue = (field) => {
 
 const isImagePath = (path) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(path || '');
 
+// 결재자/참조자를 "이름(소속부서, 직급, 사번)" 형태로 표시해 동명이인도 구분할 수 있게 합니다.
+const formatApprovalTarget = (line) => {
+  const name = line?.approverName || line?.approverNo || '-';
+  const meta = [line?.approverDeptName, line?.approverPositionName, line?.approverNo].filter(Boolean).join(', ');
+
+  return meta ? `${name}(${meta})` : name;
+};
+
+const formatPerson = (name, deptName, positionName, empNo) => {
+  const displayName = name || empNo || '-';
+  const meta = [deptName, positionName, empNo].filter(Boolean).join(', ');
+
+  return meta ? `${displayName}(${meta})` : displayName;
+};
+
 // [전자결재] 결재 대기 문서 상세 페이지
 const PendingApprovalDetail = () => {
   const [userInfo] = useOutletContext();
@@ -124,6 +139,19 @@ const PendingApprovalDetail = () => {
     () => (detail?.lines || [])
       .filter((line) => Number(line.stepOrder) > 0)
       .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder)),
+    [detail?.lines]
+  );
+
+  // 결재 대기 상세에서도 결재선과 참조 대상을 분리해, 실제 승인 흐름만 결재선에 남깁니다.
+  const approvalLines = useMemo(
+    () => (detail?.lines || [])
+      .filter((line) => !line.reference)
+      .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder)),
+    [detail?.lines]
+  );
+
+  const referenceLines = useMemo(
+    () => (detail?.lines || []).filter((line) => line.reference),
     [detail?.lines]
   );
 
@@ -307,11 +335,11 @@ const PendingApprovalDetail = () => {
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">작성자</div>
-                  <div>{detail.writerName || detail.writerNo || '-'}</div>
+                  <div>{formatPerson(detail.writerName, detail.writerDeptName, detail.writerPositionName, detail.writerNo)}</div>
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">현재 결재자</div>
-                  <div>{detail.currentApproverName || detail.currentApproverNo || '-'}</div>
+                  <div>{formatPerson(detail.currentApproverName, detail.currentApproverDeptName, detail.currentApproverPositionName, detail.currentApproverNo)}</div>
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">진행 단계</div>
@@ -371,7 +399,6 @@ const PendingApprovalDetail = () => {
               <CTable responsive align="middle">
                 <CTableHead>
                   <CTableRow>
-                    <CTableHeaderCell>구분</CTableHeaderCell>
                     <CTableHeaderCell>단계</CTableHeaderCell>
                     <CTableHeaderCell>대상자</CTableHeaderCell>
                     <CTableHeaderCell>상태</CTableHeaderCell>
@@ -379,24 +406,53 @@ const PendingApprovalDetail = () => {
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {(detail.lines || []).length === 0 ? (
+                  {approvalLines.length === 0 ? (
                     <CTableRow>
-                      <CTableDataCell colSpan={5} className="text-center text-body-secondary">
+                      <CTableDataCell colSpan={4} className="text-center text-body-secondary">
                         결재선 정보가 없습니다.
                       </CTableDataCell>
                     </CTableRow>
                   ) : (
-                    detail.lines.map((line) => (
+                    approvalLines.map((line) => (
                       <CTableRow key={line.lineId}>
-                        <CTableDataCell>{line.reference ? '참조' : '결재'}</CTableDataCell>
-                        <CTableDataCell>{line.reference ? '-' : `${line.stepOrder}단계`}</CTableDataCell>
-                        <CTableDataCell>{line.approverName || line.approverNo}</CTableDataCell>
+                        <CTableDataCell>{line.stepOrder}단계</CTableDataCell>
+                        <CTableDataCell>{formatApprovalTarget(line)}</CTableDataCell>
                         <CTableDataCell>
                           <CBadge color={LINE_STATUS_BADGE[line.status] || 'secondary'}>
                             {line.statusLabel || line.status}
                           </CBadge>
                         </CTableDataCell>
                         <CTableDataCell>{formatDateTime(line.processedAt)}</CTableDataCell>
+                      </CTableRow>
+                    ))
+                  )}
+                </CTableBody>
+              </CTable>
+            </CCardBody>
+          </CCard>
+
+          <CCard className="mb-4">
+            <CCardHeader>
+              <strong>참조</strong>
+            </CCardHeader>
+            <CCardBody>
+              <CTable responsive align="middle" className="mb-0">
+                <CTableHead>
+                  <CTableRow>
+                    <CTableHeaderCell>대상자</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {referenceLines.length === 0 ? (
+                    <CTableRow>
+                      <CTableDataCell className="text-center text-body-secondary">
+                        참조 대상자가 없습니다.
+                      </CTableDataCell>
+                    </CTableRow>
+                  ) : (
+                    referenceLines.map((line) => (
+                      <CTableRow key={line.lineId}>
+                        <CTableDataCell>{formatApprovalTarget(line)}</CTableDataCell>
                       </CTableRow>
                     ))
                   )}

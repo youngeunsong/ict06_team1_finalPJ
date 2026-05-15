@@ -971,6 +971,8 @@ public class ApprovalServiceImpl implements ApprovalService {
                 .status(approval.getStatus())
                 .writerNo(approval.getWriter() != null ? approval.getWriter().getEmpNo() : null)
                 .writerName(approval.getWriter() != null ? approval.getWriter().getName() : null)
+                .writerDeptName(getDepartmentName(approval.getWriter()))
+                .writerPositionName(getPositionName(approval.getWriter()))
                 .currentStep(approval.getCurrentStep())
                 .maxStep(approval.getMaxStep())
                 .currentApproverNo(
@@ -983,6 +985,8 @@ public class ApprovalServiceImpl implements ApprovalService {
                                 ? approval.getCurrentApprover().getName()
                                 : null
                 )
+                .currentApproverDeptName(getDepartmentName(approval.getCurrentApprover()))
+                .currentApproverPositionName(getPositionName(approval.getCurrentApprover()))
                 .createdAt(approval.getCreatedAt())
                 .updatedAt(approval.getUpdatedAt())
                 .lines(toLineResponses(approval))
@@ -999,20 +1003,43 @@ public class ApprovalServiceImpl implements ApprovalService {
                 .sorted(Comparator
                         .comparing(AppLineEntity::getStepOrder)
                         .thenComparing(AppLineEntity::getLineId))
-                .map(line -> ApprovalLineResponseDto.builder()
-                        .lineId(line.getLineId())
-                        .approverNo(line.getApprover() != null ? line.getApprover().getEmpNo() : null)
-                        .approverName(line.getApprover() != null ? line.getApprover().getName() : null)
-                        .stepOrder(line.getStepOrder())
-                        .status(line.getStatus())
-                        .processedAt(line.getProcessedAt())
-                        .build())
+                .map(line -> {
+                    return ApprovalLineResponseDto.builder()
+                            .lineId(line.getLineId())
+                            .approverNo(line.getApprover() != null ? line.getApprover().getEmpNo() : null)
+                            .approverName(line.getApprover() != null ? line.getApprover().getName() : null)
+                            .approverDeptName(getDepartmentName(line.getApprover()))
+                            .approverPositionName(getPositionName(line.getApprover()))
+                            .stepOrder(line.getStepOrder())
+                            .status(line.getStatus())
+                            .processedAt(line.getProcessedAt())
+                            .build();
+                })
                 .toList();
     }
 
     /**
      * 첨부파일 Entity 목록을 상세 화면용 DTO 목록으로 변환합니다.
      */
+    /**
+     * 상세 화면에서 사람을 "이름(소속, 직급, 사번)" 형태로 보여주기 위한 부서명 추출 메서드입니다.
+     * 사원이 없거나 부서가 비어 있는 과거 데이터도 상세 조회가 깨지지 않도록 null을 반환합니다.
+     */
+    private String getDepartmentName(EmpEntity employee) {
+        return employee != null && employee.getDepartment() != null
+                ? employee.getDepartment().getDeptName()
+                : null;
+    }
+
+    /**
+     * 상세 화면 표시용 직급명 추출 메서드입니다.
+     */
+    private String getPositionName(EmpEntity employee) {
+        return employee != null && employee.getPosition() != null
+                ? employee.getPosition().getPositionName()
+                : null;
+    }
+
     private List<ApprovalFileResponseDto> toFileResponses(ApprovalEntity approval) {
         return approval.getFiles().stream()
                 .sorted(Comparator.comparing(AppFileEntity::getFileId))

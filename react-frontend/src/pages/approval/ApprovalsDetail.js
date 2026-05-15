@@ -104,6 +104,23 @@ const formatFieldValue = (field) => {
 
 const isImagePath = (path) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(path || '');
 
+// 결재선/참조 영역에서 대상자를 "이름(소속부서, 직급, 사번)" 형태로 통일해 보여줍니다.
+// 부서나 직급 정보가 없는 과거 데이터도 깨지지 않도록 존재하는 값만 괄호 안에 조합합니다.
+const formatApprovalTarget = (line) => {
+  const name = line?.approverName || line?.approverNo || '-';
+  const meta = [line?.approverDeptName, line?.approverPositionName, line?.approverNo].filter(Boolean).join(', ');
+
+  return meta ? `${name}(${meta})` : name;
+};
+
+// 작성자/현재 결재자처럼 상세 응답의 최상위 필드로 내려오는 사람 정보도 같은 형식으로 표시합니다.
+const formatPerson = (name, deptName, positionName, empNo) => {
+  const displayName = name || empNo || '-';
+  const meta = [deptName, positionName, empNo].filter(Boolean).join(', ');
+
+  return meta ? `${displayName}(${meta})` : displayName;
+};
+
 // 인쇄용 HTML을 문자열로 만들기 때문에 사용자 입력값은 직접 삽입하기 전에 이스케이프합니다.
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -123,7 +140,7 @@ const createPrintHtml = (detail, content, signMap) => {
     .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder));
 
   const signHeaderCells = approvalSignLines.map((line) => `
-    <th>${escapeHtml(line.approverName || line.approverNo || '-')}</th>
+    <th>${escapeHtml(formatApprovalTarget(line))}</th>
   `).join('');
 
   const signImageCells = approvalSignLines.map((line) => {
@@ -147,17 +164,27 @@ const createPrintHtml = (detail, content, signMap) => {
         </tr>
       `).join('');
 
-  const lineRows = (detail.lines || []).map((line) => {
+  // 화면 상세와 동일하게 인쇄물에서도 실제 결재자와 참조자를 분리해서 렌더링합니다.
+  const approvalLineRows = (detail.lines || [])
+    .filter((line) => !line.reference)
+    .map((line) => {
     return `
       <tr>
-        <td>${line.reference ? '참조' : '결재'}</td>
-        <td>${line.reference ? '-' : `${escapeHtml(line.stepOrder)}단계`}</td>
-        <td>${escapeHtml(line.approverName || line.approverNo || '-')}</td>
+        <td>${escapeHtml(line.stepOrder)}단계</td>
+        <td>${escapeHtml(formatApprovalTarget(line))}</td>
         <td>${escapeHtml(line.statusLabel || line.status || '-')}</td>
         <td>${escapeHtml(formatDateTime(line.processedAt))}</td>
       </tr>
     `;
   }).join('');
+
+  const referenceLineRows = (detail.lines || [])
+    .filter((line) => line.reference)
+    .map((line) => `
+      <tr>
+        <td>${escapeHtml(formatApprovalTarget(line))}</td>
+      </tr>
+    `).join('');
 
   const fileRows = (detail.files || []).map((file) => {
     const fileUrl = buildResourceUrl(file.filePath);
@@ -217,7 +244,7 @@ const createPrintHtml = (detail, content, signMap) => {
         <table class="meta">
           <tbody>
             <tr><th>서식</th><td>${escapeHtml(detail.formName || '-')}</td><th>상태</th><td>${escapeHtml(detail.statusLabel || detail.status || '-')}</td></tr>
-            <tr><th>작성자</th><td>${escapeHtml(detail.writerName || detail.writerNo || '-')}</td><th>현재 결재자</th><td>${escapeHtml(detail.currentApproverName || detail.currentApproverNo || '-')}</td></tr>
+            <tr><th>작성자</th><td>${escapeHtml(formatPerson(detail.writerName, detail.writerDeptName, detail.writerPositionName, detail.writerNo))}</td><th>현재 결재자</th><td>${escapeHtml(formatPerson(detail.currentApproverName, detail.currentApproverDeptName, detail.currentApproverPositionName, detail.currentApproverNo))}</td></tr>
             <tr><th>진행 단계</th><td>${Number(detail.maxStep) > 0 ? `${escapeHtml(detail.currentStep || 0)} / ${escapeHtml(detail.maxStep)}` : '-'}</td><th>작성일</th><td>${escapeHtml(formatDateTime(detail.createdAt))}</td></tr>
           </tbody>
         </table>
@@ -228,9 +255,17 @@ const createPrintHtml = (detail, content, signMap) => {
         <h2>결재선</h2>
         <table>
           <thead>
-            <tr><th>구분</th><th>단계</th><th>대상자</th><th>상태</th><th>처리일시</th></tr>
+            <tr><th>단계</th><th>대상자</th><th>상태</th><th>처리일시</th></tr>
           </thead>
-          <tbody>${lineRows || '<tr><td colspan="5">결재선 정보가 없습니다.</td></tr>'}</tbody>
+          <tbody>${approvalLineRows || '<tr><td colspan="4">결재선 정보가 없습니다.</td></tr>'}</tbody>
+        </table>
+
+        <h2>참조</h2>
+        <table>
+          <thead>
+            <tr><th>대상자</th></tr>
+          </thead>
+          <tbody>${referenceLineRows || '<tr><td>참조 대상자가 없습니다.</td></tr>'}</tbody>
         </table>
 
         <h2>첨부파일</h2>
@@ -268,6 +303,19 @@ const ApprovalsDetail = ({
     () => (detail?.lines || [])
       .filter((line) => Number(line.stepOrder) > 0)
       .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder)),
+    [detail?.lines]
+  );
+
+  // 결재선은 실제 승인/반려 처리를 하는 대상만, 참조는 열람 대상만 분리해 표시합니다.
+  const approvalLines = useMemo(
+    () => (detail?.lines || [])
+      .filter((line) => !line.reference)
+      .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder)),
+    [detail?.lines]
+  );
+
+  const referenceLines = useMemo(
+    () => (detail?.lines || []).filter((line) => line.reference),
     [detail?.lines]
   );
 
@@ -471,11 +519,11 @@ const ApprovalsDetail = ({
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">작성자</div>
-                  <div>{detail.writerName || detail.writerNo || '-'}</div>
+                  <div>{formatPerson(detail.writerName, detail.writerDeptName, detail.writerPositionName, detail.writerNo)}</div>
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">현재 결재자</div>
-                  <div>{detail.currentApproverName || detail.currentApproverNo || '-'}</div>
+                  <div>{formatPerson(detail.currentApproverName, detail.currentApproverDeptName, detail.currentApproverPositionName, detail.currentApproverNo)}</div>
                 </CCol>
                 <CCol md={4}>
                   <div className="text-body-secondary small">진행 단계</div>
@@ -535,7 +583,6 @@ const ApprovalsDetail = ({
               <CTable responsive align="middle">
                 <CTableHead>
                   <CTableRow>
-                    <CTableHeaderCell>구분</CTableHeaderCell>
                     <CTableHeaderCell>단계</CTableHeaderCell>
                     <CTableHeaderCell>대상자</CTableHeaderCell>
                     <CTableHeaderCell>상태</CTableHeaderCell>
@@ -543,24 +590,53 @@ const ApprovalsDetail = ({
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {(detail.lines || []).length === 0 ? (
+                  {approvalLines.length === 0 ? (
                     <CTableRow>
-                      <CTableDataCell colSpan={5} className="text-center text-body-secondary">
+                      <CTableDataCell colSpan={4} className="text-center text-body-secondary">
                         결재선 정보가 없습니다.
                       </CTableDataCell>
                     </CTableRow>
                   ) : (
-                    detail.lines.map((line) => (
+                    approvalLines.map((line) => (
                       <CTableRow key={line.lineId}>
-                        <CTableDataCell>{line.reference ? '참조' : '결재'}</CTableDataCell>
-                        <CTableDataCell>{line.reference ? '-' : `${line.stepOrder}단계`}</CTableDataCell>
-                        <CTableDataCell>{line.approverName || line.approverNo}</CTableDataCell>
+                        <CTableDataCell>{line.stepOrder}단계</CTableDataCell>
+                        <CTableDataCell>{formatApprovalTarget(line)}</CTableDataCell>
                         <CTableDataCell>
                           <CBadge color={LINE_STATUS_BADGE[line.status] || 'secondary'}>
                             {line.statusLabel || line.status}
                           </CBadge>
                         </CTableDataCell>
                         <CTableDataCell>{formatDateTime(line.processedAt)}</CTableDataCell>
+                      </CTableRow>
+                    ))
+                  )}
+                </CTableBody>
+              </CTable>
+            </CCardBody>
+          </CCard>
+
+          <CCard className="mb-4">
+            <CCardHeader>
+              <strong>참조</strong>
+            </CCardHeader>
+            <CCardBody>
+              <CTable responsive align="middle" className="mb-0">
+                <CTableHead>
+                  <CTableRow>
+                    <CTableHeaderCell>대상자</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {referenceLines.length === 0 ? (
+                    <CTableRow>
+                      <CTableDataCell className="text-center text-body-secondary">
+                        참조 대상자가 없습니다.
+                      </CTableDataCell>
+                    </CTableRow>
+                  ) : (
+                    referenceLines.map((line) => (
+                      <CTableRow key={line.lineId}>
+                        <CTableDataCell>{formatApprovalTarget(line)}</CTableDataCell>
                       </CTableRow>
                     ))
                   )}
