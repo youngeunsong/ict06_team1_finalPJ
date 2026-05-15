@@ -46,6 +46,7 @@ export const PATH = {
     PERSONAL_DETAIL_WITH_ID: (approvalId) => `/approval/personalApprovals/detail?approvalId=${approvalId}`,
     PENDING: "/approval/pendingApprovals",                  // 결재 대기 문서함 페이지
     PENDING_DETAIL: "/approval/pendingApprovals/detail",    // 결재 대기 문서 상세 페이지
+    PENDING_DETAIL_WITH_ID: (approvalId) => `/approval/pendingApprovals/detail?approvalId=${approvalId}`,
     UPCOMING: "/approval/upcomingApprovals",                // 결재 예정 문서함 페이지
   },
 
@@ -132,7 +133,11 @@ export const PATH = {
       EMPLOYEE_SIGN: (empNo) => `/approval/employees/${empNo}/sign`,
       MY_DOCUMENTS: '/approval/my-documents',
       REFERENCED_DOCUMENTS: '/approval/referenced-documents',
+      PENDING_DOCUMENTS: '/approval/pending-documents',
+      UPCOMING_DOCUMENTS: '/approval/upcoming-documents',
       DETAIL: (approvalId) => `/approval/${approvalId}`,
+      APPROVE: (approvalId) => `/approval/${approvalId}/approve`,
+      REJECT: (approvalId) => `/approval/${approvalId}/reject`,
       CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
       DRAFTS: '/approval/drafts',
       SUBMIT: '/approval/submit',
