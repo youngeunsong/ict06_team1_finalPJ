@@ -48,6 +48,8 @@ export const PATH = {
     PENDING_DETAIL: "/approval/pendingApprovals/detail",    // 결재 대기 문서 상세 페이지
     PENDING_DETAIL_WITH_ID: (approvalId) => `/approval/pendingApprovals/detail?approvalId=${approvalId}`,
     UPCOMING: "/approval/upcomingApprovals",                // 결재 예정 문서함 페이지
+    UPCOMING_DETAIL: "/approval/upcomingApprovals/detail",  // 결재 예정 문서 상세 페이지
+    UPCOMING_DETAIL_WITH_ID: (approvalId) => `/approval/upcomingApprovals/detail?approvalId=${approvalId}`,
   },
 
   // 대분류 : 인사평가 - 온보딩

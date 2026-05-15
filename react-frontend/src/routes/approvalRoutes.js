@@ -12,6 +12,7 @@ const ApprovalsDetail = React.lazy(() => import( "../pages/approval/ApprovalsDet
 const PendingApprovals = React.lazy(() => import( "../pages/approval/teamLeader/PendingApprovals"));
 const PendingApprovalDetail = React.lazy(() => import( "../pages/approval/teamLeader/PendingApprovalDetail"));
 const UpcomingApprovals = React.lazy(() => import( "../pages/approval/teamLeader/UpcomingApprovals"));
+const UpcomingApprovalDetail = React.lazy(() => import( "../pages/approval/teamLeader/UpcomingApprovalDetail"));
 
 // DefaultLayout 내부의 AppContent 자리에 렌더링될 페이지만 명시
 export const approvalRoutes = (userInfo) => [
@@ -27,4 +28,5 @@ export const approvalRoutes = (userInfo) => [
   { path: PATH.APPROVAL.PENDING, element: <PendingApprovals userInfo={userInfo} /> }, // 결재 대기 문서함 페이지
   { path: PATH.APPROVAL.PENDING_DETAIL, element: <PendingApprovalDetail userInfo={userInfo} /> }, // 결재 대기 문서 상세 페이지
   { path: PATH.APPROVAL.UPCOMING, element: <UpcomingApprovals userInfo={userInfo} /> }, // 결재 예정 문서함 페이지
+  { path: PATH.APPROVAL.UPCOMING_DETAIL, element: <UpcomingApprovalDetail userInfo={userInfo} /> }, // 결재 예정 문서 상세 페이지
 ];

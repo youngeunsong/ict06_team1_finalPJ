@@ -240,8 +240,14 @@ const createPrintHtml = (detail, content, signMap) => {
   `;
 };
 
-// [전자결재] 개인 문서 상세 페이지
-const ApprovalsDetail = () => {
+// [전자결재] 결재 문서 상세 페이지
+// 개인 문서함, 결재 예정 문서함처럼 같은 상세 데이터를 보여주는 화면에서 재사용할 수 있게
+// 제목과 상신 취소 버튼 노출 여부를 props로 조절합니다.
+const ApprovalsDetail = ({
+  pageTitle = '개인 문서 상세',
+  allowCancel = true,
+  showPrint = true,
+}) => {
   const navigate = useNavigate();
   const [userInfo] = useOutletContext();
   const [searchParams] = useSearchParams();
@@ -267,7 +273,8 @@ const ApprovalsDetail = () => {
 
   // 작성자 본인의 진행 중 문서에서만 상신 취소 버튼을 보여줍니다.
   // 최종 가능 여부는 백엔드가 다시 검증하므로 프론트 조건은 UX용 1차 필터입니다.
-  const canCancel = detail
+  const canCancel = allowCancel
+    && detail
     && ['PENDING', 'IN_PROGRESS'].includes(detail.status)
     && String(detail.writerNo || '') === String(userInfo?.empNo || userInfo?.emp_no || '');
 
@@ -379,7 +386,7 @@ const ApprovalsDetail = () => {
     <div style={containerStyle}>
       <header className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2 className="mb-1">개인 문서 상세</h2>
+          <h2 className="mb-1">{pageTitle}</h2>
           <div className="text-body-secondary">
             {detail?.title || '결재 문서'}
           </div>
@@ -611,9 +618,11 @@ const ApprovalsDetail = () => {
                 상신 취소
               </CButton>
             )}
-            <CButton color="primary" variant="outline" onClick={handlePrintDocument}>
-              인쇄/pdf로 저장
-            </CButton>
+            {showPrint && (
+              <CButton color="primary" variant="outline" onClick={handlePrintDocument}>
+                인쇄/pdf로 저장
+              </CButton>
+            )}
           </div>
         </>
       )}
