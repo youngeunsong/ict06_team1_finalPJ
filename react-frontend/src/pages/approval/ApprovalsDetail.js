@@ -104,6 +104,7 @@ const formatFieldValue = (field) => {
 
 const isImagePath = (path) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(path || '');
 
+// 인쇄용 HTML을 문자열로 만들기 때문에 사용자 입력값은 직접 삽입하기 전에 이스케이프합니다.
 const escapeHtml = (value) =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -113,6 +114,10 @@ const escapeHtml = (value) =>
     .replace(/'/g, '&#39;');
 
 const createPrintHtml = (detail, content, signMap) => {
+  /*
+   * 화면의 React DOM을 그대로 인쇄하면 사이드바/버튼/카드 스타일이 섞일 수 있습니다.
+   * 그래서 결재 문서 출력에 필요한 데이터만 별도 HTML로 만들어 브라우저 인쇄 창에 전달합니다.
+   */
   const approvalSignLines = (detail.lines || [])
     .filter((line) => Number(line.stepOrder) > 0)
     .sort((a, b) => Number(a.stepOrder) - Number(b.stepOrder));
@@ -260,6 +265,8 @@ const ApprovalsDetail = () => {
     [detail?.lines]
   );
 
+  // 작성자 본인의 진행 중 문서에서만 상신 취소 버튼을 보여줍니다.
+  // 최종 가능 여부는 백엔드가 다시 검증하므로 프론트 조건은 UX용 1차 필터입니다.
   const canCancel = detail
     && ['PENDING', 'IN_PROGRESS'].includes(detail.status)
     && String(detail.writerNo || '') === String(userInfo?.empNo || userInfo?.emp_no || '');
@@ -297,6 +304,7 @@ const ApprovalsDetail = () => {
       return;
     }
 
+    // 상세 응답에는 결재선 정보만 있으므로, 인감 이미지는 사원별 API를 모아 호출해 signMap으로 구성합니다.
     const fetchSigns = async () => {
       const pairs = await Promise.all(
         approverNos.map(async (empNo) => {
@@ -385,7 +393,7 @@ const ApprovalsDetail = () => {
 
       {detail && (
         <>
-          {/* 결재선 인감 시작 */}
+          {/* 일반 결재 문서 양식처럼 결재자 이름과 인감 이미지를 문서 상단에 따로 배치합니다. */}
           <div className="d-flex justify-content-end mb-3">
             <CTable
                 bordered
@@ -440,7 +448,7 @@ const ApprovalsDetail = () => {
                 </CTableBody>
               </CTable>
           </div>
-          {/* 결재선 인감 끝 */}
+
           <CCard className="mb-4">
             <CCardHeader className="d-flex justify-content-between align-items-center">
               <strong>{detail.title}</strong>

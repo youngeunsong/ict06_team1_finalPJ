@@ -32,7 +32,7 @@ public class ApprovalDetailResponseDto {
     // 결재 문서 본문 JSON 문자열입니다. 양식별 필드가 달라질 수 있어 JSON으로 보관합니다.
     private String content;
 
-    // 결재 문서 상태입니다. 예: DRAFT, IN_PROGRESS, COMPLETED, REJECTED
+    // 결재 문서 상태입니다. 예: DRAFT, IN_PROGRESS, COMPLETED, REJECTED, CANCELED
     private ApprovalStatus status;
 
     // 작성자 사번입니다.

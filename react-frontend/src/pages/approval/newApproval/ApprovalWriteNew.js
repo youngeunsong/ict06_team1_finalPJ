@@ -50,6 +50,8 @@ const formatAmount = (value) => {
   return digits ? Number(digits).toLocaleString('ko-KR') : '';
 };
 
+// 파일 업로드 정책은 서식별로 달라질 수 있으므로 파일 타입 판별 함수를 분리해 둡니다.
+// 현재는 비용 정산 신청에서 증빙 파일로 이미지/PDF만 허용할 때 사용합니다.
 const isImageFile = (file) => file?.type?.startsWith('image/');
 
 const isPdfFile = (file) =>
@@ -83,6 +85,11 @@ const ApprovalWriteNew = () => {
   );
 
   const documentTitle = template.title || selectedForm?.formName || '';
+
+  /*
+   * template.fileRequired=false는 "첨부파일이 선택 사항"이 아니라
+   * "이 서식에는 첨부파일 입력 UI를 아예 보여주지 않는다"는 의미로 사용합니다.
+   */
   const canAttachFile = template.fileRequired === true;
   const isExpenseSettlementForm =
     selectedForm?.formName === '비용 정산 신청' || documentTitle === '비용 정산 신청';
@@ -97,6 +104,7 @@ const ApprovalWriteNew = () => {
     [files]
   );
 
+  // 서식 목록에서 받은 데이터가 오래되었을 수 있어 작성 화면 진입 시 상세 API로 최신 template을 다시 조회합니다.
   useEffect(() => {
     if (!initialForm?.formId) {
       setErrorMessage('먼저 결재 서식을 선택해 주세요.');
@@ -126,6 +134,7 @@ const ApprovalWriteNew = () => {
     setFieldValues(createEmptyValues(template.fields));
   }, [template.fields]);
 
+  // 첨부파일이 필요 없는 서식으로 바뀌면 이전 선택 파일이 함께 제출되지 않도록 즉시 비웁니다.
   useEffect(() => {
     if (!canAttachFile) {
       setFiles([]);
@@ -142,6 +151,7 @@ const ApprovalWriteNew = () => {
     };
   }, [filePreviews]);
 
+  // 금액 필드는 화면에는 콤마가 보이지만 서버 저장값은 숫자만 남도록 정규화합니다.
   const updateFieldValue = (field, value) => {
     setFieldValues((prev) => ({
       ...prev,
@@ -229,6 +239,10 @@ const ApprovalWriteNew = () => {
       return axiosInstance.post(apiPath, payload);
     }
 
+    /*
+     * 첨부파일이 있는 경우 request(JSON)와 files(binary)를 multipart/form-data로 함께 전송합니다.
+     * 백엔드는 @RequestPart("request")와 @RequestPart("files")로 같은 API에서 처리합니다.
+     */
     const formData = new FormData();
     formData.append(
       'request',
@@ -297,6 +311,7 @@ const ApprovalWriteNew = () => {
       return <CFormTextarea {...commonProps} rows={3} placeholder={field.placeholder || ''} />;
     }
 
+    // amount는 사용자가 입력하는 동안에도 1,000원 형식으로 읽히도록 inputGroup으로 렌더링합니다.
     if (field.type === 'amount') {
       return (
         <CInputGroup>

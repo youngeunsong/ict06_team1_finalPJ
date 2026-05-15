@@ -160,7 +160,9 @@ public interface ApprovalService {
 
     /**
      * 작성자가 상신한 결재 문서를 취소 처리합니다.
-     * 아직 어떤 결재자도 승인/반려하지 않은 문서만 취소할 수 있습니다.
+     *
+     * 결재가 완료/반려되기 전 진행 중 문서라면 작성자가 취소할 수 있습니다.
+     * 취소 문서는 삭제하지 않고 CANCELED 상태로 남겨 개인 문서함에서 이력을 확인할 수 있게 합니다.
      */
     ApprovalCreateResponseDto cancelApproval(
             Integer approvalId,
@@ -173,17 +175,17 @@ public interface ApprovalService {
      * 작성자, 결재자, 참조자만 조회할 수 있으며,
      * 임시저장 문서는 작성자만 열람할 수 있습니다.
      */
+    ApprovalDetailResponseDto getApprovalDetail(
+            Integer approvalId,
+            PrincipalDetails principal
+    );
+
     /**
      * 임시저장 문서에 첨부된 파일을 삭제합니다.
      * 작성자 본인의 DRAFT 문서에 속한 파일만 삭제할 수 있습니다.
      */
     void deleteApprovalFile(
             Integer fileId,
-            PrincipalDetails principal
-    );
-
-    ApprovalDetailResponseDto getApprovalDetail(
-            Integer approvalId,
             PrincipalDetails principal
     );
 }

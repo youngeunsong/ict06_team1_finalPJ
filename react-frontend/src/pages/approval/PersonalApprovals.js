@@ -30,6 +30,8 @@ const BOX_TYPES = [
   { key: 'referenced', label: '참조 문서', apiPath: PATH.API.APPROVAL.REFERENCED_DOCUMENTS },
 ];
 
+// 백엔드의 ApprovalStatus enum 이름과 화면의 필터 라벨을 맞춘 값입니다.
+// 빈 문자열은 status 파라미터를 보내지 않아 전체 목록을 조회한다는 의미입니다.
 const STATUS_OPTIONS = [
   { value: '', label: '전체' },
   { value: 'IN_PROGRESS', label: '진행중' },
@@ -47,6 +49,8 @@ const STATUS_BADGE = {
   CANCELED: 'dark',
 };
 
+// 서버는 LocalDateTime 문자열을 내려주므로 브라우저에서 한국식 표시 형식으로 변환합니다.
+// 목록 화면에서는 초 단위까지 필요하지 않아 분 단위까지만 보여줍니다.
 const formatDateTime = (value) => {
   if (!value) {
     return '-';
@@ -79,6 +83,7 @@ const PersonalApprovals = () => {
     [boxType]
   );
 
+  // 문서함 종류나 상태 필터가 바뀌면 사용자가 첫 페이지부터 다시 보도록 페이지를 초기화합니다.
   useEffect(() => {
     setPage(0);
   }, [boxType, status]);
@@ -110,6 +115,8 @@ const PersonalApprovals = () => {
     fetchDocuments();
   }, [currentBox.apiPath, page, status]);
 
+  // 상세 화면은 하나의 라우트를 공유하므로 approvalId를 query string으로 넘깁니다.
+  // state.from은 추후 상세에서 "목록으로 돌아가기"를 문서함 종류별로 분기할 때 사용할 수 있습니다.
   const openDetail = (approvalId) => {
     navigate(PATH.APPROVAL.PERSONAL_DETAIL_WITH_ID(approvalId), {
       state: { from: currentBox.key },
