@@ -4,23 +4,56 @@ import React from 'react';
 import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
 
 // 페이지 이동
-import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 
 // 시연용 이미지 파일
 import refImage from 'src/assets/images/first_demo/e_approval_main.png'
 
 // 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
-import { containerStyle, stepCardStyle } from 'src/styles/js/demoPageStyle';
+import { containerStyle } from 'src/styles/js/demoPageStyle';
 
 // 코드 하이라이터 : sql 코드 보여주는 용
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
 import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { PATH } from 'src/constants/path';
 
+/*
+ * 결재자 전용 메뉴 노출 여부를 판단합니다.
+ *
+ * /api/user/me 응답은 EmpEntity 구조로 내려오므로 보통 userInfo.position.positionId를 사용할 수 있습니다.
+ * 현재 직급 체계는 사원보다 높은 직급일수록 positionId가 커지는 방식이므로 positionId > 1이면
+ * 결재 대기/예정 문서함을 보여줍니다.
+ *
+ * 로그인 직후처럼 positionId가 없는 경우를 대비해 직급명으로도 한 번 더 판단합니다.
+ * 이 조건은 화면 표시용이고, 실제 승인/반려 권한은 백엔드에서 현재 결재자인지 다시 검증합니다.
+ */
+const canViewApproverMenus = (userInfo) => {
+    const rawPositionId = userInfo?.position?.positionId
+        ?? userInfo?.positionId
+        ?? userInfo?.position_id;
+    const positionId = Number(rawPositionId);
+
+    if (!Number.isNaN(positionId) && positionId > 0) {
+        return positionId > 1;
+    }
+
+    const positionName = (
+        userInfo?.position?.positionName
+        || userInfo?.positionName
+        || userInfo?.position_name
+        || ''
+    ).trim();
+
+    return ['주임', '선임', '책임', '수석', '팀장', '리더', '관리자'].some((keyword) =>
+        positionName.includes(keyword)
+    );
+};
+
 // [전자결재] 전자결재 메인 페이지
 const Approval = () => {
     //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
     const [userInfo] = useOutletContext();
+    const showApproverMenus = canViewApproverMenus(userInfo);
 
     //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
     const sqlQuery = `
@@ -99,30 +132,32 @@ const Approval = () => {
                             </CButton>
                         </Link>
 
-                        {/* [팀장 전용 메뉴 시작] --- (추후 팀장에게만 보이게 처리) */}
-                        {/* <Link to="/approval/pendingApprovals"> */}
-                        <Link to={PATH.APPROVAL.PENDING}>
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                결재 대기 문서함
-                            </CButton>
-                        </Link>
+                        {/* 사원보다 높은 직급에게만 결재자 전용 문서함 메뉴를 노출합니다. */}
+                        {showApproverMenus && (
+                            <>
+                                {/* <Link to="/approval/pendingApprovals"> */}
+                                <Link to={PATH.APPROVAL.PENDING}>
+                                    <CButton
+                                        color='primary'
+                                        variant='outline'
+                                        style={{ fontWeight: 'bold' }}
+                                        >
+                                        결재 대기 문서함
+                                    </CButton>
+                                </Link>
 
-                        {/* <Link to="/approval/upcomingApprovals"> */}
-                        <Link to={PATH.APPROVAL.UPCOMING}>
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                결재 예정 문서함
-                            </CButton>
-                        </Link>
-
-                        {/* [팀장 전용 메뉴 끝] --- (추후 팀장에게만 보이게 처리) */}
+                                {/* <Link to="/approval/upcomingApprovals"> */}
+                                <Link to={PATH.APPROVAL.UPCOMING}>
+                                    <CButton
+                                        color='primary'
+                                        variant='outline'
+                                        style={{ fontWeight: 'bold' }}
+                                        >
+                                        결재 예정 문서함
+                                    </CButton>
+                                </Link>
+                            </>
+                        )}
                     </div>
 
                     {/* 레퍼런스 이미지 영역 */}
