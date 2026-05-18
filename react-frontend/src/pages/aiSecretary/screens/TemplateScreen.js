@@ -1,31 +1,25 @@
-/**
+﻿/**
  * @FileName : TemplateScreen.js
- * @Description : 템플릿 추천/선택 화면
- *                - 왼쪽: AI 템플릿 생성 조건 입력
- *                - 오른쪽: 추천 템플릿 목록 / 내 AI 템플릿 목록 전환 표시
- *                - 추천 템플릿 또는 AI 생성 템플릿을 선택하면 StartFormScreen으로 이동
- *                - 이후 기존 /assistant/draft API 흐름을 재사용
+ * @Description : AiSecretary.js 전용 템플릿 생성 화면
  * @Author : 송혜진
  * @Date : 2026. 04. 28
  * @Modification_History
  * @
- * @ 수정일         수정자        수정내용
- * @ ----------    ---------    ----------------------------------------
- * @ 2026.04.28    송혜진        최초 생성
- * @ 2026.05.06    송혜진        템플릿 필터링 / 선택 조건 시작 흐름 정리
- * @ 2026.05.06    송혜진        AI 템플릿 생성 기능 프론트 확정
- * @ 2026.05.06    송혜진        AI 템플릿 생성 기능 백 연결
- * @ 2026.05.07    송혜진        문서 유형 REPORT / MINUTES / APPROVAL 대문자 기준 정리
+ * @ 수정일       수정자       수정내용
+ * @ ----------  ---------   ----------------------------------------
+ * @ 2026.04.28  송혜진       최초 생성
+ * @ 2026.05.13  송혜진       템플릿 생성 조건 변경
  */
 
 import React, { useEffect, useMemo, useState } from "react";
 import AppButton from "../components/AppButton";
 import Chip from "../components/Chip";
+import DepartmentTeamSelector from "../components/DepartmentTeamSelector";
+import Field from "../components/Field";
 import TextInput from "../components/TextInput";
 import { docMeta, templateCards } from "../constants/aiSecretaryData";
 import { I, Icon } from "../constants/aiSecretaryIcons";
 import { C, styles } from "../styles/aiSecretaryTheme";
-
 import {
   createAssistantTemplate,
   createTemplateRequest,
@@ -33,449 +27,487 @@ import {
   unwrapApiData,
 } from "../api/aiSecretaryApi";
 
-/**
- * TemplateScreen
- *
- * 역할:
- * 1. 정적 추천 템플릿 목록을 보여준다.
- * 2. 사용자가 입력한 조건으로 AI 생성 템플릿 mock 카드를 만든다.
- * 3. AI 생성 템플릿을 추천 목록에 추가 요청한다.
- * 4. DB에 저장된 내 요청 목록을 불러와 "내 AI 템플릿"으로 복원한다.
- *
- * 주의:
- * - 현재 /assistant/template Gemini API는 아직 붙이지 않았다.
- * - AI 템플릿 생성 버튼은 현재 프론트 mock 생성으로 동작한다.
- * - 추천 목록 추가 요청은 DB API로 저장한다.
- */
-export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
+const PAGE_SIZE = 2;
+const TABS = [
+  { key: "REPORT", icon: I.file },
+  { key: "MINUTES", icon: I.users },
+  { key: "APPROVAL", icon: I.check },
+  { key: "template", icon: I.spark },
+];
+const TYPE_OPTIONS = ["REPORT", "MINUTES", "APPROVAL"];
+const toneOptions = ["공식적", "친근함", "간결함"];
+const hiddenIncludeOptions = {
+  includeTitle: true,
+  includeParagraphs: true,
+  includeSignature: false,
+};
+const highlightedSectionTitle = {
+  ...styles.sectionTitle,
+  color: C.accent,
+};
+const categoryByType = {
+  REPORT: "보고",
+  MINUTES: "회의록",
+  APPROVAL: "결재",
+};
 
-  // 템플릿 조건 상태
-  const [filters, setFilters] = useState({
-    category: "", // 문서 카테고리 검색어
-    dept: "", // 부서 또는 업무 영역 검색어
-    situation: "", // 상황 검색어
-    tone: "공식적", // 문체 선택값 (AI 템플릿 생성 조건 또는 추후 Gemini 프롬프트 조건으로 활용)
-    title: true,      // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
-    paragraphs: true, // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
-    signature: true,  // 템플릿 생성 옵션 (백엔드 options_json으로 묶어 저장)
-  });
+const safeTemplateCards = Array.isArray(templateCards) ? templateCards : [];
 
-  // 오른쪽 영역 표시 모드 (recommended(기존 추천 템플릿)/ generated(내가 AI로 생성한 템플릿))
-  const [viewMode, setViewMode] = useState("recommended");
-
-  // AI 템플릿 생성 중 상태
-  const [generatingTemplate, setGeneratingTemplate] = useState(false);
-
-  // 템플릿 관련 오류 메시지
-  const [templateError, setTemplateError] = useState("");
-
-  // 추천 템플릿 추가 요청 현황 모달 열림 여부
-  const [requestModalOpen, setRequestModalOpen] = useState(false);
-
-  /**
-   * DB 기준 추천 템플릿 추가 요청 목록
-   *
-   * 사용처:
-   * - 요청 현황 모달
-   * - 중복 요청 방지
-   */
-  const [templateRequests, setTemplateRequests] = useState([]);
-
-  /**
-   * 오른쪽 "내 AI 템플릿" 카드 목록
-   *
-   * 포함 대상:
-   * 1. 현재 화면에서 AI 템플릿 생성 버튼으로 만든 mock 카드
-   * 2. DB에서 불러온 내가 요청한 AI 템플릿 카드
-   */
-  const [generatedTemplates, setGeneratedTemplates] = useState([]);
-
-  /**
-   * 추천 템플릿 페이지네이션
-   */
-  const PAGE_SIZE = 2;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  /**
-   * 내 AI 템플릿 페이지네이션
-   */
-  const [generatedPage, setGeneratedPage] = useState(1);
-
-  /**
-   * templateCards 안전 배열
-   *
-   * aiSecretaryData.js에서 templateCards export가 없거나,
-   * import 결과가 배열이 아닌 경우에도 화면이 죽지 않도록 방어한다.
-   */
-  const safeTemplateCards = Array.isArray(templateCards) ? templateCards : [];
-
-  // 문서 유형을 DB/API 기준 대문자로 보정 (REPORT/ MINUTES/ APPROVAL)
-  const toDbType = (type) => {
-    const normalized = String(type || "").trim().toUpperCase();
-
-    if (normalized === "MINUTES") return "MINUTES";
-    if (normalized === "APPROVAL") return "APPROVAL";
-    return "REPORT";
+function createEmptyDeptSelection() {
+  return {
+    headquarterId: "",
+    headquarterName: "",
+    teamIds: [],
+    teamNames: [],
+    displayName: "",
   };
+}
 
-  // type이 없을 시, category+situation 에서 특정 단어를 보고 타입 결정
-  const inferTemplateType = (category, situation) => {
-    const joined = `${category || ""} ${situation || ""}`;
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
-    if (joined.includes("회의")) return "MINUTES";
-    if (joined.includes("결재") || joined.includes("승인")) return "APPROVAL";
+function normalizeDeptLabel(value) {
+  return String(value || "")
+    .split(",")
+    .map((part) => part.trim())
+    .map((part) => part.split(">").pop().trim())
+    .filter(Boolean)
+    .join(", ");
+}
 
-    return "REPORT";
+function normalizeOrganizationSeed(seed) {
+  if (!seed) {
+    return null;
+  }
+
+  if (typeof seed === "string") {
+    const deptText = normalizeDeptLabel(seed);
+    return deptText ? { deptText } : null;
+  }
+
+  if (typeof seed !== "object") {
+    return null;
+  }
+
+  const headquarterId = String(
+    seed.headquarterId ||
+      seed.headquarter?.deptId ||
+      seed.headquarter?.id ||
+      seed.headquarter?.dept_id ||
+      ""
+  ).trim();
+  const headquarterName = normalizeDeptLabel(
+    seed.headquarterName ||
+      seed.headquarter?.deptName ||
+      seed.headquarter?.name ||
+      seed.headquarter?.displayName ||
+      ""
+  );
+  const teamIds = Array.isArray(seed.teamIds)
+    ? seed.teamIds.map((teamId) => String(teamId || "").trim()).filter(Boolean)
+    : [];
+  const teamNames = Array.isArray(seed.teamNames)
+    ? seed.teamNames.map((name) => normalizeDeptLabel(name)).filter(Boolean)
+    : [];
+  const displayName = normalizeDeptLabel(
+    seed.displayName || teamNames.join(", ") || seed.deptText || ""
+  );
+  const deptText = normalizeDeptLabel(seed.deptText || displayName);
+
+  if (
+    !headquarterId &&
+    !headquarterName &&
+    teamIds.length === 0 &&
+    teamNames.length === 0 &&
+    !displayName &&
+    !deptText
+  ) {
+    return null;
+  }
+
+  return {
+    headquarterId,
+    headquarterName,
+    teamIds,
+    teamNames,
+    displayName,
+    deptText,
   };
+}
 
-  //상단 탭 클릭 처리 (REPORT / MINUTES / APPROVAL/ template(현화면))
-  const handleTopTabClick = (tab) => {
-    if (tab === "template") return;
-    onOpenForm(tab);
-  };
+function splitDeptNames(value) {
+  return normalizeDeptLabel(value)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
 
-  // 특정 필드 묶음에 keyword 포함 여부 체크
-  const includesAnyText = (targets, keyword) => {
-    if (!keyword?.trim()) return true;
+function getDeptDisplayName(selection) {
+  if (Array.isArray(selection?.teamNames) && selection.teamNames.length > 0) {
+    return normalizeDeptLabel(selection.teamNames.join(", "));
+  }
 
-    const joined = targets
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+  return normalizeDeptLabel(selection?.displayName);
+}
 
-    return joined.includes(keyword.trim().toLowerCase());
-  };
+function matchesDeptSelection(cardDept, selection) {
+  const selectedNames = splitDeptNames(getDeptDisplayName(selection));
+  if (selectedNames.length === 0) {
+    return true;
+  }
 
-  /**
-   * 추천 템플릿 필터링
-   *
-   * 중요:
-   * - category / dept / situation은 각각 다른 필드 기준으로 검색한다.
-   * - tone은 검색 키워드에 넣지 않는다.
-   *
-   * 이유:
-   * - tone 기본값이 "공식적"인데 templateCards에 "공식적"이라는 단어가 없으면
-   *   처음 진입하자마자 추천 템플릿이 0개가 될 수 있다.
-   */
-  const filteredTemplateCards = useMemo(() => {
-    return safeTemplateCards.filter((card) => {
-      const categoryMatched = includesAnyText(
-        [card.category, card.title, card.tag],
-        filters.category
-      );
+  const cardNames = splitDeptNames(cardDept);
+  if (cardNames.length === 0) {
+    return false;
+  }
 
-      const deptMatched = includesAnyText(
-        [card.dept, card.tag],
-        filters.dept
-      );
+  const selectedSet = new Set(selectedNames);
+  const cardSet = new Set(cardNames);
 
-      const situationMatched = includesAnyText(
-        [card.situation, card.desc, ...(card.preview || [])],
-        filters.situation
-      );
-
-      return categoryMatched && deptMatched && situationMatched;
-    });
-  }, [
-    safeTemplateCards,
-    filters.category,
-    filters.dept,
-    filters.situation,
-  ]);
-
-  /**
-   * 추천 템플릿 필터가 바뀌면 페이지를 1로 초기화한다.
-   */
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters.category, filters.dept, filters.situation, filters.tone]);
-
-  /**
-   * 추천 템플릿 총 페이지 수
-   */
-  const totalPages = Math.max(
-    1,
-    Math.ceil((filteredTemplateCards?.length || 0) / PAGE_SIZE)
+  return (
+    selectedNames.some((name) => cardSet.has(name)) ||
+    cardNames.some((name) => selectedSet.has(name))
   );
+}
 
-  /**
-   * 현재 페이지에 보여줄 추천 템플릿 카드 목록
-   */
-  const pagedTemplateCards = (filteredTemplateCards || []).slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+function includesAnyText(targets, keyword) {
+  const trimmed = normalizeText(keyword);
+  if (!trimmed) {
+    return true;
+  }
 
-  /**
-   * 내 AI 템플릿 총 페이지 수
-   */
-  const generatedTotalPages = Math.max(
-    1,
-    Math.ceil((generatedTemplates?.length || 0) / PAGE_SIZE)
-  );
+  return targets
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(trimmed);
+}
 
-  /**
-   * 현재 페이지에 보여줄 내 AI 템플릿 카드 목록
-   */
-  const pagedGeneratedTemplates = (generatedTemplates || []).slice(
-    (generatedPage - 1) * PAGE_SIZE,
-    generatedPage * PAGE_SIZE
-  );
+function toDbType(type) {
+  const normalized = String(type || "").trim().toUpperCase();
+  if (normalized === "MINUTES") return "MINUTES";
+  if (normalized === "APPROVAL") return "APPROVAL";
+  return "REPORT";
+}
 
-  /**
-   * 내 AI 템플릿 목록 개수가 바뀌었을 때
-   * 현재 페이지가 범위를 벗어나지 않도록 보정한다.
-   */
-  useEffect(() => {
-    if (generatedPage > generatedTotalPages) {
-      setGeneratedPage(generatedTotalPages);
-    }
-  }, [generatedTemplates.length, generatedPage, generatedTotalPages]);
+function getCategoryByType(type) {
+  return categoryByType[String(type || "").toUpperCase()] || "보고";
+}
 
-  /**
-   * DB에 저장된 추천 템플릿 추가 요청을
-   * 오른쪽 "내 AI 템플릿" 카드에서 사용할 수 있는 형태로 변환한다.
-   *
-   * 목적:
-   * - 새로고침 후에도 내가 요청한 AI 생성 템플릿을 다시 카드로 보여주기 위함
-   */
-  const mapRequestToGeneratedTemplate = (request) => ({
-    id: `request-${request.requestId}`,
+function normalizeRecentRequest(request) {
+  const dept = normalizeDeptLabel(request.dept);
+  return {
     requestId: request.requestId,
-
     type: toDbType(request.type),
     category: request.category || "",
-    dept: request.dept || "",
+    dept,
     situation: request.situation || "",
     tone: request.tone || "공식적",
-
     title: request.title || "제목 없는 템플릿",
-    tag: request.statusLabel || "요청됨",
+    tag: request.statusLabel || "요청",
     desc:
       request.description ||
-      `${request.dept || "공통"} 영역의 ${
+      `${dept || "공통"} 영역의 ${
         request.situation || "업무 문서"
       } 템플릿입니다.`,
-
     preview: Array.isArray(request.preview) ? request.preview : [],
     generatedContent: request.content || "",
-
     status: request.status,
     statusLabel: request.statusLabel,
     reflected: request.reflected,
     adminComment: request.adminComment,
     createdAt: request.createdAt,
-
     templateFilters: {
       category: request.category,
-      dept: request.dept,
+      dept,
       situation: request.situation,
       tone: request.tone,
     },
+  };
+}
+
+function sameTemplateRequest(request, card) {
+  const sameTitle =
+    normalizeText(request.title) === normalizeText(card.title);
+  const sameCategory =
+    normalizeText(request.category) === normalizeText(card.category);
+  const sameDept =
+    normalizeText(normalizeDeptLabel(request.dept)) ===
+    normalizeText(normalizeDeptLabel(card.dept));
+  const sameSituation =
+    normalizeText(request.situation) === normalizeText(card.situation);
+  const activeStatus =
+    request.status === "PENDING" || request.status === "APPROVED";
+
+  return sameTitle && sameCategory && sameDept && sameSituation && activeStatus;
+}
+
+function buildTemplateSeed(card) {
+  const title = String(card?.title || "").trim();
+  const purpose = String(card?.situation || "").trim();
+  const rawDescription = String(card?.description || card?.desc || "").trim();
+  const description =
+    rawDescription && rawDescription !== "설명이 없습니다."
+      ? rawDescription
+      : "";
+  const content = String(card?.content || card?.generatedContent || "").trim();
+  const previewList = Array.isArray(card?.preview)
+    ? card.preview.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  const detailParts = [];
+
+  if (description) {
+    detailParts.push(`설명:\n${description}`);
+  }
+
+  if (content && content !== description) {
+    detailParts.push(content);
+  }
+
+  if (previewList.length > 0) {
+    detailParts.push(`템플릿 구성:\n${previewList.join("\n")}`);
+  }
+
+  const organizationSeed = normalizeOrganizationSeed(
+    card?.templateFilters?.generation?.relatedDept ||
+      card?.relatedDept ||
+      card?.deptMeta
+  );
+  const deptText = normalizeDeptLabel(
+    organizationSeed?.displayName || card?.dept || ""
+  );
+
+  return {
+    type: toDbType(card?.type || "REPORT"),
+    title,
+    purpose,
+    detail: detailParts.join("\n\n").trim() || description || content || "",
+    amount: "보통",
+    audience: "",
+    targets: [],
+    referenceFiles: [],
+    referenceMemo: "",
+    organizationSeed,
+    deptText,
+  };
+}
+
+function getRequestStatusLabel(status) {
+  switch (status) {
+    case "APPROVED":
+      return "반영 완료";
+    case "REJECTED":
+      return "반려";
+    case "CANCELLED":
+      return "취소됨";
+    default:
+      return "대기";
+  }
+}
+
+function getRequestStatusStyle(status) {
+  switch (status) {
+    case "APPROVED":
+      return { background: C.softGreen, color: C.success };
+    case "REJECTED":
+      return { background: "#FEF2F2", color: "#DC2626" };
+    case "CANCELLED":
+      return { background: "#F3F4F6", color: C.sub };
+    default:
+      return { background: C.accentBg, color: C.accent };
+  }
+}
+
+export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
+  const [viewMode, setViewMode] = useState("recommended");
+  const [templateError, setTemplateError] = useState("");
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [generatingTemplate, setGeneratingTemplate] = useState(false);
+  const [templateRequests, setTemplateRequests] = useState([]);
+  const [generatedTemplates, setGeneratedTemplates] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [generatedPage, setGeneratedPage] = useState(1);
+
+  const [searchFilters, setSearchFilters] = useState({
+    templateName: "",
+    relatedDept: createEmptyDeptSelection(),
+    situation: "",
   });
 
-  /**
-   * 내 추천 템플릿 추가 요청 목록 조회
-   *
-   * 처리:
-   * 1. GET /api/ai-secretary/template-request/my?empNo=...
-   * 2. templateRequests는 모달 표시용으로 저장
-   * 3. generatedTemplates는 오른쪽 "내 AI 템플릿" 카드 표시용으로 복원
-   */
+  const [generationFilters, setGenerationFilters] = useState({
+    type: "REPORT",
+    templateName: "",
+    relatedDept: createEmptyDeptSelection(),
+    purpose: "",
+    detail: "",
+    tone: "공식적",
+  });
+
+  const filteredTemplateCards = useMemo(() => {
+    return safeTemplateCards.filter((card) => {
+      const templateNameMatched = includesAnyText(
+        [card.title],
+        searchFilters.templateName
+      );
+
+      const deptMatched = matchesDeptSelection(
+        card.dept,
+        searchFilters.relatedDept
+      );
+
+      const situationMatched = includesAnyText(
+        [card.situation, card.desc, card.description, ...(card.preview || [])],
+        searchFilters.situation
+      );
+
+      return templateNameMatched && deptMatched && situationMatched;
+    });
+  }, [searchFilters]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilters.templateName, searchFilters.relatedDept, searchFilters.situation]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil((filteredTemplateCards?.length || 0) / PAGE_SIZE)
+  );
+
+  const pagedTemplateCards = (filteredTemplateCards || []).slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  const generatedTotalPages = Math.max(
+    1,
+    Math.ceil((generatedTemplates?.length || 0) / PAGE_SIZE)
+  );
+
+  const pagedGeneratedTemplates = (generatedTemplates || []).slice(
+    (generatedPage - 1) * PAGE_SIZE,
+    generatedPage * PAGE_SIZE
+  );
+
+  useEffect(() => {
+    if (generatedPage > generatedTotalPages) {
+      setGeneratedPage(generatedTotalPages);
+    }
+  }, [generatedPage, generatedTotalPages]);
+
   const loadMyTemplateRequests = async () => {
-    if (!empNo) return;
+    if (!empNo) {
+      return;
+    }
 
     try {
       const response = await getMyTemplateRequests(empNo);
       const data = unwrapApiData(response) ?? [];
-
       const requestList = Array.isArray(data) ? data : [];
 
       setTemplateRequests(requestList);
-      setGeneratedTemplates(requestList.map(mapRequestToGeneratedTemplate));
+      setGeneratedTemplates(requestList.map(normalizeRecentRequest));
     } catch (error) {
       console.error("추천 템플릿 요청 목록 조회 실패", error);
       setTemplateError("추천 템플릿 요청 목록을 불러오지 못했습니다.");
+      setTemplateRequests([]);
+      setGeneratedTemplates([]);
     }
   };
 
-  // 화면 진입 또는 empNo 변경 시 내 요청 목록을 DB에서 조회
   useEffect(() => {
     loadMyTemplateRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empNo]);
 
-  // AI 템플릿 생성 버튼 클릭 처리
-  const handleGenerateTemplate = async () => {
-    if (generatingTemplate) return;
+  const handleTopTabClick = (tab) => {
+    if (tab !== "template") {
+      onOpenForm(tab);
+    }
+  };
 
-    // 사용자 정보가 없을 시 돌아가라
-    if(!empNo) {
+  const handleGenerateTemplate = async () => {
+    if (generatingTemplate) {
+      return;
+    }
+
+    if (!empNo) {
       setTemplateError("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
       return;
-    };
+    }
 
-    // 초기화
     setGeneratingTemplate(true);
     setTemplateError("");
 
     try {
-      const category = filters.category || "보고";
-      const dept = filters.dept || "공통";
-      const situation = filters.situation || "업무 문서 작성";
-      const tone = filters.tone || "공식적";
-      const inferredType = inferTemplateType(category, situation);
+      const type = generationFilters.type || "REPORT";
+      const category = getCategoryByType(type);
+      const title = generationFilters.templateName || "템플릿명 없음";
+      const dept = getDeptDisplayName(generationFilters.relatedDept) || "공통";
+      const situation = generationFilters.purpose || "작성 목적 없음";
+      const description = generationFilters.detail || "";
+      const tone = generationFilters.tone || "공식적";
 
-      // AI 템플릿 생성 API 호출
       const response = await createAssistantTemplate({
         empNo: String(empNo),
-        type: inferredType,
+        type,
         category,
+        title,
         dept,
         situation,
+        description,
         tone,
-        includeTitle: Boolean(filters.title),
-        includeParagraphs: Boolean(filters.paragraphs),
-        includeSignature: Boolean(filters.signature),
+        ...hiddenIncludeOptions,
       });
 
-      // API 답변에서 실제 데이터만 추출
       const data = unwrapApiData(response);
 
-      // 
       const generatedCard = {
         id: `generated-${Date.now()}`,
-        type: toDbType(data?.type || inferredType),
+        type: toDbType(data?.type || type),
         category: data?.category || category,
-        dept: data?.dept || dept,
+        dept: normalizeDeptLabel(data?.dept || dept),
         situation: data?.situation || situation,
         tone: data?.tone || tone,
-        
-        title: data?.title || `${situation} 템플릿`,
-        tag: data?.fallback ? "AI 대체 생성" : "AI 생성",
-        desc:
-          data?.description ||
-          `${dept} 부서의 ${situation} 상황에 맞춰 생성된 AI 템플릿입니다.`,
-
+        title: data?.title || title,
+        desc: data?.description || description || "설명이 없습니다.",
         preview: Array.isArray(data?.preview) ? data.preview : [],
         generatedContent: data?.content || "",
-
         fallback: Boolean(data?.fallback),
         modelName: data?.modelName || "gemini",
-
         templateFilters: {
-          ...filters,
+          search: searchFilters,
+          generation: generationFilters,
+          type,
           category,
+          title,
           dept,
           situation,
+          description,
           tone,
         },
-      }
+      };
 
-        setGeneratedTemplates((prev) => [generatedCard, ...prev]);
-        setGeneratedPage(1);
-        setViewMode("generated");
+      setGeneratedTemplates((prev) => [generatedCard, ...prev]);
+      setGeneratedPage(1);
+      setViewMode("generated");
     } catch (error) {
-        console.error("AI 템플릿 생성 실패", error);
-
-        const message =
-          error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          "AI 템플릿 생성 중 문제가 발생했습니다.";
-
-        setTemplateError(message);
+      console.error("AI 템플릿 생성 실패", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "AI 템플릿 생성 중 문제가 발생했습니다.";
+      setTemplateError(message);
     } finally {
-        setGeneratingTemplate(false);
+      setGeneratingTemplate(false);
     }
   };
 
-  // 요청 상태 라벨
-  const getRequestStatusLabel = (status) => {
-    switch (status) {
-      case "APPROVED":
-        return "승인 완료";
-      case "REJECTED":
-        return "반려";
-      case "CANCELLED":
-        return "취소됨";
-      case "PENDING":
-      default:
-        return "검토 대기";
-    }
-  };
-
-  /**
-   * 요청 상태별 badge 스타일
-   */
-  const getRequestStatusStyle = (status) => {
-    switch (status) {
-      case "APPROVED":
-        return {
-          background: C.softGreen,
-          color: C.success,
-        };
-      case "REJECTED":
-        return {
-          background: "#FEF2F2",
-          color: "#DC2626",
-        };
-      case "CANCELLED":
-        return {
-          background: "#F3F4F6",
-          color: C.sub,
-        };
-      case "PENDING":
-      default:
-        return {
-          background: C.accentBg,
-          color: C.accent,
-        };
-    }
-  };
-
-  /**
-   * 문자열 비교용 정규화
-   */
-  const normalizeText = (value) => String(value || "").trim();
-
-  /**
-   * 중복 요청 판별
-   *
-   * 기준:
-   * - 같은 제목
-   * - 같은 category
-   * - 같은 dept
-   * - 같은 situation
-   * - 상태가 PENDING 또는 APPROVED
-   */
-  const isSameTemplateRequest = (request, card) => {
-    const sameTitle = normalizeText(request.title) === normalizeText(card.title);
-
-    const sameCategory =
-      normalizeText(request.category) === normalizeText(card.category);
-
-    const sameDept = normalizeText(request.dept) === normalizeText(card.dept);
-
-    const sameSituation =
-      normalizeText(request.situation) === normalizeText(card.situation);
-
-    const activeStatus =
-      request.status === "PENDING" || request.status === "APPROVED";
-
-    return sameTitle && sameCategory && sameDept && sameSituation && activeStatus;
-  };
-
-  /**
-   * 추천 템플릿 목록에 추가 요청
-   *
-   * 처리 흐름:
-   * 1. 프론트에서 1차 중복 요청 방지
-   * 2. POST /api/ai-secretary/template-request
-   * 3. 저장 성공 후 DB 목록 재조회
-   * 4. 요청 현황 모달 오픈
-   */
   const handleRequestAddTemplate = async (card) => {
-    if (!card) return;
+    if (!card) {
+      return;
+    }
 
     if (!empNo) {
       setTemplateError("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
@@ -483,13 +515,11 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
     }
 
     const alreadyRequested = templateRequests.some((request) =>
-      isSameTemplateRequest(request, card)
+      sameTemplateRequest(request, card)
     );
 
     if (alreadyRequested) {
-      setTemplateError(
-        "이미 검토 대기 중이거나 승인된 추천 템플릿 추가 요청이 있습니다."
-      );
+      setTemplateError("이미 요청 중이거나 반영된 추천 템플릿입니다.");
       setRequestModalOpen(true);
       return;
     }
@@ -497,79 +527,188 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
     try {
       const payload = {
         empNo: String(empNo),
-
         type: toDbType(card.type),
         category: card.category || "",
-        dept: card.dept || "",
+        dept: normalizeDeptLabel(card.dept || ""),
         situation: card.situation || "",
-        tone: card.tone || filters.tone || "공식적",
-
+        tone: card.tone || generationFilters.tone || "공식적",
         title: card.title || "제목 없는 템플릿",
-        description: card.desc || card.description || "",
+        description:
+          card?.templateFilters?.description ||
+          card.description ||
+          card.desc ||
+          "",
         content:
           card.generatedContent ||
           (Array.isArray(card.preview) ? card.preview.join("\n") : ""),
-
         preview: Array.isArray(card.preview) ? card.preview : [],
-
-        /**
-         * 백엔드 Service에서 options_json으로 묶어 저장한다.
-         */
-        includeTitle: Boolean(filters.title),
-        includeParagraphs: Boolean(filters.paragraphs),
-        includeSignature: Boolean(filters.signature),
+        ...hiddenIncludeOptions,
       };
 
       await createTemplateRequest(payload);
-
-      /**
-       * 저장 성공 후 DB 기준으로 다시 조회한다.
-       * 이때 generatedTemplates도 DB 요청 목록 기준으로 복원된다.
-       */
       await loadMyTemplateRequests();
-
       setRequestModalOpen(true);
     } catch (error) {
-      console.error("추천 템플릿 추가 요청 저장 실패", error);
-
+      console.error("추천 템플릿 요청 실패", error);
       const message =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        "추천 템플릿 추가 요청 저장 중 문제가 발생했습니다.";
-
+        "추천 템플릿 요청 중 문제가 발생했습니다.";
       setTemplateError(message);
       setRequestModalOpen(true);
     }
   };
 
-  /**
-   * 템플릿 시작 처리
-   *
-   * TemplateScreen은 직접 AI 초안 생성 API를 호출하지 않는다.
-   * 선택한 템플릿 card를 상위 AiSecretary.js로 넘긴다.
-   */
   const handleStartTemplate = (card) => {
-    if (!card) return;
+    if (!card) {
+      return;
+    }
+
+    const templateSeed = buildTemplateSeed(card);
 
     onStartTemplate({
       ...card,
-
-      /**
-       * 현재 선택한 필터 조건도 함께 전달한다.
-       * 정적 추천 템플릿 / AI 생성 템플릿 모두 같은 함수로 처리하기 위함이다.
-       */
-      templateFilters: filters,
+      templateSeed,
+      templateFilters: {
+        search: searchFilters,
+        generation: generationFilters,
+      },
     });
   };
 
-  return (
-    <div style={styles.page}>
-      {/* 상단 제목 영역 */}
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 16, color: C.sub, fontWeight: 700 }}>
-          AI 비서
+  const isRecommendedTab = viewMode === "recommended";
+  const isMineTab = viewMode === "generated";
+
+  const renderTemplateCard = (card, isGenerated = false) => (
+    <div key={card.id} style={{ ...styles.card, padding: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 900,
+              color: C.text,
+              wordBreak: "keep-all",
+            }}
+          >
+            {card.title}
+          </div>
+
+          {!isGenerated && (
+            <div
+              style={{
+                minHeight: 28,
+                padding: "0 10px",
+                borderRadius: 999,
+                border: `1px solid ${C.border}`,
+                background: "#fff",
+                color: C.accent,
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 12,
+                fontWeight: 800,
+                flexShrink: 0,
+                maxWidth: 220,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {normalizeDeptLabel(card.dept) || "공통"}
+            </div>
+          )}
         </div>
 
+        {isGenerated && (
+          <div
+            style={{
+              height: 28,
+              padding: "0 10px",
+              borderRadius: 999,
+              background: C.accentBg,
+              color: C.accent,
+              display: "flex",
+              alignItems: "center",
+              fontSize: 12,
+              fontWeight: 800,
+              flexShrink: 0,
+              maxWidth: 180,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {card.statusLabel || "AI 생성"}
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 14,
+          color: C.sub,
+          lineHeight: 1.6,
+        }}
+      >
+        {isGenerated && (
+          <div>
+            <strong style={{ color: C.text }}>상황:</strong> {card.situation || "-"}
+          </div>
+        )}
+        <div style={{ marginTop: 10, color: C.text }}>{card.desc}</div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 14,
+          padding: 14,
+          borderRadius: 10,
+          background: "#F8FAFC",
+          border: `1px solid ${C.border}`,
+          fontSize: 13,
+          color: C.sub,
+          lineHeight: 1.6,
+        }}
+      >
+        {(card.preview || []).map((line) => (
+          <div key={line}>{line}</div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+        <AppButton
+          variant="secondary"
+          style={{ width: "100%" }}
+          onClick={() => handleStartTemplate(card)}
+        >
+          이 템플릿으로 시작
+        </AppButton>
+
+        {isGenerated && (
+          <AppButton
+            variant="secondary"
+            style={{ width: "100%" }}
+            onClick={() => handleRequestAddTemplate(card)}
+          >
+            추천 템플릿 목록에 추가 요청
+          </AppButton>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={styles.page}>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 16, color: C.sub, fontWeight: 700 }}>AI 비서</div>
         <h1
           style={{
             margin: "6px 0 0",
@@ -580,13 +719,12 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
         >
           템플릿 생성
         </h1>
-
         <p style={{ margin: "10px 0 0", color: C.sub, fontSize: 16 }}>
-          반복적으로 쓰는 업무 문서를 빠르게 시작합니다.
+          작성할 템플릿의 이름, 연관 부서, 상황, 설명을 입력하면 AI가
+          자연스럽고 일관된 템플릿 초안을 생성합니다.
         </p>
       </div>
 
-      {/* 상단 문서 유형 탭 */}
       <div
         style={{
           display: "grid",
@@ -595,41 +733,47 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
           marginBottom: 18,
         }}
       >
-        {["REPORT", "MINUTES", "APPROVAL", "template"].map((tab) => {
-          const active = tab === "template";
-
-          const icon =
-            tab === "REPORT"
-              ? I.file
-              : tab === "MINUTES"
-              ? I.users
-              : tab === "APPROVAL"
-              ? I.check
-              : I.spark;
-
+        {TABS.map((tab) => {
+          const active = tab.key === "template";
           return (
             <button
-              key={tab}
+              key={tab.key}
               type="button"
-              onClick={() => handleTopTabClick(tab)}
+              onClick={() => handleTopTabClick(tab.key)}
               style={{
                 ...styles.card,
-                minHeight: 92,
-                padding: 18,
                 border: `1px solid ${active ? C.accent : C.border}`,
                 background: active ? C.accentBg : "#fff",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                fontSize: 15,
-                fontWeight: 800,
-                color: active ? C.accent : C.text,
-                cursor: active ? "default" : "pointer",
+                minHeight: 92,
                 textAlign: "left",
+                padding: 18,
+                cursor: active ? "default" : "pointer",
+                color: C.text,
               }}
             >
-              <Icon>{icon}</Icon>
-              {docMeta?.[tab]?.label || tab}
+              <div
+                style={{
+                  color: active ? C.accent : C.sub,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <Icon>{tab.icon}</Icon>
+                <span style={{ fontSize: 15, fontWeight: 800 }}>
+                  {docMeta?.[tab.key]?.label || tab.key}
+                </span>
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: C.sub,
+                  lineHeight: 1.5,
+                }}
+              >
+                {docMeta?.[tab.key]?.description || ""}
+              </div>
             </button>
           );
         })}
@@ -640,174 +784,175 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
           display: "grid",
           gridTemplateColumns: "440px 1fr",
           gap: 18,
+          alignItems: "start",
         }}
       >
-        {/* 좌측: AI 생성 템플릿 조건 입력 */}
         <div style={{ ...styles.card, padding: 22 }}>
-          <h3 style={styles.sectionTitle}>
-            {viewMode === "generated"
-              ? "AI 생성 템플릿 조건"
-              : "추천 템플릿 검색"}
-          </h3>
-
-          <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
-            <TextInput
-              placeholder="예) 보고, 회의록, 결재, 안내, 요청 등"
-              value={filters.category}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  category: e.target.value,
-                }))
-              }
-            />
-
-            <TextInput
-              placeholder="예) 영업, 인사, 개발, 총무 등"
-              value={filters.dept}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  dept: e.target.value,
-                }))
-              }
-            />
-
-            <TextInput
-              placeholder="예) 주간 업무 공유, 교육 참가 요청 등"
-              value={filters.situation}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  situation: e.target.value,
-                }))
-              }
-            />
-
-            {/* 톤앤매너 선택 */}
-            <div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 800,
-                  marginBottom: 10,
-                  color: C.text,
-                }}
-              >
-                톤앤매너
-              </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                {["공식적", "친근함", "간결함"].map((tone) => (
-                  <Chip
-                    key={tone}
-                    active={filters.tone === tone}
-                    onClick={() =>
-                      setFilters((prev) => ({
+          {isRecommendedTab ? (
+            <>
+              <h3 style={highlightedSectionTitle}>추천 템플릿 검색</h3>
+              <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
+                <Field label="템플릿명">
+                  <TextInput
+                    value={searchFilters.templateName}
+                    onChange={(e) =>
+                      setSearchFilters((prev) => ({
                         ...prev,
-                        tone,
+                        templateName: e.target.value,
                       }))
                     }
-                  >
-                    {tone}
-                  </Chip>
-                ))}
+                  />
+                </Field>
+
+                <Field label="연관 부서">
+                  <DepartmentTeamSelector
+                    value={searchFilters.relatedDept}
+                    onChange={(value) =>
+                      setSearchFilters((prev) => ({
+                        ...prev,
+                        relatedDept: value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field label="상황 검색">
+                  <TextInput
+                    value={searchFilters.situation}
+                    onChange={(e) =>
+                      setSearchFilters((prev) => ({
+                        ...prev,
+                        situation: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
               </div>
-            </div>
+            </>
+          ) : (
+            <>
+              <h3 style={highlightedSectionTitle}>AI 템플릿 생성</h3>
+              <div style={styles.sectionSub}>
+                선택한 조건을 바탕으로 AI 템플릿 초안을 생성합니다.
+              </div>
 
-            {/* 템플릿 포함 옵션 */}
-            {[
-              [
-                "title",
-                "제목 포함",
-                "문서의 목적을 드러내는 제목을 포함합니다.",
-              ],
-              [
-                "paragraphs",
-                "기본 문단 포함",
-                "도입, 본문, 마무리 등 기본 문단 구성을 포함합니다.",
-              ],
-              [
-                "signature",
-                "서명 포함",
-                "작성자/부서/연락처 등 서명 영역을 포함합니다.",
-              ],
-            ].map(([key, label, desc]) => (
-              <label
-                key={key}
+              <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
+                <Field label="문서 유형">
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {TYPE_OPTIONS.map((type) => (
+                      <Chip
+                        key={type}
+                        active={generationFilters.type === type}
+                        onClick={() =>
+                          setGenerationFilters((prev) => ({
+                            ...prev,
+                            type,
+                          }))
+                        }
+                      >
+                        {docMeta?.[type]?.label || type}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="템플릿명">
+                  <TextInput
+                    value={generationFilters.templateName}
+                    onChange={(e) =>
+                      setGenerationFilters((prev) => ({
+                        ...prev,
+                        templateName: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field label="연관 부서">
+                  <DepartmentTeamSelector
+                    value={generationFilters.relatedDept}
+                    onChange={(value) =>
+                      setGenerationFilters((prev) => ({
+                        ...prev,
+                        relatedDept: value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field label="작성 목적">
+                  <TextInput
+                    value={generationFilters.purpose}
+                    onChange={(e) =>
+                      setGenerationFilters((prev) => ({
+                        ...prev,
+                        purpose: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field label="상세 내용">
+                  <TextInput
+                    textarea
+                    value={generationFilters.detail}
+                    onChange={(e) =>
+                      setGenerationFilters((prev) => ({
+                        ...prev,
+                        detail: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field label="톤앤매너">
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {toneOptions.map((tone) => (
+                      <Chip
+                        key={tone}
+                        active={generationFilters.tone === tone}
+                        onClick={() =>
+                          setGenerationFilters((prev) => ({
+                            ...prev,
+                            tone,
+                          }))
+                        }
+                      >
+                        {tone}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+
+              <AppButton
                 style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                  cursor: "pointer",
+                  width: "100%",
+                  marginTop: 20,
+                  opacity: generatingTemplate ? 0.7 : 1,
+                  cursor: generatingTemplate ? "default" : "pointer",
                 }}
+                onClick={generatingTemplate ? undefined : handleGenerateTemplate}
               >
-                <input
-                  type="checkbox"
-                  checked={Boolean(filters[key])}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      [key]: e.target.checked,
-                    }))
-                  }
-                  style={{ marginTop: 3 }}
-                />
+                <Icon>{I.spark}</Icon>
+                {generatingTemplate ? "AI 템플릿 생성 중..." : "AI 템플릿 생성"}
+              </AppButton>
 
-                <div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 800,
-                      color: C.text,
-                    }}
-                  >
-                    {label}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: C.sub,
-                      marginTop: 4,
-                    }}
-                  >
-                    {desc}
-                  </div>
+              {templateError && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: "#d32f2f",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  {templateError}
                 </div>
-              </label>
-            ))}
-          </div>
-
-          {/* AI 템플릿 생성 버튼 */}
-          <AppButton
-            style={{
-              width: "100%",
-              marginTop: 20,
-              opacity: generatingTemplate ? 0.7 : 1,
-              cursor: generatingTemplate ? "default" : "pointer",
-            }}
-            onClick={generatingTemplate ? undefined : handleGenerateTemplate}
-          >
-            <Icon>{I.spark}</Icon>
-            {generatingTemplate ? "AI 템플릿 생성 중..." : "AI 템플릿 생성"}
-          </AppButton>
-
-          {/* 생성 오류 메시지 */}
-          {templateError && (
-            <div
-              style={{
-                marginTop: 10,
-                color: "#d32f2f",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              {templateError}
-            </div>
+              )}
+            </>
           )}
 
-          {/* 오른쪽 영역 보기 전환 */}
           <div
             style={{
               display: "grid",
@@ -818,43 +963,38 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
           >
             <button
               type="button"
-              onClick={() => setViewMode("generated")}
-              style={{
-                height: 38,
-                borderRadius: 10,
-                border: `1px solid ${
-                  viewMode === "generated" ? C.accent : C.border
-                }`,
-                background: viewMode === "generated" ? C.accentBg : "#fff",
-                color: viewMode === "generated" ? C.accent : C.text,
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              내 AI 템플릿
-            </button>
-
-            <button
-              type="button"
               onClick={() => setViewMode("recommended")}
               style={{
                 height: 38,
                 borderRadius: 10,
                 border: `1px solid ${
-                  viewMode === "recommended" ? C.accent : C.border
+                  isRecommendedTab ? C.accent : C.border
                 }`,
-                background: viewMode === "recommended" ? C.accentBg : "#fff",
-                color: viewMode === "recommended" ? C.accent : C.text,
+                background: isRecommendedTab ? C.accentBg : "#fff",
+                color: isRecommendedTab ? C.accent : C.text,
                 fontWeight: 800,
                 cursor: "pointer",
               }}
             >
-              추천 템플릿 보기
-            </button>
+              추천 템플릿 검색            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("generated")}
+              style={{
+                height: 38,
+                borderRadius: 10,
+                border: `1px solid ${isMineTab ? C.accent : C.border}`,
+                background: isMineTab ? C.accentBg : "#fff",
+                color: isMineTab ? C.accent : C.text,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              내 AI 템플릿            </button>
           </div>
         </div>
 
-        {/* 우측: 추천 템플릿 / 내 AI 템플릿 영역 */}
         <div style={{ ...styles.card, padding: 22 }}>
           <div
             style={{
@@ -865,12 +1005,9 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {/* 우측 타이틀 */}
-              <h3 style={styles.sectionTitle}>
-                {viewMode === "generated" ? "내 AI 템플릿" : "추천 템플릿"}
+              <h3 style={highlightedSectionTitle}>
+                {isMineTab ? "내 AI 템플릿" : "추천 템플릿"}
               </h3>
-
-              {/* 우측 건 수 */}
               <div
                 style={{
                   width: 26,
@@ -885,13 +1022,9 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                   fontWeight: 800,
                 }}
               >
-                {viewMode === "generated"
-                  ? generatedTemplates.length
-                  : filteredTemplateCards.length}
+                {isMineTab ? generatedTemplates.length : filteredTemplateCards.length}
               </div>
-
-              {/* 내 AI 템플릿 보기에서만 요청 현황 버튼 노출 */}
-              {viewMode === "generated" && (
+              {isMineTab && (
                 <button
                   type="button"
                   onClick={() => setRequestModalOpen(true)}
@@ -915,9 +1048,8 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
               )}
             </div>
 
-            {/* 우측 페이지 표시 */}
             <div style={{ fontSize: 14, color: C.sub, fontWeight: 700 }}>
-              {viewMode === "generated"
+              {isMineTab
                 ? `${generatedPage} / ${generatedTotalPages} 페이지`
                 : `${currentPage} / ${totalPages} 페이지`}
             </div>
@@ -927,7 +1059,7 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
             style={{
               display: "grid",
               gridTemplateColumns:
-                viewMode === "generated"
+                isMineTab
                   ? (pagedGeneratedTemplates?.length || 0) === 0
                     ? "1fr"
                     : "1fr 1fr"
@@ -937,7 +1069,7 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
               gap: 14,
             }}
           >
-            {viewMode === "generated" ? (
+            {isMineTab ? (
               <>
                 {generatedTemplates.length === 0 && (
                   <div
@@ -957,94 +1089,13 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                 )}
 
                 {generatedTemplates.length > 0 &&
-                  pagedGeneratedTemplates.map((card) => (
-                    <div key={card.id} style={{ ...styles.card, padding: 18 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 12,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 900,
-                            color: C.text,
-                          }}
-                        >
-                          {card.title}
-                        </div>
-
-                        <div
-                          style={{
-                            height: 28,
-                            padding: "0 10px",
-                            borderRadius: 999,
-                            background: C.accentBg,
-                            color: C.accent,
-                            display: "flex",
-                            alignItems: "center",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {card.statusLabel || "AI 생성"}
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          marginTop: 10,
-                          fontSize: 14,
-                          color: C.sub,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {card.desc}
-                      </div>
-
-                      <div
-                        style={{
-                          marginTop: 14,
-                          padding: 14,
-                          borderRadius: 10,
-                          background: "#F8FAFC",
-                          border: `1px solid ${C.border}`,
-                          fontSize: 13,
-                          color: C.sub,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {(card.preview || []).map((line) => (
-                          <div key={line}>{line}</div>
-                        ))}
-                      </div>
-
-                      <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
-                        <AppButton
-                          variant="secondary"
-                          style={{ width: "100%" }}
-                          onClick={() => handleStartTemplate(card)}
-                        >
-                          이 템플릿으로 시작
-                        </AppButton>
-
-                        <AppButton
-                          variant="secondary"
-                          style={{ width: "100%" }}
-                          onClick={() => handleRequestAddTemplate(card)}
-                        >
-                          추천 템플릿 목록에 추가 요청
-                        </AppButton>
-                      </div>
-                    </div>
-                  ))}
+                  pagedGeneratedTemplates.map((card) =>
+                    renderTemplateCard(card, true)
+                  )}
               </>
             ) : (
               <>
-                {(pagedTemplateCards?.length || 0) === 0 && (
+                {pagedTemplateCards.length === 0 && (
                   <div
                     style={{
                       padding: 24,
@@ -1055,90 +1106,19 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                       background: "#F8FAFC",
                     }}
                   >
-                    조건에 맞는 템플릿이 없습니다. 검색 조건을 줄여 보세요.
+                    조건에 맞는 추천 템플릿이 없습니다.
+                    <br />
+                    검색 조건을 조금 바꿔서 다시 확인해 보세요.
                   </div>
                 )}
-
-                {(pagedTemplateCards || []).map((card) => (
-                  <div key={card.id} style={{ ...styles.card, padding: 18 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 18,
-                          fontWeight: 900,
-                          color: C.text,
-                        }}
-                      >
-                        {card.title}
-                      </div>
-
-                      <div
-                        style={{
-                          height: 28,
-                          padding: "0 10px",
-                          borderRadius: 999,
-                          background: C.accentBg,
-                          color: C.accent,
-                          display: "flex",
-                          alignItems: "center",
-                          fontSize: 12,
-                          fontWeight: 800,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {card.tag}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 10,
-                        fontSize: 14,
-                        color: C.sub,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {card.desc}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 14,
-                        padding: 14,
-                        borderRadius: 10,
-                        background: "#F8FAFC",
-                        border: `1px solid ${C.border}`,
-                        fontSize: 13,
-                        color: C.sub,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {(card.preview || []).map((line) => (
-                        <div key={line}>{line}</div>
-                      ))}
-                    </div>
-
-                    <AppButton
-                      variant="secondary"
-                      style={{ width: "100%", marginTop: 14 }}
-                      onClick={() => handleStartTemplate(card)}
-                    >
-                      이 템플릿으로 시작
-                    </AppButton>
-                  </div>
-                ))}
+                {pagedTemplateCards.map((card) =>
+                  renderTemplateCard(card, false)
+                )}
               </>
             )}
           </div>
 
-          {/* 추천 템플릿 / 내 AI 템플릿 페이지네이션 */}
-          {(viewMode === "recommended"
+          {(isRecommendedTab
             ? filteredTemplateCards.length > PAGE_SIZE
             : generatedTemplates.length > PAGE_SIZE) && (
             <div
@@ -1153,34 +1133,24 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                 variant="secondary"
                 style={{ height: 36 }}
                 onClick={() => {
-                  if (viewMode === "generated") {
+                  if (isMineTab) {
                     setGeneratedPage((prev) => Math.max(prev - 1, 1));
                   } else {
                     setCurrentPage((prev) => Math.max(prev - 1, 1));
                   }
                 }}
-                disabled={
-                  viewMode === "generated"
-                    ? generatedPage === 1
-                    : currentPage === 1
-                }
+                disabled={isMineTab ? generatedPage === 1 : currentPage === 1}
               >
                 이전
               </AppButton>
 
               {Array.from(
                 {
-                  length:
-                    viewMode === "generated"
-                      ? generatedTotalPages
-                      : totalPages,
+                  length: isMineTab ? generatedTotalPages : totalPages,
                 },
                 (_, idx) => idx + 1
               ).map((page) => {
-                const active =
-                  viewMode === "generated"
-                    ? generatedPage === page
-                    : currentPage === page;
+                const active = isMineTab ? generatedPage === page : currentPage === page;
 
                 return (
                   <AppButton
@@ -1192,7 +1162,7 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                       padding: "0 12px",
                     }}
                     onClick={() => {
-                      if (viewMode === "generated") {
+                      if (isMineTab) {
                         setGeneratedPage(page);
                       } else {
                         setCurrentPage(page);
@@ -1208,21 +1178,15 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                 variant="secondary"
                 style={{ height: 36 }}
                 onClick={() => {
-                  if (viewMode === "generated") {
+                  if (isMineTab) {
                     setGeneratedPage((prev) =>
                       Math.min(prev + 1, generatedTotalPages)
                     );
                   } else {
-                    setCurrentPage((prev) =>
-                      Math.min(prev + 1, totalPages)
-                    );
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
                   }
                 }}
-                disabled={
-                  viewMode === "generated"
-                    ? generatedPage === generatedTotalPages
-                    : currentPage === totalPages
-                }
+                disabled={isMineTab ? generatedPage === generatedTotalPages : currentPage === totalPages}
               >
                 다음
               </AppButton>
@@ -1231,7 +1195,6 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
         </div>
       </div>
 
-      {/* 추천 템플릿 추가 요청 현황 모달 */}
       {requestModalOpen && (
         <div
           style={{
@@ -1275,7 +1238,6 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                 >
                   추천 템플릿 추가 요청 현황
                 </h3>
-
                 <div
                   style={{
                     marginTop: 6,
@@ -1283,23 +1245,10 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                     color: C.sub,
                   }}
                 >
-                  AI가 생성한 템플릿을 추천 목록에 반영 요청한 내역입니다.
+                  AI가 생성한 템플릿을 추천 목록에 반영해 달라는 요청 내역입니다.
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setRequestModalOpen(false)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: 24,
-                  color: C.sub,
-                  cursor: "pointer",
-                }}
-              >
-                ×
-              </button>
             </div>
 
             {templateRequests.length === 0 ? (
@@ -1315,9 +1264,9 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                   lineHeight: 1.6,
                 }}
               >
-                아직 추천 템플릿 목록에 추가 요청한 내역이 없습니다.
+                아직 추천 템플릿 추가 요청 내역이 없습니다.
                 <br />
-                AI 생성 템플릿 카드에서 추가 요청을 진행해 주세요.
+                AI 생성 템플릿 카드에서 요청을 진행해 주세요.
               </div>
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
@@ -1343,106 +1292,102 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
                           alignItems: "flex-start",
                         }}
                       >
-                        <div>
+                        <div style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              fontSize: 15,
+                              fontSize: 16,
                               fontWeight: 900,
                               color: C.text,
+                              marginBottom: 6,
                             }}
                           >
                             {request.title}
                           </div>
 
-                          <div
-                            style={{
-                              marginTop: 6,
-                              fontSize: 13,
-                              color: C.sub,
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            {request.category} · {request.dept} ·{" "}
-                            {request.situation}
+                          <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6 }}>
+                            <div>
+                              연관 부서: {normalizeDeptLabel(request.dept) || "공통"}
+                            </div>
+                            <div>상황: {request.situation || "-"}</div>
+                            <div>유형: {request.category || "-"}</div>
                           </div>
                         </div>
 
                         <div
                           style={{
+                            ...statusStyle,
                             height: 28,
                             padding: "0 10px",
                             borderRadius: 999,
-                            display: "flex",
+                            display: "inline-flex",
                             alignItems: "center",
                             fontSize: 12,
                             fontWeight: 800,
-                            ...statusStyle,
+                            flexShrink: 0,
                           }}
                         >
-                          {request.statusLabel ||
-                            getRequestStatusLabel(request.status)}
+                          {getRequestStatusLabel(request.status)}
                         </div>
                       </div>
+
+                      {request.desc && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            fontSize: 14,
+                            color: C.text,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {request.desc}
+                        </div>
+                      )}
+
+                      {Array.isArray(request.preview) && request.preview.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: 14,
+                            borderRadius: 10,
+                            background: "#F8FAFC",
+                            border: `1px solid ${C.border}`,
+                            fontSize: 13,
+                            color: C.sub,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {request.preview.map((line) => (
+                            <div key={line}>{line}</div>
+                          ))}
+                        </div>
+                      )}
 
                       <div
                         style={{
                           marginTop: 12,
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: 10,
-                          fontSize: 12,
-                          color: C.sub,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          alignItems: "center",
                         }}
                       >
-                        <div>
-                          요청일:{" "}
-                          {requestDate
-                            ? new Date(requestDate).toLocaleString("ko-KR")
-                            : "-"}
+                        <div style={{ fontSize: 12, color: C.sub }}>
+                          요청일: {requestDate || "-"}
                         </div>
-
-                        <div>
-                          반영 여부:{" "}
-                          {request.reflected
-                            ? "추천 목록에 추가됨"
-                            : "미반영"}
-                        </div>
+                        {request.adminComment && (
+                          <div style={{ fontSize: 12, color: C.sub, textAlign: "right" }}>
+                            관리자 의견: {request.adminComment}
+                          </div>
+                        )}
                       </div>
-
-                      {request.adminComment && (
-                        <div
-                          style={{
-                            marginTop: 10,
-                            padding: 10,
-                            borderRadius: 10,
-                            background: "#F8FAFC",
-                            color: C.sub,
-                            fontSize: 12,
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          관리자 메모: {request.adminComment}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginTop: 18,
-              }}
-            >
-              <AppButton
-                variant="secondary"
-                onClick={() => setRequestModalOpen(false)}
-              >
-                닫기
-              </AppButton>
+            <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end" }}>
+              <AppButton onClick={() => setRequestModalOpen(false)}>닫기</AppButton>
             </div>
           </div>
         </div>
@@ -1450,3 +1395,4 @@ export default function TemplateScreen({ empNo, onStartTemplate, onOpenForm }) {
     </div>
   );
 }
+

@@ -229,12 +229,6 @@ const Attendance = () => {
   // 출근/퇴근 성공 후 화면 갱신할 때도 다시 사용할 함수
   const fetchAttendance = async () => {
     try {
-      // 백엔드에서 내 근태 목록 조회
-      // const res = await axios.get('http://localhost:8081/api/attendance/my', {
-      //   params: {
-      //     empNo: empNo, 
-      //   },
-      // });
       const params = {empNo}; 
       const res = await request('GET', '/attendance/my', params);
 
