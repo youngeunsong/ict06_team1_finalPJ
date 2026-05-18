@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   CAlert,
   CBadge,
-  CButton,
   CCard,
   CCardBody,
   CCardHeader,
@@ -89,16 +88,13 @@ const TmpApprovals = () => {
 
   return (
     <div style={containerStyle}>
-      <header className="d-flex justify-content-between align-items-center mb-4">
+      <header className="mb-4">
         <div>
           <h2 className="mb-1">임시저장함</h2>
           <div className="text-body-secondary">
             {userInfo?.name ? `${userInfo.name}님이 아직 상신하지 않은 문서입니다.` : '아직 상신하지 않은 결재 문서입니다.'}
           </div>
         </div>
-        <CButton color="primary" onClick={() => navigate(PATH.APPROVAL.NEW_SELECT)}>
-          새 결재 작성
-        </CButton>
       </header>
 
       <CCard className="mb-4">

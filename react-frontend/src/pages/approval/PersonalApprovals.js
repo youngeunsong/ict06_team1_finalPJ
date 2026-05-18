@@ -125,16 +125,13 @@ const PersonalApprovals = () => {
 
   return (
     <div style={containerStyle}>
-      <header className="d-flex justify-content-between align-items-center mb-4">
+      <header className="mb-4">
         <div>
           <h2 className="mb-1">개인문서함</h2>
           <div className="text-body-secondary">
             {userInfo?.name ? `${userInfo.name}님의 결재 문서` : '전자결재 문서 목록'}
           </div>
         </div>
-        <CButton color="primary" onClick={() => navigate(PATH.APPROVAL.NEW_SELECT)}>
-          새 결재 작성
-        </CButton>
       </header>
 
       <CCard className="mb-4">

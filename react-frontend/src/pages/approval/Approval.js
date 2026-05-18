@@ -1,192 +1,246 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  CAlert,
+  CCard,
+  CCardBody,
+  CCol,
+  CRow,
+  CSpinner,
+  CTable,
+  CTableBody,
+  CTableDataCell,
+  CTableHead,
+  CTableHeaderCell,
+  CTableRow,
+} from '@coreui/react';
+import CIcon from '@coreui/icons-react';
+import { cilArrowRight } from '@coreui/icons';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 
-// CoreUI 
-import { CButton, CCard, CCardBody, CCardHeader } from '@coreui/react';
-
-// 페이지 이동
-import { Link, useOutletContext } from 'react-router-dom';
-
-// 시연용 이미지 파일
-import refImage from 'src/assets/images/first_demo/e_approval_main.png'
-
-// 1차 시연용으로 화면과 sql 쿼리를 함께 보여주기 위한 스타일 구현
-import { containerStyle } from 'src/styles/js/demoPageStyle';
-
-// 코드 하이라이터 : sql 코드 보여주는 용
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; 
-import { coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import axiosInstance from 'src/api/axiosInstance';
 import { PATH } from 'src/constants/path';
+import { containerStyle } from 'src/styles/js/demoPageStyle';
+import { canViewApproverMenus } from './components/approvalAuth';
 
-/*
- * 결재자 전용 메뉴 노출 여부를 판단합니다.
- *
- * /api/user/me 응답은 EmpEntity 구조로 내려오므로 보통 userInfo.position.positionId를 사용할 수 있습니다.
- * 현재 직급 체계는 사원보다 높은 직급일수록 positionId가 커지는 방식이므로 positionId > 1이면
- * 결재 대기/예정 문서함을 보여줍니다.
- *
- * (TODO: 검토 필요 - 로그인 직후처럼 positionId가 없는 경우를 대비해 직급명으로도 한 번 더 판단합니다.)
- * 이 조건은 화면 표시용이고, 실제 승인/반려 권한은 백엔드에서 현재 결재자인지 다시 검증합니다.
- */
-const canViewApproverMenus = (userInfo) => {
-    const rawPositionId = userInfo?.position?.positionId
-        ?? userInfo?.positionId
-        ?? userInfo?.position_id;
-    const positionId = Number(rawPositionId);
+const SUMMARY_SIZE = 3;
 
-    // positionId가 유효한 숫자이고 1보다 큰 경우 결재자 메뉴를 보여줍니다.
-    if (!Number.isNaN(positionId) && positionId > 0) {
-        return positionId > 1;
-    }
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
 
-    // const positionName = (
-    //     userInfo?.position?.positionName
-    //     || userInfo?.positionName
-    //     || userInfo?.position_name
-    //     || ''
-    // ).trim();
-
-    // return ['주임', '선임', '책임', '수석', '팀장', '리더', '관리자'].some((keyword) =>
-    //     positionName.includes(keyword)
-    // );
+  return new Date(value).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
-// [전자결재] 전자결재 메인 페이지
+const readPageContent = (response) => response.data?.content || [];
+
+// [전자결재] 요약 문서함
 const Approval = () => {
-    //DefaultLayout.js의 Outlet에서 보낸 userInfo 데이터 받기
-    const [userInfo] = useOutletContext();
-    const showApproverMenus = canViewApproverMenus(userInfo);
+  const outletContext = useOutletContext();
+  const [contextUserInfo] = Array.isArray(outletContext) ? outletContext : [];
+  const navigate = useNavigate();
 
-    //해당 화면의 SQL 쿼리 작성(백틱 `` 사용)
-    const sqlQuery = `
-        SELECT 
-            a.approval_id,
-            a.title,
-            a.writer_id,
-            a.current_step,
-            a.created_at
-        FROM APPROVAL a
-        WHERE a.current_approver_id = #{emp_id}
-        AND a.status = '진행'
-        ORDER BY a.created_at ASC
-        LIMIT 3;
+  const [summary, setSummary] = useState({
+    mine: [],
+    referenced: [],
+    drafts: [],
+    pending: [],
+    upcoming: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-        SELECT 
-            a.approval_id,
-            a.title,
-            a.current_step,
-            a.max_step,
-            a.status,
-            a.created_at
-        FROM APPROVAL a
-        WHERE a.writer_id = #{emp_id}
-        AND a.status IN ('대기', '진행')
-        ORDER BY a.created_at DESC
-        LIMIT 3;
-    `;
+  const showApproverMenus = canViewApproverMenus(contextUserInfo);
 
-    return (
-        <div style={containerStyle}>
-            <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between' }}>
-                <h2>🚀 {userInfo?.name}님의 전자결재 현황</h2>
-            </header>
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage('');
 
-            <hr style={{ border: '0', height: '1px', background: '#eee', margin: '40px 0' }} />
+        const commonParams = {
+          page: 0,
+          size: SUMMARY_SIZE,
+        };
 
-            {/* 1차 시연용 영역 */}
-            <CCard className="mb-4" style={{ height: 'calc(100vh - 120px)' }}>
-                <CCardHeader>
-                    <strong>시연 화면 및 관련 SQL쿼리</strong>
-                </CCardHeader>
-                <CCardBody className="p-0 d-flex flex-column">
-                    <div className="p-2 d-flex justify-content-end">
-                        {/* 시연용 화면 이동 버튼 */}
-                        {/* <Link to="/approval/new/select-form"> */}
-                        <Link to={PATH.APPROVAL.NEW_SELECT}>
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                새 결재 작성
-                            </CButton>
-                        </Link>
+        /*
+         * 백엔드의 기존 목록 API를 그대로 활용해 각 문서함의 앞 3건만 조회합니다.
+         * 목록 API는 updatedAt 내림차순으로 정렬하므로 사용자는 최근 작업 문서를 먼저 볼 수 있습니다.
+         */
+        const requests = [
+          axiosInstance.get(PATH.API.APPROVAL.MY_DOCUMENTS, { params: commonParams }),
+          axiosInstance.get(PATH.API.APPROVAL.REFERENCED_DOCUMENTS, { params: commonParams }),
+          axiosInstance.get(PATH.API.APPROVAL.DRAFTS, { params: commonParams }),
+        ];
 
-                        {/* <Link to="/approval/tmpApprovals"> */}
-                        <Link to={PATH.APPROVAL.TMP}>
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                임시저장함
-                            </CButton>
-                        </Link>
+        if (showApproverMenus) {
+          requests.push(
+            axiosInstance.get(PATH.API.APPROVAL.PENDING_DOCUMENTS, { params: commonParams }),
+            axiosInstance.get(PATH.API.APPROVAL.UPCOMING_DOCUMENTS, { params: commonParams })
+          );
+        }
 
-                        {/* <Link to="/approval/personalApprovals"> */}
-                        <Link to={PATH.APPROVAL.PERSONAL}>
-                            <CButton
-                                color='primary'
-                                variant='outline'
-                                style={{ fontWeight: 'bold' }}
-                                >
-                                개인문서함
-                            </CButton>
-                        </Link>
+        const responses = await Promise.all(requests);
 
-                        {/* 사원보다 높은 직급에게만 결재자 전용 문서함 메뉴를 노출합니다. */}
-                        {showApproverMenus && (
-                            <>
-                                {/* <Link to="/approval/pendingApprovals"> */}
-                                <Link to={PATH.APPROVAL.PENDING}>
-                                    <CButton
-                                        color='primary'
-                                        variant='outline'
-                                        style={{ fontWeight: 'bold' }}
-                                        >
-                                        결재 대기 문서함
-                                    </CButton>
-                                </Link>
+        setSummary({
+          mine: readPageContent(responses[0]),
+          referenced: readPageContent(responses[1]),
+          drafts: readPageContent(responses[2]),
+          pending: showApproverMenus ? readPageContent(responses[3]) : [],
+          upcoming: showApproverMenus ? readPageContent(responses[4]) : [],
+        });
+      } catch (error) {
+        console.error('전자결재 요약 문서함 조회 실패:', error);
+        setErrorMessage('전자결재 요약 문서함을 불러오지 못했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-                                {/* <Link to="/approval/upcomingApprovals"> */}
-                                <Link to={PATH.APPROVAL.UPCOMING}>
-                                    <CButton
-                                        color='primary'
-                                        variant='outline'
-                                        style={{ fontWeight: 'bold' }}
-                                        >
-                                        결재 예정 문서함
-                                    </CButton>
-                                </Link>
-                            </>
-                        )}
-                    </div>
+    fetchSummary();
+  }, [showApproverMenus]);
 
-                    {/* 레퍼런스 이미지 영역 */}
-                    <div className="text-center" style={{ backgroundColor: '#f4f4f4', borderTop: '1px solid #eee' }}>
-                        <img 
-                            src={refImage} 
-                            alt="전자결재 메인" 
-                            style={{ width: '100%',
-                            height: 'auto',
-                            display: 'block' }} 
-                        />
-                    </div>
+  const cards = useMemo(() => {
+    const baseCards = [
+      {
+        key: 'mine',
+        title: '내가 상신한 문서',
+        documents: summary.mine,
+        morePath: PATH.APPROVAL.PERSONAL,
+        openDocument: (document) => navigate(PATH.APPROVAL.PERSONAL_DETAIL_WITH_ID(document.approvalId)),
+      },
+      {
+        key: 'referenced',
+        title: '참조 문서',
+        documents: summary.referenced,
+        morePath: PATH.APPROVAL.PERSONAL,
+        openDocument: (document) => navigate(PATH.APPROVAL.PERSONAL_DETAIL_WITH_ID(document.approvalId), {
+          state: { from: 'referenced' },
+        }),
+      },
+      {
+        key: 'drafts',
+        title: '임시저장 문서',
+        documents: summary.drafts,
+        morePath: PATH.APPROVAL.TMP,
+        openDocument: (document) => navigate(PATH.APPROVAL.NEW_WRITE, {
+          state: { draftId: document.approvalId },
+        }),
+      },
+    ];
 
-                    {/* SQL 쿼리 영역 */}
-                    <div className='text-start mt-4'>
-                        <h5 className='mb-3' style={{ fontWeight: 'bold', color: '#4f5d73' }}>
-                            <span style={{ borderLeft: '4px solid #321fdb', paddingLeft: '10px' }}>
-                                관련 SQL 쿼리
-                            </span>
-                        </h5>
-                        <SyntaxHighlighter language='sql' style={coy}>
-                            {sqlQuery}
-                        </SyntaxHighlighter>
-                    </div>
-                </CCardBody>
-            </CCard>
+    if (!showApproverMenus) {
+      return baseCards;
+    }
+
+    return [
+      ...baseCards,
+      {
+        key: 'pending',
+        title: '결재 대기 문서',
+        documents: summary.pending,
+        morePath: PATH.APPROVAL.PENDING,
+        openDocument: (document) => navigate(PATH.APPROVAL.PENDING_DETAIL_WITH_ID(document.approvalId)),
+      },
+      {
+        key: 'upcoming',
+        title: '결재 예정 문서',
+        documents: summary.upcoming,
+        morePath: PATH.APPROVAL.UPCOMING,
+        openDocument: (document) => navigate(PATH.APPROVAL.UPCOMING_DETAIL_WITH_ID(document.approvalId)),
+      },
+    ];
+  }, [navigate, showApproverMenus, summary]);
+
+  return (
+    <div style={containerStyle}>
+      <header className="mb-4">
+        <h2 className="mb-1">전자결재 요약 문서함</h2>
+        <div className="text-body-secondary">
+          {contextUserInfo?.name
+            ? `${contextUserInfo.name}님의 최근 결재 문서를 문서함별로 확인합니다.`
+            : '최근 결재 문서를 문서함별로 확인합니다.'}
         </div>
-    );
+      </header>
+
+      {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
+
+      {loading ? (
+        <div className="py-5 text-center">
+          <CSpinner size="sm" className="me-2" />
+          요약 문서함을 불러오는 중입니다.
+        </div>
+      ) : (
+        <CRow className="g-4">
+          {cards.map((card) => (
+            <CCol xs={12} lg={6} xl={4} key={card.key}>
+              <SummaryCard card={card} />
+            </CCol>
+          ))}
+        </CRow>
+      )}
+    </div>
+  );
+};
+
+const SummaryCard = ({ card }) => {
+  const navigate = useNavigate();
+
+  return (
+    <CCard className="h-100 border-0 shadow-sm" style={{ borderRadius: 8 }}>
+      <CCardBody>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="mb-0 fw-bold">{card.title}</h5>
+          <button
+            type="button"
+            className="btn btn-link p-0 text-decoration-none"
+            onClick={() => navigate(card.morePath)}
+            title={`${card.title} 더보기`}
+            aria-label={`${card.title} 더보기`}
+          >
+            <CIcon icon={cilArrowRight} />
+          </button>
+        </div>
+
+        <CTable hover responsive align="middle" className="mb-0">
+          <CTableHead>
+            <CTableRow>
+              <CTableHeaderCell>문서 제목</CTableHeaderCell>
+              <CTableHeaderCell style={{ width: 160 }}>작성일</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {card.documents.length === 0 ? (
+              <CTableRow>
+                <CTableDataCell colSpan={2} className="text-center text-body-secondary py-4">
+                  표시할 문서가 없습니다.
+                </CTableDataCell>
+              </CTableRow>
+            ) : (
+              card.documents.map((document) => (
+                <CTableRow
+                  key={document.approvalId}
+                  role="button"
+                  onClick={() => card.openDocument(document)}
+                >
+                  <CTableDataCell>
+                    <strong>{document.title || '-'}</strong>
+                  </CTableDataCell>
+                  <CTableDataCell>{formatDateTime(document.createdAt || document.updatedAt)}</CTableDataCell>
+                </CTableRow>
+              ))
+            )}
+          </CTableBody>
+        </CTable>
+      </CCardBody>
+    </CCard>
+  );
 };
 
 export default Approval;
