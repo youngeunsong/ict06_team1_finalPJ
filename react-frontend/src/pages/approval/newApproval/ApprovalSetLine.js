@@ -217,7 +217,7 @@ const EmployeeCandidatePicker = ({
         <CFormInput
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="사번, 이름, 부서명, 직급 검색"
+          placeholder="사번, 이름 검색"
           style={{ maxWidth: '320px' }}
         />
       </CCardHeader>
