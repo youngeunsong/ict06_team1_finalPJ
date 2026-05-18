@@ -142,6 +142,9 @@ export const PATH = {
       REJECT: (approvalId) => `/approval/${approvalId}/reject`,
       CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
       DRAFTS: '/approval/drafts',
+      UPDATE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
+      SUBMIT_DRAFT: (approvalId) => `/approval/drafts/${approvalId}/submit`,
+      DELETE_FILE: (fileId) => `/approval/files/${fileId}`,
       SUBMIT: '/approval/submit',
     },
 

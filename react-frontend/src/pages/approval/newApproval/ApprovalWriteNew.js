@@ -57,6 +57,34 @@ const isImageFile = (file) => file?.type?.startsWith('image/');
 const isPdfFile = (file) =>
   file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf');
 
+const buildResourceUrl = (path) => {
+  if (!path) {
+    return '';
+  }
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  return `${PATH.API.BASE.replace(/\/api$/, '')}${path}`;
+};
+
+const parseContentFields = (content) => {
+  if (!content) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    return (Array.isArray(parsed.fields) ? parsed.fields : []).reduce((acc, field) => {
+      acc[field.id] = field.value || '';
+      return acc;
+    }, {});
+  } catch (error) {
+    return {};
+  }
+};
+
 const createEmptyValues = (fields) =>
   fields.reduce((acc, field) => {
     acc[field.id] = '';
@@ -70,12 +98,15 @@ const ApprovalWriteNew = () => {
   const location = useLocation();
 
   const initialForm = location.state?.selectedForm || null;
+  const draftId = location.state?.draftId || null;
 
   const [selectedForm, setSelectedForm] = useState(initialForm);
-  const [loading, setLoading] = useState(Boolean(initialForm?.formId));
+  const [loading, setLoading] = useState(Boolean(initialForm?.formId || draftId));
   const [errorMessage, setErrorMessage] = useState('');
   const [fieldValues, setFieldValues] = useState({});
   const [files, setFiles] = useState([]);
+  const [existingFiles, setExistingFiles] = useState([]);
+  const [draftLines, setDraftLines] = useState([]);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -104,8 +135,47 @@ const ApprovalWriteNew = () => {
     [files]
   );
 
+  // 임시저장함에서 들어온 경우에는 저장된 문서 상세와 최신 서식 정보를 함께 불러옵니다.
+  useEffect(() => {
+    if (!draftId) {
+      return;
+    }
+
+    const fetchDraftDetail = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage('');
+
+        const detailResponse = await axiosInstance.get(PATH.API.APPROVAL.DETAIL(draftId));
+        const detail = detailResponse.data;
+
+        if (detail?.status !== 'DRAFT') {
+          setErrorMessage('임시저장 상태의 문서만 수정할 수 있습니다.');
+          return;
+        }
+
+        const formResponse = await axiosInstance.get(PATH.API.APPROVAL.FORM_DETAIL(detail.formId));
+        setSelectedForm(formResponse.data);
+        setFieldValues(parseContentFields(detail.content));
+        setExistingFiles(detail.files || []);
+        setDraftLines(detail.lines || []);
+      } catch (error) {
+        console.error('임시저장 문서 상세 조회 실패:', error);
+        setErrorMessage('임시저장 문서를 불러오지 못했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDraftDetail();
+  }, [draftId]);
+
   // 서식 목록에서 받은 데이터가 오래되었을 수 있어 작성 화면 진입 시 상세 API로 최신 template을 다시 조회합니다.
   useEffect(() => {
+    if (draftId) {
+      return;
+    }
+
     if (!initialForm?.formId) {
       setErrorMessage('먼저 결재 서식을 선택해 주세요.');
       setLoading(false);
@@ -128,10 +198,13 @@ const ApprovalWriteNew = () => {
     };
 
     fetchLatestForm();
-  }, [initialForm?.formId]);
+  }, [draftId, initialForm?.formId]);
 
   useEffect(() => {
-    setFieldValues(createEmptyValues(template.fields));
+    setFieldValues((prev) => ({
+      ...createEmptyValues(template.fields),
+      ...prev,
+    }));
   }, [template.fields]);
 
   // 첨부파일이 필요 없는 서식으로 바뀌면 이전 선택 파일이 함께 제출되지 않도록 즉시 비웁니다.
@@ -186,6 +259,20 @@ const ApprovalWriteNew = () => {
     setFileInputKey((prev) => prev + 1);
   };
 
+  const removeExistingFile = async (fileId) => {
+    if (!window.confirm('기존 첨부파일을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await axiosInstance.delete(PATH.API.APPROVAL.DELETE_FILE(fileId));
+      setExistingFiles((prev) => prev.filter((file) => file.fileId !== fileId));
+    } catch (error) {
+      console.error('임시저장 첨부파일 삭제 실패:', error);
+      setErrorMessage('첨부파일 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   const buildContent = () => {
     const fields = template.fields.map((field) => ({
       id: field.id,
@@ -220,7 +307,7 @@ const ApprovalWriteNew = () => {
       return false;
     }
 
-    if (canAttachFile && files.length === 0) {
+    if (canAttachFile && files.length === 0 && existingFiles.length === 0) {
       setErrorMessage('이 서식은 첨부파일이 필수입니다.');
       return false;
     }
@@ -234,9 +321,9 @@ const ApprovalWriteNew = () => {
     return true;
   };
 
-  const requestApprovalApi = async (apiPath, payload) => {
+  const requestApprovalApi = async (apiPath, payload, method = 'post') => {
     if (!canAttachFile || files.length === 0) {
-      return axiosInstance.post(apiPath, payload);
+      return axiosInstance[method](apiPath, payload);
     }
 
     /*
@@ -250,7 +337,7 @@ const ApprovalWriteNew = () => {
     );
     files.forEach((file) => formData.append('files', file));
 
-    return axiosInstance.post(apiPath, formData);
+    return axiosInstance[method](apiPath, formData);
   };
 
   const saveDraft = async () => {
@@ -260,7 +347,9 @@ const ApprovalWriteNew = () => {
 
     try {
       setSaving(true);
-      await requestApprovalApi(PATH.API.APPROVAL.DRAFTS, buildRequestPayload([]));
+      const apiPath = draftId ? PATH.API.APPROVAL.UPDATE_DRAFT(draftId) : PATH.API.APPROVAL.DRAFTS;
+      const method = draftId ? 'put' : 'post';
+      await requestApprovalApi(apiPath, buildRequestPayload(draftLines), method);
       alert('임시저장되었습니다.');
       navigate(PATH.APPROVAL.TMP);
     } catch (error) {
@@ -279,6 +368,9 @@ const ApprovalWriteNew = () => {
     navigate(PATH.APPROVAL.NEW_SETLINE, {
       state: {
         selectedForm,
+        draftId,
+        draftLines,
+        existingFiles,
         documentTitle,
         content: buildContent(),
         files: canAttachFile ? files : [],
@@ -380,6 +472,50 @@ const ApprovalWriteNew = () => {
     );
   };
 
+  const renderExistingFiles = () => {
+    if (existingFiles.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="d-flex flex-wrap gap-3 mt-3">
+        {existingFiles.map((file) => (
+          <div
+            className="border rounded position-relative bg-light"
+            style={{ width: '150px', minHeight: '150px', overflow: 'hidden' }}
+            key={file.fileId}
+          >
+            <CButton
+              color="danger"
+              size="sm"
+              className="position-absolute top-0 end-0 m-1"
+              style={{ zIndex: 1, lineHeight: 1 }}
+              onClick={() => removeExistingFile(file.fileId)}
+            >
+              x
+            </CButton>
+
+            {file.filePath?.match(/\.(png|jpe?g|gif|webp)$/i) ? (
+              <img
+                src={buildResourceUrl(file.filePath)}
+                alt={file.fileName}
+                style={{ width: '100%', height: '110px', objectFit: 'cover' }}
+              />
+            ) : (
+              <div className="d-flex align-items-center justify-content-center" style={{ height: '110px' }}>
+                <strong>FILE</strong>
+              </div>
+            )}
+
+            <div className="small px-2 py-2 text-truncate" title={file.fileName}>
+              {file.fileName}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div style={containerStyle} className="py-5 text-center">
@@ -428,6 +564,7 @@ const ApprovalWriteNew = () => {
           {canAttachFile && (
             <div className="mb-4">
               <CFormLabel htmlFor="approval-files">첨부파일 (필수)</CFormLabel>
+              {renderExistingFiles()}
               <CFormInput
                 key={fileInputKey}
                 id="approval-files"

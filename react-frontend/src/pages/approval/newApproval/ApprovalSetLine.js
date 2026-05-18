@@ -119,6 +119,13 @@ const createUserCandidates = (targets, keyword) => {
     });
 };
 
+const lineToEmployee = (line) => ({
+  empNo: line.approverNo,
+  name: line.approverName || line.approverNo || '',
+  deptName: line.approverDeptName || '',
+  positionName: line.approverPositionName || '',
+});
+
 // DEPT/POSITION 타입 결재선 서식은 기존 직원 검색 API의 필터 파라미터로 변환합니다.
 // 여러 조건이 섞인 복잡한 결재선은 우선 키워드 검색과 수동 선택이 가능하도록 넓게 조회합니다.
 const buildCandidateSearchParams = (targets, page, keyword) => {
@@ -337,9 +344,12 @@ const ApprovalSetLine = () => {
 
   const selectedForm = location.state?.selectedForm || null;
   const files = location.state?.files || [];
+  const draftId = location.state?.draftId || null;
+  const draftLines = useMemo(() => location.state?.draftLines || [], [location.state?.draftLines]);
 
   const [lineTemplate, setLineTemplate] = useState(null);
   const [selectedMap, setSelectedMap] = useState({});
+  const [draftLineInitialized, setDraftLineInitialized] = useState(false);
   const [loading, setLoading] = useState(Boolean(selectedForm?.lineTemplateId));
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -380,6 +390,28 @@ const ApprovalSetLine = () => {
     () => buildGroupsFromTemplate(lineTemplate),
     [lineTemplate]
   );
+
+  useEffect(() => {
+    if (draftLineInitialized || draftLines.length === 0 || loading) {
+      return;
+    }
+
+    const nextSelectedMap = {};
+    draftLines.forEach((line) => {
+      const stepOrder = Number(line.stepOrder);
+      const groupKey = stepOrder > 0
+        ? getGroupKey('approval', stepOrder)
+        : getGroupKey('reference', 0);
+
+      nextSelectedMap[groupKey] = [
+        ...(nextSelectedMap[groupKey] || []),
+        lineToEmployee(line),
+      ];
+    });
+
+    setSelectedMap(nextSelectedMap);
+    setDraftLineInitialized(true);
+  }, [draftLineInitialized, draftLines, loading]);
 
   const approvalLines = useMemo(() => {
     const approvalSelected = approvalGroups.flatMap((group) =>
@@ -483,9 +515,9 @@ const ApprovalSetLine = () => {
     return true;
   };
 
-  const sendApprovalRequest = async (apiPath) => {
+  const sendApprovalRequest = async (apiPath, method = 'post') => {
     const { body } = createRequestPart(requestPayload, files);
-    return axiosInstance.post(apiPath, body);
+    return axiosInstance[method](apiPath, body);
   };
 
   const saveDraft = async () => {
@@ -495,7 +527,9 @@ const ApprovalSetLine = () => {
 
     try {
       setSubmitting(true);
-      await sendApprovalRequest(PATH.API.APPROVAL.DRAFTS);
+      const apiPath = draftId ? PATH.API.APPROVAL.UPDATE_DRAFT(draftId) : PATH.API.APPROVAL.DRAFTS;
+      const method = draftId ? 'put' : 'post';
+      await sendApprovalRequest(apiPath, method);
       alert('임시저장되었습니다.');
       navigate(PATH.APPROVAL.TMP);
     } catch (error) {
@@ -513,7 +547,8 @@ const ApprovalSetLine = () => {
 
     try {
       setSubmitting(true);
-      await sendApprovalRequest(PATH.API.APPROVAL.SUBMIT);
+      const apiPath = draftId ? PATH.API.APPROVAL.SUBMIT_DRAFT(draftId) : PATH.API.APPROVAL.SUBMIT;
+      await sendApprovalRequest(apiPath);
       alert('상신되었습니다.');
       navigate(PATH.APPROVAL.PERSONAL);
     } catch (error) {
@@ -533,7 +568,20 @@ const ApprovalSetLine = () => {
             {selectedForm?.formName || '서식 미선택'}
           </div>
         </div>
-        <CButton color="secondary" variant="outline" onClick={() => navigate(PATH.APPROVAL.NEW_WRITE, { state: { selectedForm } })}>
+        <CButton
+          color="secondary"
+          variant="outline"
+          onClick={() => navigate(PATH.APPROVAL.NEW_WRITE, {
+            state: {
+              selectedForm,
+              draftId,
+              draftLines: approvalLines.map((line) => ({
+                approverNo: line.approverNo,
+                stepOrder: line.stepOrder,
+              })),
+            },
+          })}
+        >
           내용 수정
         </CButton>
       </header>
