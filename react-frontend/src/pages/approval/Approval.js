@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CAlert,
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -38,6 +39,8 @@ const formatDateTime = (value) => {
 };
 
 const readPageContent = (response) => response.data?.content || [];
+
+const getSummaryTime = (document) => new Date(document.updatedAt || document.createdAt || 0).getTime();
 
 // [전자결재] 메인 화면
 const Approval = () => {
@@ -106,21 +109,35 @@ const Approval = () => {
   }, [showApproverMenus]);
 
   const cards = useMemo(() => {
+    /*
+     * 개인문서함은 "내가 상신한 문서"와 "참조 문서"를 같은 카드에서 보여줍니다.
+     * 두 API 응답을 합친 뒤 최신순으로 다시 정렬해, 사용자가 개인문서함의 최근 흐름을 한눈에 볼 수 있게 합니다.
+     */
+    const personalDocuments = [
+      ...summary.mine.map((document) => ({
+        ...document,
+        summaryType: 'submitted',
+        summaryTypeLabel: '상신',
+        summaryTypeBadgeColor: 'primary',
+      })),
+      ...summary.referenced.map((document) => ({
+        ...document,
+        summaryType: 'referenced',
+        summaryTypeLabel: '참조',
+        summaryTypeBadgeColor: 'info',
+      })),
+    ]
+      .sort((left, right) => getSummaryTime(right) - getSummaryTime(left))
+      .slice(0, SUMMARY_SIZE);
+
     const baseCards = [
       {
-        key: 'mine',
-        title: '내가 상신한 문서',
-        documents: summary.mine,
-        morePath: PATH.APPROVAL.PERSONAL,
-        openDocument: (document) => navigate(PATH.APPROVAL.PERSONAL_DETAIL_WITH_ID(document.approvalId)),
-      },
-      {
-        key: 'referenced',
-        title: '참조 문서',
-        documents: summary.referenced,
+        key: 'personal',
+        title: '개인문서함',
+        documents: personalDocuments,
         morePath: PATH.APPROVAL.PERSONAL,
         openDocument: (document) => navigate(PATH.APPROVAL.PERSONAL_DETAIL_WITH_ID(document.approvalId), {
-          state: { from: 'referenced' },
+          state: { from: document.summaryType === 'referenced' ? 'referenced' : 'mine' },
         }),
       },
       {
@@ -213,26 +230,39 @@ const SummaryCard = ({ card }) => {
           <CTableHead>
             <CTableRow>
               <CTableHeaderCell>문서 제목</CTableHeaderCell>
+              {card.documents.some((document) => document.summaryTypeLabel) && (
+                <CTableHeaderCell style={{ width: 90 }}>분류</CTableHeaderCell>
+              )}
               <CTableHeaderCell style={{ width: 160 }}>작성일</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
             {card.documents.length === 0 ? (
               <CTableRow>
-                <CTableDataCell colSpan={2} className="text-center text-body-secondary py-4">
+                <CTableDataCell
+                  colSpan={card.documents.some((document) => document.summaryTypeLabel) ? 3 : 2}
+                  className="text-center text-body-secondary py-4"
+                >
                   표시할 문서가 없습니다.
                 </CTableDataCell>
               </CTableRow>
             ) : (
               card.documents.map((document) => (
                 <CTableRow
-                  key={document.approvalId}
+                  key={`${document.summaryType || card.key}-${document.approvalId}`}
                   role="button"
                   onClick={() => card.openDocument(document)}
                 >
                   <CTableDataCell>
                     <strong>{document.title || '-'}</strong>
                   </CTableDataCell>
+                  {card.documents.some((item) => item.summaryTypeLabel) && (
+                    <CTableDataCell>
+                      <CBadge color={document.summaryTypeBadgeColor || 'secondary'}>
+                        {document.summaryTypeLabel || '-'}
+                      </CBadge>
+                    </CTableDataCell>
+                  )}
                   <CTableDataCell>{formatDateTime(document.createdAt || document.updatedAt)}</CTableDataCell>
                 </CTableRow>
               ))
