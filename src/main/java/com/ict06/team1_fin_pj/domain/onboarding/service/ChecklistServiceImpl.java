@@ -10,6 +10,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.29    김다솜        최초 생성/체크리스트 조회 및 완료 처리 로직 구현
  * @ 2026.05.14    김다솜        사원별 로드맵 콘텐츠 기반 체크리스트 동적 필터링 구현
+ * @ 2026.05.15    김다솜        학습 콘텐츠 연결 항목의 직접 체크 제한 및 평가 완료 항목 되돌리기 차단
  */
 
 package com.ict06.team1_fin_pj.domain.onboarding.service;
@@ -17,6 +18,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.service;
 import com.ict06.team1_fin_pj.common.dto.onboarding.ChecklistResponse;
 import com.ict06.team1_fin_pj.domain.auth.repository.EmpRepository;
 import com.ict06.team1_fin_pj.domain.employee.entity.EmpEntity;
+import com.ict06.team1_fin_pj.domain.evaluation.repository.EvaluationResultRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.ChecklistEntity;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.ChecklistProgressEntity;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.ProgressStatus;
@@ -44,6 +46,7 @@ public class ChecklistServiceImpl {
     private final EmpRepository empRepository;
     private final RoadmapRepository roadmapRepository;
     private final RoadItemRepository roadItemRepository;
+    private final EvaluationResultRepository evaluationResultRepository;
 
     // 사원별 체크리스트 목록 조회 (로드맵 기반 자동 생성/필터링 로직 추가)
     public List<ChecklistResponse> getChecklist(String empNo) {
@@ -77,6 +80,10 @@ public class ChecklistServiceImpl {
         return filteredChecklist.stream()
                 .map(item -> {
                     ChecklistProgressEntity progress = progressMap.get(item.getChecklistId());
+                    ProgressStatus status = progress != null ? progress.getStatus() : ProgressStatus.NOT_STARTED;
+                    String relatedCategory = item.getRelatedContent() != null ? item.getRelatedContent().getCategory() : null;
+                    boolean evaluationSubmitted = relatedCategory != null
+                            && evaluationResultRepository.existsByEmployee_EmpNoAndQuestion_CategoryName(empNo, relatedCategory);
 
                     return ChecklistResponse.builder()
                             .checklistId(item.getChecklistId())
@@ -85,10 +92,12 @@ public class ChecklistServiceImpl {
                             .description(item.getDescription())
                             .isMandatory(item.getIsMandatory())
                             .orderNo(item.getOrderNo())
-                            .status(progress != null ? progress.getStatus() : ProgressStatus.NOT_STARTED)
+                            .status(status)
                             //연결된 학습 콘텐츠 정보
                             .relatedContentId(item.getRelatedContent() != null ? item.getRelatedContent().getContentId() : null)
                             .relatedContentTitle(item.getRelatedContent() != null ? item.getRelatedContent().getTitle() : null)
+                            .learningCompleted(status == ProgressStatus.COMPLETED)
+                            .evaluationSubmitted(evaluationSubmitted)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -123,6 +132,15 @@ public class ChecklistServiceImpl {
     //체크리스트 미완료 처리
     @Transactional
     public void uncompleteChecklist(String empNo, Integer checklistId) {
+        ChecklistEntity checklist = checklistRepository.findById(checklistId)
+                .orElseThrow(() -> new RuntimeException("체크리스트 없음"));
+
+        String relatedCategory = checklist.getRelatedContent() != null ? checklist.getRelatedContent().getCategory() : null;
+        if (relatedCategory != null
+                && evaluationResultRepository.existsByEmployee_EmpNoAndQuestion_CategoryName(empNo, relatedCategory)) {
+            throw new IllegalStateException("평가를 마친 항목입니다.");
+        }
+
         var existing = progressRepository
                 .findByEmployee_EmpNoAndChecklist_ChecklistId(empNo, checklistId);
 

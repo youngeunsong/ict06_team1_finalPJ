@@ -177,15 +177,17 @@ def analyze_evaluation_status():
                     qq.category_name,
                     qr.submitted_at,
                     SUM(COALESCE(qr.score, 0)) AS total_score,
-                    SUM(COALESCE(qq.score, 0)) AS max_score
+                    SUM(COALESCE(qq.score, 0)) AS max_score,
+                    COALESCE(qgr.pass_score, 80) as pass_score
                 FROM quiz_result qr
                 JOIN quiz_question qq ON qr.question_id = qq.question_id
+                LEFT JOIN quiz_generation_rule qgr ON qq.category_name = qgr.category_name AND qgr.is_active = TRUE
                 WHERE qr.submitted_at IS NOT NULL
-                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at
+                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at, qgr.pass_score
             )
             SELECT
                 CASE
-                    WHEN max_score > 0 AND total_score >= max_score * 0.8 THEN '통과'
+                    WHEN max_score > 0 AND total_score >= max_score * (pass_score / 100.0) THEN '통과'
                     ELSE '미통과'
                 END AS result_status,
                 COUNT(*) AS result_count
@@ -219,24 +221,27 @@ def analyze_category_performance_stats(level: str = "team"):
                     qq.category_name, 
                     qr.submitted_at,
                     SUM(COALESCE(qr.score, 0)) AS total_score,
-                    SUM(COALESCE(qq.score, 0)) AS max_score
+                    SUM(COALESCE(qq.score, 0)) AS max_score,
+                    COALESCE(qgr.pass_score, 80) as pass_score
                 FROM quiz_result qr
                 JOIN quiz_question qq ON qr.question_id = qq.question_id
+                LEFT JOIN quiz_generation_rule qgr ON qq.category_name = qgr.category_name AND qgr.is_active = TRUE
                 JOIN employee e ON qr.emp_no = e.emp_no
                 JOIN department d ON e.dept_id = d.dept_id
                 JOIN role r ON e.role_id = r.role_id
                 WHERE qr.submitted_at IS NOT NULL AND {_employee_base_where()} {level_filter}
-                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at
+                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at, qgr.pass_score
             )
             SELECT 
                 category_name,
-                ROUND(AVG(CASE WHEN max_score > 0 THEN (total_score::FLOAT / max_score * 100) ELSE 0 END)::numeric, 1) as avg_score
+                ROUND(AVG(CASE WHEN max_score > 0 THEN (total_score::FLOAT / max_score * 100) ELSE 0 END)::numeric, 1) as avg_score,
+                AVG(pass_score) as baseline
             FROM submission_scores
             GROUP BY category_name
             ORDER BY category_name
         """
         results = conn.run(query)
-        return [{"category_name": row[0], "avg_score": float(row[1]), "baseline": 80.0} for row in results]
+        return [{"category_name": row[0], "avg_score": float(row[1]), "baseline": float(row[2])} for row in results]
     except Exception as e:
         print(f"카테고리 성능 분석 실패: {e}")
         return []
@@ -258,18 +263,20 @@ def analyze_category_pass_rate_stats(level: str = "team"):
                     qq.category_name, 
                     qr.submitted_at,
                     SUM(COALESCE(qr.score, 0)) AS total_score,
-                    SUM(COALESCE(qq.score, 0)) AS max_score
+                    SUM(COALESCE(qq.score, 0)) AS max_score,
+                    COALESCE(qgr.pass_score, 80) as pass_score
                 FROM quiz_result qr
                 JOIN quiz_question qq ON qr.question_id = qq.question_id
+                LEFT JOIN quiz_generation_rule qgr ON qq.category_name = qgr.category_name AND qgr.is_active = TRUE
                 JOIN employee e ON qr.emp_no = e.emp_no
                 JOIN department d ON e.dept_id = d.dept_id
                 JOIN role r ON e.role_id = r.role_id
                 WHERE qr.submitted_at IS NOT NULL AND {_employee_base_where()} {level_filter}
-                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at
+                GROUP BY qr.emp_no, qq.category_name, qr.submitted_at, qgr.pass_score
             )
             SELECT 
                 category_name,
-                ROUND((COUNT(CASE WHEN max_score > 0 AND total_score >= max_score * 0.8 THEN 1 END)::FLOAT / COUNT(*)) * 100, 1) as pass_rate
+                ROUND((COUNT(CASE WHEN max_score > 0 AND total_score >= max_score * (pass_score / 100.0) THEN 1 END)::FLOAT / COUNT(*)) * 100, 1) as pass_rate
             FROM submission_stats
             GROUP BY category_name
             ORDER BY category_name
@@ -296,16 +303,17 @@ def analyze_low_understanding_questions(level: str = "team", limit=5):
                 qq.category_name,
                 ROUND(AVG(CASE 
                     WHEN qr.is_correct = TRUE THEN 1 
-                    WHEN qr.is_correct IS NULL AND qq.score > 0 AND (qr.score::FLOAT / qq.score) >= 0.8 THEN 1
+                    WHEN qr.is_correct IS NULL AND qq.score > 0 AND (qr.score::FLOAT / qq.score) >= (COALESCE(qgr.pass_score, 80) / 100.0) THEN 1
                     ELSE 0 
                 END) * 100, 1) as understanding_rate
             FROM quiz_result qr
             JOIN quiz_question qq ON qr.question_id = qq.question_id
+            LEFT JOIN quiz_generation_rule qgr ON qq.category_name = qgr.category_name AND qgr.is_active = TRUE
             JOIN employee e ON qr.emp_no = e.emp_no
             JOIN department d ON e.dept_id = d.dept_id
             JOIN role r ON e.role_id = r.role_id
             WHERE qr.submitted_at IS NOT NULL AND {_employee_base_where()} {level_filter}
-            GROUP BY qq.question_id, qq.question_text, qq.category_name
+            GROUP BY qq.question_id, qq.question_text, qq.category_name, qgr.pass_score
             ORDER BY understanding_rate ASC
             LIMIT {limit}
         """

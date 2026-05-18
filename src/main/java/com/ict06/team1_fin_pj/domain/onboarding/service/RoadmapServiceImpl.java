@@ -196,7 +196,8 @@ public class RoadmapServiceImpl {
     }
 
     private List<OnContentEntity> selectRoadmapContents(EmpEntity emp) {
-        List<OnContentEntity> eligibleContents = onContentRepository.findAll().stream()
+        List<OnContentEntity> allContents = onContentRepository.findAll();
+        List<OnContentEntity> eligibleContents = allContents.stream()
                 .filter(content -> isEligibleForEmployee(content, emp))
                 .toList();
 
@@ -217,14 +218,69 @@ public class RoadmapServiceImpl {
                 .sorted(roadmapContentComparator(emp))
                 .forEach(selectedContents::add);
 
+        long mandatoryCount = eligibleContents.stream()
+                .filter(content -> Boolean.TRUE.equals(content.getIsMandatory()))
+                .count();
+        long targetMatchCount = eligibleContents.stream()
+                .filter(content -> matchesEmployeeTarget(content, emp))
+                .count();
+        long commonCount = eligibleContents.stream()
+                .filter(this::isCommonContent)
+                .count();
+
+        System.out.println("[RoadmapService] 콘텐츠 선택 결과 - 사번: " + emp.getEmpNo()
+                + ", 전체: " + allContents.size()
+                + ", 사용가능: " + eligibleContents.size()
+                + ", 필수: " + mandatoryCount
+                + ", 타겟매칭: " + targetMatchCount
+                + ", 공통: " + commonCount
+                + ", 1차선택: " + selectedContents.size());
+
         if (!selectedContents.isEmpty()) {
             return selectedContents.stream().toList();
         }
 
-        return eligibleContents.stream()
+        List<OnContentEntity> fallbackContents = eligibleContents.stream()
+                .filter(content -> Boolean.TRUE.equals(content.getIsMandatory()) || isCommonContent(content))
+                .sorted(roadmapContentComparator(emp))
+                .toList();
+
+        if (!fallbackContents.isEmpty()) {
+            System.out.println("[RoadmapService] fallback 적용 - 필수/공통 콘텐츠 반환, 사번: "
+                    + emp.getEmpNo() + ", 선택 수: " + fallbackContents.size());
+            return fallbackContents;
+        }
+
+        List<OnContentEntity> commonContents = eligibleContents.stream()
                 .filter(this::isCommonContent)
                 .sorted(roadmapContentComparator(emp))
                 .toList();
+
+        if (!commonContents.isEmpty()) {
+            System.out.println("[RoadmapService] fallback 적용 - 공통 콘텐츠 반환, 사번: "
+                    + emp.getEmpNo() + ", 선택 수: " + commonContents.size());
+            return commonContents;
+        }
+
+        if (!eligibleContents.isEmpty()) {
+            System.out.println("[RoadmapService] fallback 적용 - 사용가능 콘텐츠 전체 반환, 사번: "
+                    + emp.getEmpNo() + ", 선택 수: " + eligibleContents.size());
+            return eligibleContents.stream()
+                    .sorted(roadmapContentComparator(emp))
+                    .toList();
+        }
+
+        List<OnContentEntity> finalFallback = allContents.stream()
+                .filter(content -> !isDevelopmentCategory(content) || isDevelopmentTrack(emp))
+                .filter(content -> !isDesignCategory(content) || isDesignTrack(emp))
+                .sorted(roadmapContentComparator(emp))
+                .limit(3)
+                .toList();
+
+        System.out.println("[RoadmapService] 최종 fallback 적용 - 비어있는 로드맵 방지, 사번: "
+                + emp.getEmpNo() + ", 선택 수: " + finalFallback.size());
+
+        return finalFallback;
     }
 
     private Comparator<OnContentEntity> roadmapContentComparator(EmpEntity emp) {

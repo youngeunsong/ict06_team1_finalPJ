@@ -9,6 +9,7 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.11    김다솜        AI 서버 퀴즈 초안 생성 연동 및 생성 문제 저장 로직 추가
  * @ 2026.05.13    김다솜        PDF 기반 RAG 문서 요약/청크 문맥 반영 및 문서 연계 퀴즈 자동 생성 저장 로직 추가
+ * @ 2026.05.15    김다솜        출제 기준 가중치 수정 시 updateRule 호출로 컴파일 오류 수정
  */
 package com.ict06.team1_fin_pj.domain.evaluation.service;
 
@@ -487,7 +488,7 @@ public class AdEvaluationServiceImpl implements AdEvaluationService {
                             totalScore,
                             maxScore,
                             scoreRate,
-                            maxScore > 0 && scoreRate >= 80.0,
+                            false, // 실제 통과 여부는 호출 측(summarizeAttempts with ruleMap)에서 재계산됨
                             submittedAt
                     );
                 })
@@ -518,5 +519,48 @@ public class AdEvaluationServiceImpl implements AdEvaluationService {
             boolean passed,
             LocalDateTime submittedAt
     ) {
+    }
+
+    @Override
+    @Transactional
+    public int updateCategoryCriteria(String categoryName, Integer passScore, Double weight) {
+        // 1. 해당 카테고리의 활성화된 규칙을 찾거나 없으면 새로 생성
+        QuizGenerationRuleEntity rule = quizGenerationRuleRepository
+                .findFirstByCategoryNameAndIsActiveTrueOrderByRuleIdDesc(categoryName)
+                .orElseGet(() -> QuizGenerationRuleEntity.builder()
+                        .categoryName(categoryName)
+                        .isActive(true)
+                        .build());
+
+        // 2. 가중치 변환 (Double 1.0 -> Integer 100)
+        int weightPercent = (int) (weight * 100);
+
+        // 3. 기존 규칙 값은 유지하고 통계 화면에서 조정하는 통과점수/가중치만 갱신
+        rule.updateRule(
+                rule.getCategoryName(),
+                rule.getQuestionCount(),
+                passScore,
+                weightPercent,
+                rule.getDifficulty(),
+                rule.getQuestionType(),
+                rule.getIsActive()
+        );
+        
+        quizGenerationRuleRepository.save(rule);
+        return 1;
+    }
+
+    @Override
+    public String getAiEvaluationAnalysis(Object stats) {
+        try {
+            String url = aiServerBaseUrl + "/api/ai/evaluation/analyze-stats";
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, stats, Map.class);
+            if (response.getBody() != null && response.getBody().get("analysis") != null) {
+                return (String) response.getBody().get("analysis");
+            }
+        } catch (Exception e) {
+            System.err.println("AI 분석 코멘트 생성 실패: " + e.getMessage());
+        }
+        return "현재 AI 분석 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.";
     }
 }

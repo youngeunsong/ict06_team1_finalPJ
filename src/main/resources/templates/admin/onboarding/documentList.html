@@ -208,6 +208,10 @@
                         <div class="small text-muted mb-2" id="documentQuestionMeta"></div>
                         <div id="documentQuestionAnswer" style="white-space: pre-wrap;"></div>
                     </div>
+                    <div class="mt-3 d-none" id="documentQuestionChunksWrap">
+                        <div class="small text-muted mb-2">참고 청크 미리보기</div>
+                        <div class="accordion" id="documentQuestionChunks"></div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
@@ -246,6 +250,8 @@
         const questionAnswerWrap = document.getElementById('documentQuestionAnswerWrap');
         const questionAnswer = document.getElementById('documentQuestionAnswer');
         const questionMeta = document.getElementById('documentQuestionMeta');
+        const questionChunksWrap = document.getElementById('documentQuestionChunksWrap');
+        const questionChunks = document.getElementById('documentQuestionChunks');
         let activeQuestionDocId = null;
 
         const stageBadgeClass = (stage) => {
@@ -290,6 +296,8 @@
                     questionAnswerWrap.classList.add('d-none');
                     questionAnswer.textContent = '';
                     questionMeta.textContent = '';
+                    questionChunksWrap.classList.add('d-none');
+                    questionChunks.innerHTML = '';
                     questionModal.show();
                 });
             });
@@ -422,6 +430,8 @@
             questionSubmit.textContent = '생성 중...';
             questionError.classList.add('d-none');
             questionAnswerWrap.classList.add('d-none');
+            questionChunksWrap.classList.add('d-none');
+            questionChunks.innerHTML = '';
 
             try {
                 const body = new URLSearchParams();
@@ -441,6 +451,30 @@
                 questionMeta.textContent = `참고 청크 ${result.usedChunkCount ?? 0}개 기준 답변`;
                 questionAnswer.textContent = result.answer || '';
                 questionAnswerWrap.classList.remove('d-none');
+
+                const usedChunks = Array.isArray(result.usedChunks) ? result.usedChunks : [];
+                if (usedChunks.length > 0) {
+                    questionChunks.innerHTML = usedChunks.map((chunk, index) => `
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="documentChunkHeading${index}">
+                                <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#documentChunkCollapse${index}"
+                                        aria-expanded="${index === 0 ? 'true' : 'false'}"
+                                        aria-controls="documentChunkCollapse${index}">
+                                    참고 청크 ${index + 1}
+                                </button>
+                            </h2>
+                            <div id="documentChunkCollapse${index}"
+                                 class="accordion-collapse collapse ${index === 0 ? 'show' : ''}"
+                                 aria-labelledby="documentChunkHeading${index}"
+                                 data-bs-parent="#documentQuestionChunks">
+                                <div class="accordion-body" style="white-space: pre-wrap;">${escapeHtml(chunk)}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                    questionChunksWrap.classList.remove('d-none');
+                }
             } catch (error) {
                 questionError.textContent = error.message || '문서 답변 생성 중 오류가 발생했습니다.';
                 questionError.classList.remove('d-none');
@@ -449,6 +483,15 @@
                 questionSubmit.textContent = 'AI 답변 생성';
             }
         });
+
+        const escapeHtml = (value) => {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        };
 
         refreshOptions();
         sortRows();

@@ -93,40 +93,61 @@ def answer_document_question(req: DocumentQuestionRequest) -> DocumentQuestionRe
     if not question:
         raise ValueError("질문 내용을 입력해 주세요.")
 
-    context_chunks = [chunk.strip() for chunk in req.chunks if chunk and chunk.strip()]
-    if not context_chunks and not (req.summaryPreview or "").strip():
+    context_chunks = [normalize_text(chunk).strip() for chunk in req.chunks if chunk and chunk.strip()]
+    summary_text = normalize_text((req.summaryPreview or "").strip()) if (req.summaryPreview or "").strip() else ""
+
+    if not context_chunks and not summary_text:
         raise ValueError("문서 요약 또는 청크가 없어 답변을 생성할 수 없습니다.")
 
     context_text = "\n\n".join(
         f"[참고 청크 {index}]\n{chunk[:1200]}"
         for index, chunk in enumerate(context_chunks[:5], start=1)
     )
-    summary_text = (req.summaryPreview or "").strip()
+    reference_links = build_reference_links(req.title, question)
 
-    answer = generate_document_answer(req.title, question, summary_text, context_text)
+    answer = generate_document_answer(req.title, question, summary_text, context_text, reference_links)
     return DocumentQuestionResponse(
-        answer=answer,
+        answer=clean_answer_text(answer),
         usedChunkCount=min(len(context_chunks), 5),
     )
 
-
-def generate_document_answer(title: str, question: str, summary_text: str, context_text: str) -> str:
+def generate_document_answer(
+    title: str,
+    question: str,
+    summary_text: str,
+    context_text: str,
+    reference_links: list[tuple[str, str]],
+) -> str:
+    reference_block = format_reference_links(reference_links)
     prompt = f"""
-당신은 사내 온보딩 문서를 설명하는 도우미입니다.
-아래 문서 요약과 참고 청크만 근거로 답변하세요.
-문서에 없는 내용은 추측하지 말고, 부족하면 부족하다고 말하세요.
-답변은 한국어 3~5문장으로 간결하게 작성하세요.
+You are an onboarding document study assistant.
+Use the document summary and reference chunks below as the primary evidence.
+When the document evidence is thin, you may add only the official external reference URLs provided below.
+Do not invent missing details. Focus on procedures, principles, cautions, and practical checkpoints.
+Always answer in Korean.
 
-[문서 제목]
+Answer rules:
+1. Answer the user's actual question first. Avoid broad textbook explanations unless they directly help answer the question.
+2. If the question asks about procedures, order, important points, or cautions, answer with 2-4 bullet points.
+3. If the question asks about a concept, give one short core sentence first, then add brief supporting details.
+4. Even if the document is overview-heavy, reorganize the available evidence into practical points instead of repeating the source wording.
+5. Only if evidence is truly thin, briefly say that the document provides limited procedural detail, then add official external references if available.
+6. Add one final line starting with '실무 포인트:' when useful.
+7. If you use external references, add a final section titled '추가 참고 URL' with bullet links.
+
+[Document Title]
 {title}
 
-[문서 요약]
-{summary_text or "없음"}
+[Document Summary]
+{summary_text or "None"}
 
-[참고 청크]
-{context_text or "없음"}
+[Reference Chunks]
+{context_text or "None"}
 
-[질문]
+[Official External References]
+{reference_block or "None"}
+
+[Question]
 {question}
 """
 
@@ -137,7 +158,7 @@ def generate_document_answer(title: str, question: str, summary_text: str, conte
             messages=[
                 {
                     "role": "system",
-                    "content": "당신은 온보딩 문서 질의응답 도우미입니다. 반드시 문서 근거 중심으로만 답변하세요.",
+                    "content": "You answer onboarding document questions. Use document evidence only and respond in Korean with a structured, practical answer.",
                 },
                 {
                     "role": "user",
@@ -149,31 +170,181 @@ def generate_document_answer(title: str, question: str, summary_text: str, conte
 
         answer = (response.choices[0].message.content or "").strip()
         if answer:
-            return answer
+            refined = rewrite_document_answer(
+                title=title,
+                question=question,
+                draft_answer=answer,
+                reference_links=reference_links,
+            )
+            return refined or answer
     except Exception:
         pass
 
-    return build_document_answer_fallback(title, question, summary_text, context_text)
+    return build_document_answer_fallback(title, question, summary_text, context_text, reference_links)
+
+def rewrite_document_answer(
+    title: str,
+    question: str,
+    draft_answer: str,
+    reference_links: list[tuple[str, str]],
+) -> str:
+    reference_block = format_reference_links(reference_links)
+    prompt = f"""
+You are improving an onboarding study assistant answer.
+Rewrite the draft into a more practical and less generic Korean answer.
+
+Rewrite rules:
+1. Preserve only points that are actually useful for answering the user's question.
+2. Reduce broad textbook wording and repeated source-like wording.
+3. Prefer concise practical bullets for procedures, cautions, and key points.
+4. Keep unsupported claims out.
+5. If the draft still lacks enough evidence, you may keep that limitation brief and add the official references below.
+6. If external references are used, append them under '추가 참고 URL'.
+
+[Document Title]
+{title}
+
+[Question]
+{question}
+
+[Draft Answer]
+{draft_answer}
+
+[Official External References]
+{reference_block or "None"}
+"""
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Rewrite answers into concise, practical Korean. Avoid generic filler and unsupported claims.",
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperature=0.15,
+        )
+        return (response.choices[0].message.content or "").strip()
+    except Exception:
+        if looks_too_generic_answer(draft_answer) and reference_links:
+            return append_reference_links(draft_answer, reference_links)
+        return draft_answer
 
 
-def build_document_answer_fallback(title: str, question: str, summary_text: str, context_text: str) -> str:
+def build_document_answer_fallback(
+    title: str,
+    question: str,
+    summary_text: str,
+    context_text: str,
+    reference_links: list[tuple[str, str]],
+) -> str:
     summary = summary_text.strip() if summary_text else ""
     sentences = split_summary_sentences(context_text)
     relevant_sentences = select_relevant_sentences(question, sentences)
 
-    parts: list[str] = []
-    if summary:
-        parts.append(f"{title} 문서는 {summary}")
+    if not summary and not relevant_sentences:
+        base = "현재 문서에서 질문과 직접 연결되는 근거를 충분히 찾지 못했습니다. 문서를 다시 재처리하거나 질문을 조금 더 구체적으로 입력해 주세요."
+        return append_reference_links(base, reference_links)
 
-    if relevant_sentences:
-        parts.append("관련 내용으로는 " + " ".join(relevant_sentences[:2]))
+    intro = f"{title} 문서를 기준으로 보면 다음 내용을 우선 확인하는 것이 좋습니다."
+    points = relevant_sentences[:4]
+    if not points and summary:
+        points = split_summary_sentences(summary)[:3]
 
-    if not parts:
-        return "현재 문서에서 질문과 직접 연결되는 내용을 충분히 찾지 못했습니다. 문서를 다시 재처리하거나 질문을 더 구체적으로 입력해 주세요."
+    bullet_lines = [f"- {trim_summary_clause(point)}" for point in points if point.strip()]
+    if summary and not bullet_lines:
+        bullet_lines.append(f"- {trim_summary_clause(summary)}")
 
-    parts.append("필요하면 질문을 더 구체적으로 입력하면 관련 부분을 다시 찾아드릴 수 있습니다.")
-    return " ".join(parts)
+    closing = None
+    lowered_question = question.lower()
+    if any(keyword in lowered_question for keyword in ["절차", "순서", "단계", "흐름", "과정", "주의", "핵심", "포인트"]):
+        closing = "실무 포인트: 예외 처리 기준, 로그 기록 방식, 사용자 응답 메시지 일관성을 함께 확인하는 것이 좋습니다."
 
+    result_parts = [intro]
+    if bullet_lines:
+        result_parts.append("\n".join(bullet_lines))
+    if closing:
+        result_parts.append(closing)
+    return append_reference_links("\n\n".join(result_parts), reference_links)
+
+
+def build_reference_links(title: str, question: str) -> list[tuple[str, str]]:
+    source = f"{title} {question}".lower()
+
+    if "spring" in source:
+        return [
+            ("Spring Framework 예외 처리", "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html"),
+            ("Spring Boot 오류 처리", "https://docs.spring.io/spring-boot/reference/web/servlet.html#web.servlet.spring-mvc.error-handling"),
+        ]
+    if "react" in source:
+        return [
+            ("React 상태 관리", "https://react.dev/learn/managing-state"),
+            ("React 상태 공유", "https://react.dev/learn/sharing-state-between-components"),
+        ]
+    if "aws" in source:
+        return [
+            ("AWS 개요", "https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html"),
+            ("AWS 문서 메인", "https://docs.aws.amazon.com/"),
+        ]
+    if "접근성" in source or "a11y" in source or "accessibility" in source:
+        return [
+            ("MDN 접근성 가이드", "https://developer.mozilla.org/ko/docs/Learn/Accessibility"),
+            ("W3C 접근성 소개", "https://www.w3.org/WAI/fundamentals/accessibility-intro/"),
+        ]
+    if "보안" in source or "security" in source:
+        return [
+            ("KISA 보호나라", "https://www.boho.or.kr/"),
+            ("OWASP Cheat Sheet", "https://cheatsheetseries.owasp.org/"),
+        ]
+    if "figma" in source or "design" in source or "디자인" in source:
+        return [
+            ("Figma Help Center", "https://help.figma.com/"),
+            ("W3C Design Systems", "https://design-system.w3.org/"),
+        ]
+    return []
+
+
+def format_reference_links(reference_links: list[tuple[str, str]]) -> str:
+    if not reference_links:
+        return ""
+    return "\n".join(f"- {label}: {url}" for label, url in reference_links)
+
+
+def append_reference_links(answer: str, reference_links: list[tuple[str, str]]) -> str:
+    if not reference_links:
+        return answer
+    if "추가 참고 URL" in answer:
+        return answer
+    return answer + "\n\n추가 참고 URL\n" + format_reference_links(reference_links)
+
+
+def looks_too_generic_answer(answer: str) -> bool:
+    normalized = re.sub(r"\s+", "", answer)
+    generic_patterns = [
+        "문서는.*다룹니다",
+        "중요합니다",
+        "도움을줍니다",
+        "유지하는것입니다",
+        "개선하는데중요합니다",
+    ]
+    return any(re.search(pattern, normalized) for pattern in generic_patterns)
+
+
+def clean_answer_text(answer: str) -> str:
+    cleaned = answer or ""
+    cleaned = cleaned.replace("\uf9ce", "")
+    cleaned = re.sub(r"[\uf900-\ufaff]+", "", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"\s+([,.!?])", r"\1", cleaned)
+    cleaned = re.sub(r"([가-힣A-Za-z0-9])\s*([·•])\s*", r"\1 \2 ", cleaned)
+    return cleaned.strip()
 
 def select_relevant_sentences(question: str, sentences: list[str]) -> list[str]:
     question_terms = extract_summary_tokens(question)

@@ -35,18 +35,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/admin/evaluation")
@@ -100,6 +98,33 @@ public class AdEvaluationController {
     public String resultList(Model model) {
         model.addAttribute("analytics", adEvaluationService.getEvaluationAnalytics());
         return "admin/evaluation/resultList";
+    }
+
+    /**
+     * 평가 결과 통계 화면(모달)에서 호출하는 평가 기준 수정 API
+     */
+    @PostMapping("/criteria")
+    @ResponseBody
+    public ResponseEntity<?> updateCriteria(
+            @RequestParam String categoryName,
+            @RequestParam Integer passScore,
+            @RequestParam Double weight) {
+        try {
+            adEvaluationService.updateCategoryCriteria(categoryName, passScore, weight);
+            return ResponseEntity.ok(Map.of("success", true, "message", "평가 기준이 수정되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * AI 기반 통계 분석 코멘트 요청
+     */
+    @PostMapping("/ai-analysis")
+    @ResponseBody
+    public ResponseEntity<?> getAiAnalysis(@RequestBody Map<String, Object> stats) {
+        String analysis = adEvaluationService.getAiEvaluationAnalysis(stats);
+        return ResponseEntity.ok(Map.of("analysis", analysis));
     }
 
     // 평가 문제 수정 화면

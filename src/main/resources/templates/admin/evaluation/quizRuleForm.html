@@ -14,7 +14,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{/admin/common/head.html :: common_header}">
     <meta charset="UTF-8">
-    <title id="page_title" th:text="${isEdit} ? '평가 항목 설정 수정' : '평가 항목 설정 등록'}">평가 항목 설정 등록</title>
+    <title id="page_title" th:text="${isEdit ? '평가 항목 설정 수정' : '평가 항목 설정 등록'}">평가 항목 설정 등록</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
@@ -26,14 +26,12 @@
             <div class="container-fluid">
                 <div class="row mb-3">
                     <div class="col">
-                        <h3 th:text="${isEdit} ? '평가 항목 설정 수정' : '평가 항목 설정 등록'}">평가 항목 설정 등록</h3>
+                        <h3 th:text="${isEdit ? '평가 항목 설정 수정' : '평가 항목 설정 등록'}">평가 항목 설정 등록</h3>
                         <p class="text-muted mb-0">카테고리별 문항 수, 합격 기준, 가중치, 난이도를 설정해 평가 기준을 정의합니다.</p>
                     </div>
                 </div>
 
-                <form th:action="${isEdit}
-                        ? @{/admin/evaluation/quiz-rules/{id}/edit(id=${rule.ruleId})}
-                        : @{/admin/evaluation/quiz-rules}"
+                <form th:action="${isEdit ? '/admin/evaluation/quiz-rules/' + rule.ruleId + '/edit' : '/admin/evaluation/quiz-rules'}"
                       method="post">
                     <div class="row g-4">
                         <div class="col-lg-8">
@@ -175,7 +173,7 @@
                     <div class="d-flex justify-content-end gap-2 mt-3">
                         <a th:href="@{/admin/evaluation/quiz-rules}" class="btn btn-outline-secondary">목록으로</a>
                         <button type="submit" class="btn btn-primary">
-                            <span th:text="${isEdit} ? '수정' : '등록'}">등록</span>
+                            <span th:text="${isEdit ? '수정' : '등록'}">등록</span>
                         </button>
                     </div>
                 </form>

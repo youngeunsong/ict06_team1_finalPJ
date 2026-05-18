@@ -49,6 +49,13 @@ def generate_weather_encouragement(weather_desc: str, temp: float, hour: int) ->
     return _generate_text(prompt)
 
 
+def chat(prompt: str) -> str | None:
+    """
+    일반적인 대화형 프롬프트 처리
+    """
+    return _generate_text(prompt)
+
+
 def _generate_text(prompt: str) -> str | None:
     if not is_ollama_enabled():
         return None

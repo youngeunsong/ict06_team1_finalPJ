@@ -15,6 +15,7 @@
  * @ 2026.05.08    김다솜        홈 화면 카드 배치 정리 및 업무 요약 영역 재구성
  * @ 2026.05.12    김다솜        홈 피드 업무 허브 구성, 날씨/뉴스/체크리스트 복구, To-Do 완료 표시 유지, 온보딩 요약/추천 학습 이동 및 전체화면 중앙 정렬 처리
  * @ 2026.05.14    김다솜        홈 피드 구조 개편, 위치 기반 날씨/기온별 배경색 연동, 홈 대시보드 레이아웃 전면 개편
+ * @ 2026.05.15    김다솜        UI 조정 및 위치 기반 상세 날씨 위젯 적용
  */
 
 import React, { useEffect, useState } from 'react';
@@ -84,6 +85,11 @@ const UserHome = () => {
     desc: '로딩 중...',
     icon: cilSun,
     city: 'Seoul',
+    feelsLike: null,
+    humidity: null,
+    windSpeed: null,
+    cloudiness: null,
+    locationSource: '',
     newsList: [],
     encouragement: '',
   });
@@ -133,10 +139,15 @@ const UserHome = () => {
               else if (mainStatus.includes('Snow')) weatherIcon = cilSnowflake;
 
               setHomeData({
-                temp: weather.main.temp.toFixed(1),
-                desc: weather.weather[0].description,
+                temp: weather.main?.temp?.toFixed(1) ?? '--',
+                feelsLike: weather.main?.feels_like?.toFixed(1) ?? null,
+                humidity: weather.main?.humidity ?? null,
+                windSpeed: weather.wind?.speed?.toFixed(1) ?? null,
+                cloudiness: weather.clouds?.all ?? null,
+                desc: weather.weather?.[0]?.description ?? '날씨 정보 없음',
                 icon: weatherIcon,
-                city: weather.name,
+                city: weather.display_location || weather.name,
+                locationSource: weather.location_source === 'GPS' ? '현재 위치 기준' : '',
                 newsList: crawlData.newsList || [],
                 encouragement: weather.encouragement_message,
               });
@@ -287,14 +298,49 @@ const UserHome = () => {
             className="h-100 border-0 shadow-sm text-white"
             style={getWeatherCardStyle(homeData.temp)}
           >
-            <CCardBody className="p-3 d-flex flex-column align-items-center justify-content-center text-center">
-              <CIcon icon={homeData.icon || cilSun} height={46} />
-              <div className="fs-1 fw-bold mt-2">{homeData.temp}°C</div>
-              <div className="small fw-medium mb-2" style={{ opacity: '0.9' }}>
-                {homeData.city} / {homeData.desc}
+            <CCardBody className="p-3 d-flex flex-column justify-content-center">
+              <div className="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div className="small fw-semibold" style={{ opacity: 0.85 }}>
+                    {homeData.locationSource || '기본 위치 기준'}
+                  </div>
+                  <div className="small fw-medium mt-1" style={{ opacity: 0.9 }}>
+                    {homeData.city} · {homeData.desc}
+                  </div>
+                </div>
+                <CIcon icon={homeData.icon || cilSun} height={42} />
               </div>
+
+              <div className="fs-1 fw-bold mt-3">{homeData.temp}°C</div>
+
+              <div
+                className="d-grid mt-2"
+                style={{
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '8px',
+                  fontSize: '0.78rem',
+                }}
+              >
+                <div className="p-2 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                  <div style={{ opacity: 0.75 }}>체감</div>
+                  <strong>{homeData.feelsLike !== null ? `${homeData.feelsLike}°C` : '-'}</strong>
+                </div>
+                <div className="p-2 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                  <div style={{ opacity: 0.75 }}>습도</div>
+                  <strong>{homeData.humidity !== null ? `${homeData.humidity}%` : '-'}</strong>
+                </div>
+                <div className="p-2 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                  <div style={{ opacity: 0.75 }}>풍속</div>
+                  <strong>{homeData.windSpeed !== null ? `${homeData.windSpeed}m/s` : '-'}</strong>
+                </div>
+                <div className="p-2 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                  <div style={{ opacity: 0.75 }}>구름</div>
+                  <strong>{homeData.cloudiness !== null ? `${homeData.cloudiness}%` : '-'}</strong>
+                </div>
+              </div>
+
               {homeData.encouragement && (
-                <div className="p-2 rounded w-100" style={{ backgroundColor: 'rgba(255,255,255,0.15)', fontSize: '0.85rem' }}>
+                <div className="p-2 rounded w-100 mt-2" style={{ backgroundColor: 'rgba(255,255,255,0.15)', fontSize: '0.85rem' }}>
                   {homeData.encouragement}
                 </div>
               )}
@@ -304,7 +350,7 @@ const UserHome = () => {
 
         {/* 뉴스 플래시 */}
         <CCol lg={8}>
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3 d-flex align-items-center">
               <CIcon icon={cilSpeaker} className="me-2 text-info" />
               <strong className="text-dark" style={{ fontSize: '1rem' }}>IT NEWS FLASH</strong>
@@ -336,22 +382,25 @@ const UserHome = () => {
       <CRow className="justify-content-center">
         {/* 온보딩 요약 */}
         <CCol lg={4} className="mb-4">
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3 d-flex justify-content-between align-items-center">
               <h6 className="mb-0 fw-bold text-dark">
                 온보딩 요약 <span className="badge ms-1" style={{...badgeAiTag, fontSize: '0.6rem'}}>AI</span>
               </h6>
-              <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => goRoadmapFocus()}>
-                보기
-              </button>
+              <small
+                style={{ cursor: 'pointer', color: COLORS.primary, fontWeight: 700 }}
+                onClick={() => goRoadmapFocus()}
+              >
+                전체 보기
+              </small>
             </CCardHeader>
             <CCardBody className="py-3">
               <div className="d-flex justify-content-between align-items-end mb-2">
                 <span style={progressLabel}>전체 학습 진행률</span>
-                <span className="h5 mb-0 fw-bold text-primary">{data.totalProgress}%</span>
+                <span className="h5 mb-0 fw-bold" style={{ color: COLORS.primary }}>{data.totalProgress}%</span>
               </div>
               <CProgress height={8} className="bg-light mb-4">
-                <CProgressBar color="primary" value={data.totalProgress} animated={data.totalProgress < 100} />
+                <CProgressBar style={{ backgroundColor: COLORS.primary }} value={data.totalProgress} animated={data.totalProgress < 100} />
               </CProgress>
 
               <CRow>
@@ -370,15 +419,14 @@ const UserHome = () => {
 
         {/* 투두리스트 */}
         <CCol lg={4} className="mb-4">
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3 d-flex justify-content-between align-items-center">
               <div>
                 <CIcon icon={cilCheckCircle} className="me-2 text-success" />
                 <strong>To-Do List</strong>
               </div>
               <small
-                className="text-primary"
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', color: COLORS.primary, fontWeight: 700 }}
                 onClick={() => navigate(PATH.ONBOARDING.CHECKLIST)}
               >
                 전체 보기
@@ -427,7 +475,7 @@ const UserHome = () => {
 
         {/* 다음 추천 학습 */}
         <CCol lg={4} className="mb-4">
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3">
               <h6 className="mb-0 fw-bold text-dark">다음 추천 학습</h6>
             </CCardHeader>
@@ -444,7 +492,7 @@ const UserHome = () => {
                       type="button"
                       className="list-group-item list-group-item-action px-4 py-3 border-0"
                       style={{
-                        borderBottom: idx === data.recommendations.length - 1 ? 'none' : '1px solid #edf0f2',
+                        borderBottom: idx === data.recommendations.length - 1 ? 'none' : `1px solid ${COLORS.border}`,
                         textAlign: 'left',
                       }}
                       onClick={() => goLearning(rec)}
@@ -463,7 +511,7 @@ const UserHome = () => {
       {/* 3열: 사내 소식 및 커뮤니티 */}
       <CRow className="justify-content-center">
         <CCol lg={8} className="mb-4">
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3 d-flex align-items-center">
               <CIcon icon={cilSpeaker} className="me-2 text-warning" />
               <strong>사내 공지사항</strong>
@@ -476,7 +524,7 @@ const UserHome = () => {
           </CCard>
         </CCol>
         <CCol lg={4} className="mb-4">
-          <CCard className="border-0 shadow-sm h-100">
+          <CCard className="h-100" style={cardCore}>
             <CCardHeader className="bg-white border-0 py-3 d-flex align-items-center">
               <CIcon icon={cilHappy} className="me-2 text-danger" />
               <strong>커뮤니티 소식</strong>
@@ -484,7 +532,7 @@ const UserHome = () => {
             <CCardBody className="p-0">
               <div className="p-3 border-bottom">
                 <div className="d-flex align-items-center gap-2 mb-2">
-                  <CIcon icon={cilBirthdayCake} className="text-primary" />
+                  <CIcon icon={cilBirthdayCake} style={{ color: COLORS.primary }} />
                   <span className="small fw-bold">오늘의 생일</span>
                 </div>
                 <div className="ps-4">
