@@ -1,0 +1,240 @@
+<!--
+    @FileName : roadmapList.html
+    @Description : 관리자 온보딩 로드맵 목록 및 관리 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 10
+    @Modification_History
+    @
+    @ 수정일자        수정자        수정내용
+    @ ----------    ---------    -----------------------------------------------
+    @ 2026.05.10    김다솜        최초 생성 및 로드맵 CRUD/재생성 기능 구현
+    @ 2026.05.11    김다솜        검색/필터 기능 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title">온보딩 로드맵 관리</title>
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+    <!-- 헤더 시작 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <!-- 헤더 끝 -->
+
+    <!-- 사이드바 시작 -->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <!-- 사이드바 끝 -->
+
+    <!-- 메인 콘텐츠 시작 -->
+    <main class="app-main">
+        <!--begin::App Content-->
+        <div class="app-content">
+            <!--begin::Container-->
+            <div class="container-fluid">
+                <!-- 페이지 제목 영역 -->
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>온보딩 로드맵 관리</h3>
+                    </div>
+                    <div class="col text-end">
+                        <a th:href="@{/admin/onboarding/roadmaps/new}" class="btn btn-primary">
+                            로드맵 등록
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 처리 결과 메시지 영역 -->
+                <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control" id="roadmapSearchInput" placeholder="사번, 이름, 부서, 직급 검색">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="roadmapTypeFilter">
+                                    <option value="">전체 생성 타입</option>
+                                    <option th:each="roadmap : ${roadmaps}"
+                                            th:if="${roadmap.generatedType != null}"
+                                            th:value="${roadmap.generatedType}"
+                                            th:text="${roadmap.generatedType}">
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="roadmapStatusFilter">
+                                    <option value="">전체 상태</option>
+                                    <option value="완료">완료</option>
+                                    <option value="진행중">진행중</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select mb-2" id="roadmapSortOrder">
+                                    <option value="id-desc">정렬: 최신 등록순</option>
+                                    <option value="id-asc">정렬: ID 오름차순</option>
+                                    <option value="employee-asc">정렬: 사번 오름차순</option>
+                                    <option value="department-asc">정렬: 부서 가나다순</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary w-100" id="roadmapFilterReset">초기화</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        <!-- 로드맵 목록 테이블 영역 -->
+                        <table class="table table-hover align-middle" id="roadmapTable">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>대상 사원</th>
+                                <th>부서</th>
+                                <th>직급</th>
+                                <th>생성 타입</th>
+                                <th>완료 여부</th>
+                                <th>관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="roadmap : ${roadmaps}" class="roadmap-row">
+                                <td th:text="${roadmap.roadmapId}"></td>
+                                <td class="roadmap-employee">
+                                    <span th:text="${roadmap.employee.empNo}"></span>
+                                    <span th:text="|(${roadmap.employee.name})|"></span>
+                                </td>
+                                <td th:text="${roadmap.department != null ? roadmap.department.deptName : '-'}" class="roadmap-department"></td>
+                                <td th:text="${roadmap.position != null ? roadmap.position.positionName : '-'}" class="roadmap-position"></td>
+                                <td th:text="${roadmap.generatedType}" class="roadmap-type"></td>
+                                <td class="roadmap-status">
+                                    <span th:if="${roadmap.isCompleted}" class="badge bg-success">완료</span>
+                                    <span th:unless="${roadmap.isCompleted}" class="badge bg-primary">진행중</span>
+                                </td>
+                                <td>
+                                    <!-- 로드맵 관리 버튼 영역 -->
+                                    <div class="d-flex gap-1">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                           th:href="@{/admin/onboarding/roadmaps/{id}/edit(id=${roadmap.roadmapId})}">
+                                            수정
+                                        </a>
+                                        <a class="btn btn-sm btn-outline-secondary"
+                                           th:href="@{/admin/onboarding/roadmaps/{id}/items(id=${roadmap.roadmapId})}">
+                                            아이템 관리
+                                        </a>
+                                        <form th:action="@{/admin/onboarding/roadmaps/{id}/regenerate(id=${roadmap.roadmapId})}"
+                                              method="post"
+                                              onsubmit="return confirm('최신 콘텐츠 기준으로 새 로드맵을 생성하시겠습니까? 기존 로드맵은 보존됩니다.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                                재생성
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(roadmaps)}">
+                                <td colspan="7" class="text-center text-muted">
+                                    등록된 로드맵이 없습니다.
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+    </main>
+    <!-- 메인 콘텐츠 끝 -->
+
+    <!-- 푸터 시작 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!-- 스크립트 시작 -->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = Array.from(document.querySelectorAll('#roadmapTable tbody .roadmap-row'));
+        const searchInput = document.getElementById('roadmapSearchInput');
+        const typeFilter = document.getElementById('roadmapTypeFilter');
+        const statusFilter = document.getElementById('roadmapStatusFilter');
+        const sortOrder = document.getElementById('roadmapSortOrder');
+        const resetButton = document.getElementById('roadmapFilterReset');
+        const tbody = document.querySelector('#roadmapTable tbody');
+
+        const uniqueTypes = [...new Set(rows.map((row) => row.querySelector('.roadmap-type')?.innerText.trim()).filter(Boolean))];
+        typeFilter.innerHTML = '<option value="">전체 생성 타입</option>' +
+            uniqueTypes.map((type) => `<option value="${type}">${type}</option>`).join('');
+
+        const sortRows = () => {
+            const sortValue = sortOrder.value;
+            const sortedRows = [...rows].sort((a, b) => {
+                if (sortValue === 'id-asc' || sortValue === 'id-desc') {
+                    const aId = Number(a.children[0]?.innerText.trim() || 0);
+                    const bId = Number(b.children[0]?.innerText.trim() || 0);
+                    return sortValue === 'id-asc' ? aId - bId : bId - aId;
+                }
+
+                if (sortValue === 'employee-asc') {
+                    return (a.querySelector('.roadmap-employee')?.innerText || '').localeCompare(b.querySelector('.roadmap-employee')?.innerText || '', 'ko');
+                }
+
+                if (sortValue === 'department-asc') {
+                    return (a.querySelector('.roadmap-department')?.innerText || '').localeCompare(b.querySelector('.roadmap-department')?.innerText || '', 'ko');
+                }
+
+                return 0;
+            });
+
+            sortedRows.forEach((row) => tbody.appendChild(row));
+        };
+
+        const applyFilters = () => {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const typeValue = typeFilter.value;
+            const statusValue = statusFilter.value;
+
+            rows.forEach((row) => {
+                const rowText = row.innerText.toLowerCase();
+                const rowType = row.querySelector('.roadmap-type')?.innerText.trim() || '';
+                const rowStatus = row.querySelector('.roadmap-status')?.innerText.trim() || '';
+
+                const matchesSearch = !searchValue || rowText.includes(searchValue);
+                const matchesType = !typeValue || rowType === typeValue;
+                const matchesStatus = !statusValue || rowStatus.includes(statusValue);
+
+                row.style.display = matchesSearch && matchesType && matchesStatus ? '' : 'none';
+            });
+        };
+
+        [searchInput, typeFilter, statusFilter].forEach((element) => {
+            element.addEventListener('input', applyFilters);
+            element.addEventListener('change', applyFilters);
+        });
+        sortOrder.addEventListener('change', sortRows);
+
+        resetButton.addEventListener('click', function () {
+            searchInput.value = '';
+            typeFilter.value = '';
+            statusFilter.value = '';
+            sortOrder.value = 'id-desc';
+            sortRows();
+            applyFilters();
+        });
+
+        sortRows();
+    });
+</script>
+<!-- 스크립트 끝 -->
+</body>
+<!--end::Body-->
+</html>

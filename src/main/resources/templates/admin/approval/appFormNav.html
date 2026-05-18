@@ -1,0 +1,16 @@
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link"
+           th:classappend="${activeTab == 'appForm'} ? ' active'"
+           th:href="@{/admin/approval/appFormList}">
+            문서 서식 관리
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link"
+           th:classappend="${activeTab == 'appLineForm'} ? ' active'"
+           th:href="@{/admin/approval/appLineFormList}">
+            결재선 서식 관리
+        </a>
+    </li>
+</ul>

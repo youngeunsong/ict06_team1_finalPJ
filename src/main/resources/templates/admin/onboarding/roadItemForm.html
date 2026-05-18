@@ -1,0 +1,180 @@
+<!--
+    @FileName : roadItemForm.html
+    @Description : 온보딩 로드맵에 포함될 세부 아이템(콘텐츠 연결) 설정 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 11
+    @Modification_History
+    @
+    @ 수정일자        수정자        수정내용
+    @ ----------    ---------    -----------------------------------------------
+    @ 2026.05.11    김다솜        최초 생성 및 로드맵-콘텐츠 매핑 기능 구현
+    @ 2026.05.12    김다솜        일정 관리에서 진입한 수정 화면의 목록 복귀 경로 유지 처리
+    @ 2026.05.14    김다솜        로드맵 아이템 시작일 및 마감일 수정 필드 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:include="/admin/common/head.html :: common_header">
+    <meta charset="UTF-8">
+    <title id="page_title"
+           th:text="${isEdit} ? '로드맵 아이템 수정' : '로드맵 아이템 등록'">
+        로드맵 아이템 등록
+    </title>
+</head>
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid">
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3 th:text="${isEdit} ? '로드맵 아이템 수정' : '로드맵 아이템 등록'">로드맵 아이템 등록</h3>
+                        <p class="text-muted mb-0">
+                            <span th:text="${roadmap.title}">로드맵 제목</span>
+                        </p>
+                    </div>
+                </div>
+
+                <form th:action="${isEdit}
+                        ? @{/admin/onboarding/roadmaps/{roadmapId}/items/{itemId}/edit(
+                            roadmapId=${roadmap.roadmapId},
+                            itemId=${item.itemId}
+                          )}
+                        : @{/admin/onboarding/roadmaps/{roadmapId}/items(
+                            roadmapId=${roadmap.roadmapId}
+                          )}"
+                      method="post">
+                    <input type="hidden" name="returnUrl" th:if="${returnUrl != null}" th:value="${returnUrl}">
+
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>아이템 정보</strong>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">연결 콘텐츠</label>
+                                <select name="contentId" class="form-select" required>
+                                    <option value="">선택</option>
+                                    <option th:each="content : ${contents}"
+                                            th:value="${content.contentId}"
+                                            th:text="|${content.title} (${content.type})|"
+                                            th:attr="data-category=${content.category}"
+                                            th:selected="${item.content != null and item.content.contentId == content.contentId}">
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">아이템 제목</label>
+                                <input type="text"
+                                       name="itemTitle"
+                                       class="form-control"
+                                       th:value="${item.itemTitle}"
+                                       placeholder="예: 사내 시스템 기본 사용법 익히기"
+                                       required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">카테고리명</label>
+                                    <select name="categoryName" id="categoryName" class="form-select" required>
+                                        <option value="">선택</option>
+                                        <option th:each="category : ${categories}"
+                                                th:value="${category}"
+                                                th:text="${category}"
+                                                th:selected="${item.categoryName != null and item.categoryName == category}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">순서 번호</label>
+                                    <input type="number"
+                                           name="orderNo"
+                                           class="form-control"
+                                           min="1"
+                                           step="1"
+                                           th:value="${item.orderNo != null ? item.orderNo : defaultOrderNo}"
+                                           required>
+                                    <div class="form-text">기본값은 현재 마지막 아이템 순서 + 1 입니다.</div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">시작일</label>
+                                    <input type="date"
+                                           name="startDate"
+                                           class="form-control"
+                                           th:value="${item.startDate}"
+                                           required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">마감일</label>
+                                    <input type="date"
+                                           name="dueDate"
+                                           class="form-control"
+                                           th:value="${item.dueDate}"
+                                           required>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <a th:href="${returnUrl != null and !#strings.isEmpty(returnUrl)}
+                                ? ${returnUrl}
+                                : @{/admin/onboarding/roadmaps/{roadmapId}/items(roadmapId=${roadmap.roadmapId})}"
+                           class="btn btn-outline-secondary">
+                            목록으로
+                        </a>
+
+                        <button type="submit" class="btn btn-primary">
+                            <span th:text="${isEdit} ? '수정' : '등록'">등록</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const contentSelect = document.querySelector('select[name="contentId"]');
+        const categorySelect = document.querySelector('select[name="categoryName"]');
+
+        if (!contentSelect || !categorySelect) {
+            return;
+        }
+
+        contentSelect.addEventListener('change', function () {
+            const selectedOption = contentSelect.options[contentSelect.selectedIndex];
+            const category = selectedOption ? selectedOption.dataset.category : '';
+
+            if (category) {
+                let categoryOption = Array.from(categorySelect.options)
+                    .find(function (option) {
+                        return option.value === category;
+                    });
+
+                if (!categoryOption) {
+                    categoryOption = new Option(category, category);
+                    categorySelect.add(categoryOption);
+                }
+
+                categorySelect.value = category;
+            } else {
+                categorySelect.value = '';
+            }
+        });
+    });
+</script>
+</body>
+</html>

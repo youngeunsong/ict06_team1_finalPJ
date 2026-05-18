@@ -22,6 +22,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "QUIZ_QUESTION")
@@ -68,6 +70,7 @@ public class QuizQuestionEntity {
     @Column(name = "sample_answer", length = 1000)
     private String sampleAnswer;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "keyword_answer", columnDefinition = "jsonb")
     private String keywordAnswer;
 
@@ -79,4 +82,36 @@ public class QuizQuestionEntity {
 
     @Column(name = "explanation", length = 1000)
     private String explanation;
+
+    public void updateQuestion(
+            OnContentEntity content,
+            String categoryName,
+            QuestionType questionType,
+            String questionText,
+            String option1,
+            String option2,
+            String option3,
+            String option4,
+            Integer answerNo,
+            String sampleAnswer,
+            String keywordAnswer,
+            String rubric,
+            Integer score,
+            String explanation
+    ) {
+        this.content = content;
+        this.categoryName = categoryName;
+        this.questionType = questionType;
+        this.questionText = questionText;
+        this.option1 = option1;
+        this.option2 = option2;
+        this.option3 = option3;
+        this.option4 = option4;
+        this.answerNo = answerNo;
+        this.sampleAnswer = sampleAnswer;
+        this.keywordAnswer = keywordAnswer;
+        this.rubric = rubric;
+        this.score = score;
+        this.explanation = explanation;
+    }
 }

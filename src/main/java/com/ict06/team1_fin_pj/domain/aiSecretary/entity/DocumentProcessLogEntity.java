@@ -52,4 +52,16 @@ public class DocumentProcessLogEntity extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by")
     private EmpEntity processedBy;
+
+    public void markSuccess() {
+        this.status = ProcessStatus.SUCCESS;
+        this.endedAt = LocalDateTime.now();
+        this.errorMessage = null;
+    }
+
+    public void markFail(String errorMessage) {
+        this.status = ProcessStatus.FAIL;
+        this.endedAt = LocalDateTime.now();
+        this.errorMessage = errorMessage;
+    }
 }

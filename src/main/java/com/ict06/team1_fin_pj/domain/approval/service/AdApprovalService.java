@@ -1,59 +1,56 @@
-/**
- * @author : 송영은
- * description : 관리자용 전자결재 서비스 인터페이스
- * ========================================
- * DATE         AUTHOR      NOTE
- * 2026-04-29   송영은       최초 생성
- **/
-
 package com.ict06.team1_fin_pj.domain.approval.service;
 
 import com.ict06.team1_fin_pj.common.dto.approval.AppFormDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppFormListDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormDetailDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormListDto;
+import com.ict06.team1_fin_pj.common.dto.approval.AppLineFormRequestDto;
+import com.ict06.team1_fin_pj.common.security.PrincipalDetails;
 import com.ict06.team1_fin_pj.domain.approval.entity.AppFormEntity;
-import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateDetailEntity;
-import com.ict06.team1_fin_pj.domain.approval.entity.AppLineTemplateEntity;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-
-
+/**
+ * 관리자용 전자결재 설정 서비스 인터페이스입니다.
+ * 결재 서식과 결재선 서식의 CRUD 및 연결 설정을 담당합니다.
+ */
 public interface AdApprovalService {
 
-    // [결재 서식 관리]-----------------------------------------
-    // insert
-    public void saveAppForm(AppFormEntity entity);
+    void saveAppForm(AppFormEntity entity);
 
-    // list
-    public List<AppFormEntity> listAllAppForms();
+    List<AppFormEntity> listAllAppForms();
 
-    // 페이징 처리된 list로 받기
-    public Page<AppFormEntity> getAppFormsWithPaging(int page, int size);
+    Page<AppFormListDto> getAppFormsWithPaging(int page, int size, String keyword);
 
-    // 1건 select (상세 화면)
-    public AppFormEntity selectAppForm(int id);
+    AppFormEntity selectAppForm(int id);
 
-    // delete
-    public void deleteAppForm(int id);
+    void deleteAppForm(int id);
 
-    // update
-    public void updateAppForm(int id, AppFormDto dto);
+    void deleteAppForms(List<Integer> ids);
 
-    // [결재선 서식 관리]--------------------------------------------
-    // insert
-    public void saveAppLineTemplate(AppLineTemplateEntity entity);
+    void updateAppForm(int id, AppFormDto dto);
 
-    // list
-    public List<AppLineTemplateEntity> listAppLineTemplate();
+    void saveAppLineForm(AppLineFormRequestDto dto, PrincipalDetails principal);
 
-    // 1건 select (상세 화면)
-    public AppLineTemplateEntity selectAppLineTemplate(int id);
+    Page<AppLineFormListDto> listAppLineForm(Pageable pageable);
 
-    // delete
-    public void deleteAppLineTemplate(int id);
+    List<AppLineFormListDto> listAllAppLineTemplates();
 
-    // update
-    public void updateAppLineTemplate(AppLineTemplateEntity entity);
+    void applyLineTemplate(Integer formId, Integer templateId);
 
+    void applyLineTemplateToForms(List<Integer> formIds, Integer templateId);
 
+    Page<AppLineFormListDto> getAppLineFormsWithPaging(int page, int size, String keyword);
+
+    AppLineFormDetailDto selectAppLineForm(Integer id);
+
+    void deleteAppLineTemplate(int id);
+
+    void updateAppLineForm(
+            Integer templateId,
+            AppLineFormRequestDto dto,
+            PrincipalDetails principal
+    );
 }

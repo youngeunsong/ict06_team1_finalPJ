@@ -10,12 +10,15 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.30    김다솜        최초 생성 및 사원별 퀴즈 결과 조회 메서드 구현
+ * @ 2026.05.06    김다솜        카테고리별 퀴즈 결과 조회 메서드 구현
+ * @ 2026.05.08    김다솜        카테고리별 평가 중복 제출 여부 확인 메서드 추가
  */
 
 package com.ict06.team1_fin_pj.domain.evaluation.repository;
 
 import com.ict06.team1_fin_pj.domain.evaluation.entity.QuizResultEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,4 +29,12 @@ public interface EvaluationResultRepository extends JpaRepository<QuizResultEnti
 
     //특정 사원 + 특정 문항의 응시 결과 조회
     List<QuizResultEntity> findByEmployee_EmpNoAndQuestion_QuestionId(String empNo, Integer questionId);
+
+    //특정 사원 + 특정 카테고리의 모든 응답 이력 조회
+    List<QuizResultEntity> findByEmployee_EmpNoAndQuestion_CategoryName(String empNo, String categoryName);
+
+    boolean existsByEmployee_EmpNoAndQuestion_CategoryName(String empNo, String categoryName);
+
+    @Transactional
+    void deleteByEmployee_EmpNoAndQuestion_CategoryName(String empNo, String categoryName);
 }

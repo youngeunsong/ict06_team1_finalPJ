@@ -2,6 +2,7 @@ package com.ict06.team1_fin_pj.domain.calendar.service;
 
 import com.ict06.team1_fin_pj.common.dto.calendar.ScheduleCreateRequestDto;
 import com.ict06.team1_fin_pj.common.dto.calendar.ScheduleListResponseDto;
+import com.ict06.team1_fin_pj.common.dto.calendar.ScheduleUpdateRequestDto;
 import com.ict06.team1_fin_pj.domain.calendar.entity.ScheduleEntity;
 import com.ict06.team1_fin_pj.domain.calendar.entity.ScheduleType;
 import com.ict06.team1_fin_pj.domain.calendar.repository.CalendarRepository;
@@ -27,7 +28,7 @@ public class CalendarServiceImpl implements CalendarService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    // 일정 간단 등록
+    // 일정 등록
     @Override
     @Transactional
     public Integer createSchedule(ScheduleCreateRequestDto dto) {
@@ -98,6 +99,8 @@ public class CalendarServiceImpl implements CalendarService {
     public List<ScheduleListResponseDto> getScheduleList() {
         return repository.findAll()
                 .stream()
+                // 삭제 처리된 일정은 캘린더 목록에서 제외
+                .filter(schedule -> !Boolean.TRUE.equals(schedule.getIsDeleted()))
                 .map(schedule -> ScheduleListResponseDto.builder()
                         .scheduleId(schedule.getScheduleId())
                         .title(schedule.getTitle())
@@ -109,8 +112,68 @@ public class CalendarServiceImpl implements CalendarService {
                         .location(schedule.getLocation())
                         .isAllDay(schedule.getIsAllDay())
                         .isPublic(schedule.getIsPublic())
+                        .repeatRule(schedule.getRepeatRule())
                         .creatorNo(schedule.getCreator() != null ? schedule.getCreator().getEmpNo() : null)
                         .build())
                 .toList();
     }
+
+    // 일정 수정
+    @Override
+    @Transactional
+    public Integer updateSchedule(Integer scheduleId, ScheduleUpdateRequestDto dto) {
+        ScheduleEntity schedule = repository.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("일정을 찾을 수 없습니다."));
+
+        if (Boolean.TRUE.equals(schedule.getIsDeleted())) {
+            throw new IllegalArgumentException("삭제된 일정은 수정할 수 없습니다.");
+        }
+
+        DepartmentEntity department = null;
+        if (dto.getDeptId() != null) {
+            department = entityManager.getReference(DepartmentEntity.class, dto.getDeptId());
+        }
+
+        String typeValue = (dto.getType() == null || dto.getType().trim().isEmpty())
+                ? "PERSONAL"
+                : dto.getType().trim();
+
+        ScheduleType scheduleType;
+        try {
+            scheduleType = ScheduleType.valueOf(typeValue);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("잘못된 일정 유형입니다. " + typeValue);
+        }
+
+        schedule.updateSchedule(
+                dto.getTitle(),
+                dto.getContent(),
+                dto.getStartTime(),
+                dto.getEndTime(),
+                scheduleType,
+                department,
+                dto.getCategory(),
+                dto.getLocation(),
+                dto.getIsAllDay(),
+                dto.getIsPublic(),
+                dto.getRepeatRule()
+        );
+
+        return schedule.getScheduleId();
+    }
+
+    // 일정 삭제
+    @Override
+    @Transactional
+    public void deleteSchedule(Integer scheduleId) {
+        ScheduleEntity schedule = repository.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("일정을 찾을 수 없습니다."));
+
+        if (Boolean.TRUE.equals(schedule.getIsDeleted())) {
+            throw new IllegalArgumentException("이미 삭제된 일정입니다.");
+        }
+
+        schedule.deleteSchedule();
+    }
+
 }

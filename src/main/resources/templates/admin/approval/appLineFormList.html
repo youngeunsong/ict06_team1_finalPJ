@@ -1,0 +1,270 @@
+﻿<!--
+ * @author : 송영은
+ * description : 관리자용 전자결재 결재선 템플릿 관리
+ * ========================================
+ * DATE         AUTHOR      NOTE
+ * 2026-05-04   송영은       최초 생성
+ * 2026-05-07   송영은       결재선 템플릿 목록 조회
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--begin::Head-->
+<head th:include="/admin/common/head.html :: common_header">
+    <title id="page_title">결재선 서식 목록</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<!--begin::App Wrapper-->
+<div class="app-wrapper">
+    <!-- 헤더 시작 -->
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <!-- 헤더 끝 -->
+
+    <!-- 사이드바 시작-->
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <!-- 사이드바 끝-->
+
+    <!-- 메인 콘텐츠 시작 -->
+    <main class="app-main">
+        <!--전자결재용 서브 헤더 시작-->
+        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <!--전자결재용 서브 헤더 끝-->
+        <!--begin::App Content-->
+        <div class="app-content">
+            <!--begin::Container-->
+            <div class="container-fluid">
+                <br>
+                <!-- begin::Row-->
+                <div class="row">
+                    <h3>결재선 서식 목록</h3>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <div class="input-group">
+                            <input type="text"
+                                   class="form-control"
+                                   id="searchKeyword"
+                                   placeholder="서식 번호 또는 서식명 검색">
+                            <button type="button" class="btn btn-outline-secondary" id="searchBtn">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="resetSearchBtn">
+                                초기화
+                            </button>
+                            <!--새 서식 추가 버튼 시작-->
+                            <div class="d-flex flex-row-reverse">
+                                <button type="button" class="btn btn-success" th:onclick="|location.href='@{/admin/approval/createAppLineForm}'|">
+                                    (+) 새 결재선 서식 추가
+                                </button>
+                            </div>
+                            <!--새 서식 추가 버튼 끝-->
+                        </div>
+                    </div>
+                </div>
+                <!-- end::Row-->
+                <br>
+                <!-- begin::서식 표 시작-->
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>서식 번호</th>
+                        <th>결재선 서식 이름</th>
+                        <th>기본 여부</th>
+                        <th>생성일</th>
+                        <th>작성자</th>
+                        <th>관리</th>
+                    </tr>
+                    </thead>
+
+                    <!-- 동적 표 내용 시작 -->
+                    <tbody id="tableBody"></tbody> 
+                    <!-- 동적 표 내용 끝 -->
+                </table>
+                <!-- end::서식 표 끝-->
+                <!-- 페이징 코드 시작-->
+                <div class="d-flex justify-content-center">
+                    <nav>
+                        <ul class="pagination" id="pagination">
+                            <!-- JS로 생성 -->
+                        </ul>
+                    </nav>
+                </div>
+                <!-- 페이징 코드 끝 -->
+            </div>
+            <!--end::Container-->
+        </div>
+        <!--end::App Content-->
+    </main>
+    <!-- 메인 콘텐츠 끝 -->
+    <!-- 푸터 시작 -->
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <!-- 푸터 끝 -->
+</div>
+<!--end::App Wrapper-->
+<!--스크립트 시작-->
+<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
+<script src="/js/approval/deleteAppLineForm.js"></script> <!-- 결재선 서식 삭제 js -->
+<script>
+
+    let currentPage = 0;
+    const pageSize = 10;
+
+    // 최초 로딩
+    $(document).ready(function () {
+        loadPage(0);
+    });
+
+    // 데이터 조회
+    function loadPage(page) {
+
+        $.ajax({
+            url: "/admin/approval/getAppLineForms",
+            type: "GET",
+            data: {
+                page: page,
+                size: pageSize,
+                keyword: $('#searchKeyword').val()
+            },
+            success: function (data) {
+
+                renderTable(data.content);
+                renderPagination(data);
+
+                currentPage = page;
+            },
+            error: function () {
+                alert("결재선 목록 조회 실패");
+            }
+        });
+    }
+
+    // 테이블 렌더링
+    function renderTable(list) {
+
+        let html = "";
+
+        list.forEach(item => {
+
+            let createdAt =
+                    item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString()
+                    : "";
+
+            // event.stopPropagation() : 버튼 클릭 시 기본 이벤트 (row 클릭) 방지
+            html += `
+                <tr onclick="goDetail(${item.templateId})" style="cursor:pointer;">
+                    <td>${item.templateId}</td>
+                    <td>${item.templateName}</td>
+                    <td>
+                        ${item.isDefault
+                            ? '<span class="badge bg-primary">기본</span>'
+                            : '-'}
+                    </td>
+                    <td>${createdAt}</td>
+                    <td>${item.createdBy}</td>
+                    <td>
+                        <button
+                            class="btn btn-primary btn-sm"
+                            onclick="event.stopPropagation();goEdit(${item.templateId})">
+                            수정
+                        </button>
+                        <button
+                            class="btn btn-danger btn-sm"
+                            onclick="event.stopPropagation();deleteAppLineForm(${item.templateId})">
+                            삭제
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        $("#tableBody").html(html);
+    }
+
+    // 페이지 렌더링
+    function renderPagination(pageData) {
+
+        let html = "";
+
+        // 이전 버튼
+        if (!pageData.first) {
+
+            html += `
+                <li class="page-item">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${pageData.number - 1})">
+                        이전
+                    </a>
+                </li>
+            `;
+        }
+
+        // 페이지 번호
+        for (let i = 0; i < pageData.totalPages; i++) {
+
+            html += `
+                <li class="page-item ${i === pageData.number ? 'active' : ''}">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${i})">
+
+                        ${i + 1}
+
+                    </a>
+                </li>
+            `;
+        }
+
+        // 다음 버튼
+        if (!pageData.last) {
+
+            html += `
+                <li class="page-item">
+                    <a class="page-link"
+                       href="javascript:void(0)"
+                       onclick="loadPage(${pageData.number + 1})">
+                        다음
+                    </a>
+                </li>
+            `;
+        }
+
+        $("#pagination").html(html);
+    }
+
+    // 상세 조회 페이지로 이동
+    $('#searchBtn').on('click', function () {
+        loadPage(0);
+    });
+
+    $('#resetSearchBtn').on('click', function () {
+        $('#searchKeyword').val('');
+        loadPage(0);
+    });
+
+    $('#searchKeyword').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loadPage(0);
+        }
+    });
+
+    function goDetail(formId) {
+        location.href = `/admin/approval/appLineFormDetail/${formId}`;
+    }
+
+    // 수정 페이지로 연결
+    function goEdit(formId) {
+        location.href =
+            `/admin/approval/editAppLineForm/${formId}`;
+    }
+
+</script>
+<!--스크립트 끝-->
+</body>
+<!--end::Body-->
+</html>

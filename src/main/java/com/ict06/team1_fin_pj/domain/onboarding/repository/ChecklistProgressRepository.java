@@ -9,10 +9,12 @@
  * @ 수정일         수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.29    김다솜        최초 생성/사원-체크리스트 기준 진행 상태 조회 Repository 구현
+ * @ 2026.05.08    김다솜        체크리스트 완료 개수 집계 메서드 추가
  */
 package com.ict06.team1_fin_pj.domain.onboarding.repository;
 
 import com.ict06.team1_fin_pj.domain.onboarding.entity.ChecklistProgressEntity;
+import com.ict06.team1_fin_pj.domain.onboarding.entity.ProgressStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -25,4 +27,7 @@ public interface ChecklistProgressRepository extends JpaRepository<ChecklistProg
 
     //특정 사원+특정 체크리스트의 진행 상태 조회
     Optional<ChecklistProgressEntity> findByEmployee_EmpNoAndChecklist_ChecklistId(String empNo, Integer checklistId);
+
+    //특정 사원의 상태별 체크리스트 개수
+    long countByEmployee_EmpNoAndStatus(String empNo, ProgressStatus status);
 }

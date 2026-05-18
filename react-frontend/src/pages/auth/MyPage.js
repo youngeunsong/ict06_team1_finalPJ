@@ -32,6 +32,7 @@ const MyPage = () => {
         phone: '',
     });
 
+    // 사용자 정보가 로드되면 폼 데이터 초기화
     useEffect(() => {
         if (userInfo) {
             setFormData({
@@ -42,16 +43,27 @@ const MyPage = () => {
         }
     }, [userInfo]);
 
+    // Input 핸들러: 입력값 변경 시 formData 상태 업데이트
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
     }
 
+    // 수정 처리: API 호출 성공 시 사용자 정보 업데이트하고 전역 상태에 반영
     const handleUpdate = async() => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axiosInstance.put('/user/update', formData);
+            // 백엔드 EmpServiceImpl.updateEmpInfo에서 empNo를 식별자로 사용하므로 요청 데이터에 포함
+            // formData(이름, 이메일, 전화번호)에 현재 로그인한 사용자의 사번을 추가합니다.
+            const payload = {
+                ...formData,
+                empNo: userInfo.empNo || userInfo.emp_no
+            };
+
+            const response = await axiosInstance.put('/user/update', payload);
+
             if(response.status === 200) {
-                updateUserInfo(formData);
+                // DB 수정 성공 시 전역 컨텍스트를 업데이트합니다.
+                // 주의: formData만 넘기면 부서/직급 등 다른 정보가 사라지므로 기존 userInfo와 병합합니다.
+                updateUserInfo({ ...userInfo, ...formData });
                 setIsEditing(false);
             }
         } catch(error) {
@@ -60,6 +72,7 @@ const MyPage = () => {
         }
     };
 
+    // 사용자 정보 없을 경우 로딩 메시지 표시
     if(!userInfo)
         return <div className='p-4 text-center'>Loading...</div>
 
@@ -75,7 +88,7 @@ const MyPage = () => {
                     <div style={profileCover}></div>
                     <CCardBody className='pt-0'>
                         <div className='d-flex align-items-end' style={profileHeader}>
-                            <CAvatar src={userInfo?.profile_img || 'avatars/8.jpg'}
+                            <CAvatar src={userInfo?.profileImg || userInfo?.profile_img || 'avatars/8.jpg'}
                                 size="xl"
                                 className="border border-4 border-white shadow"
                                 style={profileAvatar}
@@ -85,9 +98,10 @@ const MyPage = () => {
                                     {userInfo?.name || '사용자'}
                                 </h4>
 
+                                {/* 부서 및 직급 정보 */}
                                 <div className='text-secondary small fw-semibold'>
-                                    {userInfo?.department?.deptName || userInfo?.dept_name || '부서 없음'} · 
-                                    {userInfo?.position?.positionName || userInfo?.position_name || '직급 없음'}
+                                    {userInfo?.department?.deptName || userInfo?.dept?.deptName || userInfo?.department?.name || userInfo?.deptName || userInfo?.dept_name || '부서 없음'} · 
+                                    {userInfo?.position?.positionName || userInfo?.posName || userInfo?.positionName || userInfo?.position_name || '직급 없음'}
                                 </div>
 
                                 <div className='text-muted small mt-1'>
@@ -96,7 +110,7 @@ const MyPage = () => {
                             </div>
                         </div>
 
-                        {/* 탭 메뉴 영역 */}
+                        {/* 개인 메뉴 탭 */}
                         <CNav variant='tabs' className='mt-4 border-bottom-0'>
                             <CNavItem><CNavLink active href='#'>정보</CNavLink></CNavItem>
                             <CNavItem><CNavLink href='#'>목표</CNavLink></CNavItem>
@@ -161,6 +175,7 @@ const MyPage = () => {
                             </CCol>
                         </CRow>
 
+                        {/* 인사 정보 섹션 */}
                         <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>입사 정보</CCol>
                             <CCol sm={9}>
@@ -184,12 +199,12 @@ const MyPage = () => {
                             <CCol sm={9}>
                                 <span className="me-4 text-muted small">부서</span>
                                 <span className={valueStyle}>
-                                {userInfo?.department?.deptName || userInfo?.dept_name || '정보 없음'}
+                                {userInfo?.department?.deptName || userInfo?.dept?.deptName || userInfo?.department?.name || userInfo?.deptName || userInfo?.dept_name || '정보 없음'}
                                 </span>
 
                                 <span className="ms-5 me-4 text-muted small">직급</span>
                                 <span className={valueStyle}>
-                                {userInfo?.position?.positionName || userInfo?.position_name || '정보 없음'}
+                                {userInfo?.position?.positionName || userInfo?.posName || userInfo?.positionName || userInfo?.position_name || '정보 없음'}
                                 </span>
                             </CCol>
                             </CRow>
@@ -203,6 +218,7 @@ const MyPage = () => {
                             </CCol>
                             </CRow>
 
+                            {/* 급여/계좌 정보 섹션 */}
                             <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>급여 등급</CCol>
                             <CCol sm={9}>
@@ -229,6 +245,7 @@ const MyPage = () => {
                             </CCol>
                         </CRow>
 
+                        {/* 연락처 정보 섹션 */}
                         <CRow className={rowClass}>
                             <CCol sm={3} className={labelStyle}>휴대전화번호</CCol>
                             <CCol sm={9}>

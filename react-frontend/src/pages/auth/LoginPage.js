@@ -11,97 +11,156 @@
  * @ ----------    ---------    -------------------------------
  * @ 2026.04.16    김다솜        최초 생성
  * @ 2026.04.30    김다솜        스타일 코드 분리(LoginStyle.js) 및 버튼 상태 처리 개선
+ * @ 2026.05.07    김다솜        role 타입/형식 정규화 및 관리자 로그인 브릿지용 sessionStorage(adminLoginBridge) 저장 추가
+ * @ 2026.05.15    김다솜        사용자 홈 톤에 맞춘 로그인 화면 레이아웃 및 스타일 개편
  */
 
-  import { useEffect, useState } from 'react';
-  import axios from 'axios';
-  import { useNavigate } from 'react-router-dom';
-  import { useUser } from '../../api/UserContext';
-import { cardStyle, containerStyle, inputStyle, loginButton } from 'src/styles/js/auth/LoginStyle';
-import { PATH } from 'src/constants/path';
-import axiosInstance from 'src/api/axiosInstance';
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '../../api/UserContext'
+import {
+  brandEyebrow,
+  brandFeatureCard,
+  brandFeatureGrid,
+  brandFeatureLabel,
+  brandFeatureValue,
+  brandPanel,
+  brandSubtitle,
+  brandTitle,
+  cardBadge,
+  cardDescription,
+  cardStyle,
+  cardTitle,
+  containerStyle,
+  helperLink,
+  inputStyle,
+  loginButton,
+  pageShell,
+} from 'src/styles/js/auth/LoginStyle'
+import { PATH } from 'src/constants/path'
+import axiosInstance from 'src/api/axiosInstance'
 
-  function LoginPage() {
-    const navigate = useNavigate();
-    const { login, updateUserInfo } = useUser();
+const normalizeRole = (roleValue) => {
+  if (typeof roleValue === 'string') return roleValue.toUpperCase()
+  if (Array.isArray(roleValue) && roleValue.length > 0) return normalizeRole(roleValue[0])
+  if (roleValue && typeof roleValue === 'object') {
+    const candidate = roleValue.roleName || roleValue.authority || roleValue.name
+    return typeof candidate === 'string' ? candidate.toUpperCase() : ''
+  }
+  return ''
+}
 
-    const [loginData, setLoginData] = useState({
+function LoginPage() {
+  const navigate = useNavigate()
+  const { login, updateUserInfo } = useUser()
+
+  const [loginData, setLoginData] = useState({
+    empNo: '',
+    password: '',
+  })
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    setLoginData({
       empNo: '',
-      password: ''
-    });
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+      password: '',
+    })
+  }, [])
 
-    //1. 컴포넌트가 마운트될 때(화면에 나타날 때) 입력창 초기화
-    useEffect(() => {
-      setLoginData({
-        empNo: '',
-        password: ''
-      });
-    }, []);
+  const handleChange = (e) => {
+    setLoginData({
+      ...loginData,
+      [e.target.name]: e.target.value,
+    })
+  }
 
-    //2. 입력값 변경 핸들러
-    const handleChange = (e) => {
-      setLoginData({
-        ...loginData,
-        [e.target.name]: e.target.value
-      });
-    }
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError('')
 
-    //3. 로그인 요청 핸들러
-    const handleLogin = async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setError('');
+    try {
+      const response = await axios.post(`${PATH.API.BASE}/auth/login`, {
+        empNo: loginData.empNo,
+        password: loginData.password,
+      })
 
-      try {
-        //백엔드 API 호출
-        //요청URL과 포트번호가 백엔드(8081)와 일치하는지 확인
-        //전달하는 객체의 key값을 백엔드 DTO와 일치시킴(@Data static class LoginRequest)
-        const response = await axios.post(`${PATH.API.BASE}/auth/login`, {
-          empNo: loginData.empNo,
-          password: loginData.password
-        });
+      const { accessToken, refreshToken, empNo, userName, role } = response.data
+      const normalizedRole = normalizeRole(role)
 
-        const { token, userName, role } = response.data;
+      login({ empNo, name: userName, role: normalizedRole || role }, accessToken, refreshToken)
 
-        //1. 계정 기본정보 저장
-        login({ name: userName, role }, token);
-        console.log('로그인 성공: ', userName, role);
-
-        //2. 토큰으로 상세정보 조회
-        const empResponse = await axiosInstance.get('/user/welcome');
-
-        //3. Context에 상세정보 업데이트
-        updateUserInfo(empResponse.data);
-
-        //4. 로그인 성공 시 메인 대시보드로 이동
-        navigate('/auth/welcome'); 
-      } catch (err) {
-        //네트워크 에러 혹은 CORS 에러 시 오류메시지 출력
-          if(!err.response) {
-              setError('서버에 연결할 수 없습니다.');
-          } else {
-              const message = err.response.data;
-              setError(typeof message === 'string' ? message : '사번 또는 비밀번호를 확인해주세요.');
-          }
-      } finally {
-        setIsLoading(false);
+      if (normalizedRole !== 'ROLE_ADMIN') {
+        const empResponse = await axiosInstance.get(PATH.API.USER_ME)
+        updateUserInfo(empResponse.data)
+      } else {
+        updateUserInfo({ empNo, name: userName, role: normalizedRole || role })
+        sessionStorage.setItem(
+          'adminLoginBridge',
+          JSON.stringify({
+            username: loginData.empNo,
+            password: loginData.password,
+            createdAt: Date.now(),
+          }),
+        )
       }
-    };
 
-    //사번+비밀번호 찾기 핸들러
-    const handleFindCredentials = () => {
-      alert('임시메시지: 사번과 비밀번호 찾기 기능은 관리자에게 문의해주세요.');
-    };
+      navigate(PATH.AUTH.WELCOME)
+    } catch (err) {
+      if (!err.response) {
+        setError('서버에 연결할 수 없습니다.')
+      } else {
+        const message = err.response.data
+        setError(typeof message === 'string' ? message : '사번 또는 비밀번호를 확인해 주세요.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-    return (
-      <div style={containerStyle}>
+  const handleFindCredentials = () => {
+    alert('임시메시지: 사번과 비밀번호 찾기 기능은 관리자에게 문의해 주세요.')
+  }
+
+  return (
+    <div style={containerStyle}>
+      <div style={pageShell}>
+        <div style={brandPanel}>
+          <div style={brandEyebrow}>AI-BASED GROUPWARE</div>
+          <h1 style={brandTitle}>
+            COREWORK에
+            <br />
+            오신 것을 환영합니다!
+          </h1>
+          <p style={brandSubtitle}>
+            온보딩, 학습, 평가, 협업 흐름을 하나의 공간에서 이어가는 그룹웨어
+          </p>
+
+          <div style={brandFeatureGrid}>
+            <div style={brandFeatureCard}>
+              <div style={brandFeatureLabel}>ONBOARDING</div>
+              <div style={brandFeatureValue}>학습, 체크리스트, 평가 흐름 연결</div>
+            </div>
+            <div style={brandFeatureCard}>
+              <div style={brandFeatureLabel}>AI SUPPORT</div>
+              <div style={brandFeatureValue}>문서 요약, 재설명, 질문 응답 지원</div>
+            </div>
+            <div style={brandFeatureCard}>
+              <div style={brandFeatureLabel}>HOME FEED</div>
+              <div style={brandFeatureValue}>오늘의 업무와 진행 상태 한 번에 확인</div>
+            </div>
+          </div>
+        </div>
+
         <div style={cardStyle}>
-          {/* 로고 영역 */}
-          <h1 style={{ color: '#1877f2', marginBottom: '8px', fontSize: '28px' }}>스마트 그룹웨어</h1>
-          <p style={{ color: '#606770', marginBottom: '32px', fontSize: '16px' }}>통합 관리 시스템 로그인</p>
-      
+          <div style={cardBadge}>LOGIN</div>
+          <h2 style={cardTitle}>업무 시작하기</h2>
+          <p style={cardDescription}>
+            사번과 비밀번호를 입력해주세요.
+          </p>
+
           <form onSubmit={handleLogin}>
             <input
               type="text"
@@ -123,25 +182,26 @@ import axiosInstance from 'src/api/axiosInstance';
               required
               autoComplete="new-password"
             />
-            {error && <p style={{ color: 'red', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
+            {error && <p style={{ color: '#d93025', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
             <button type="submit" style={loginButton(isLoading)} disabled={isLoading}>
               {isLoading ? '로그인 중...' : '로그인'}
             </button>
           </form>
 
-          {/* 사번/비밀번호 찾기 */}
-          <div style={{ marginTop: '24px', fontSize: '14px', color: '#8a8d91' }}>
-            <span onClick={handleFindCredentials}
-                  style={{ cursor: 'pointer', fontSize: '14px', color: '#8a8d91' }}
-                  onMouseOver={(e) => e.target.style.color = '#1877f2'}
-                  onMouseOut={(e) => e.target.style.color = '#8a8d91'}
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <span
+              onClick={handleFindCredentials}
+              style={helperLink}
+              onMouseOver={(e) => (e.target.style.color = '#321fdb')}
+              onMouseOut={(e) => (e.target.style.color = '#6b7280')}
             >
               사번/비밀번호 찾기
             </span>
           </div>
         </div>
       </div>
-    );
+    </div>
+  )
 }
 
-  export default LoginPage;
+export default LoginPage

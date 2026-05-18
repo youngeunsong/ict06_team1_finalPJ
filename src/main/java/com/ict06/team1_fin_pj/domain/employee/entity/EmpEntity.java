@@ -1,3 +1,15 @@
+/**
+ * @FileName : EmpEntity.java
+ * @Description : 사원 엔티티
+ * @Author : 김다솜
+ * @Date : 2026. 04. 22
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자        수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.12    김다솜        마이페이지 부서 표시를 위한 deptId/deptName JSON 응답 필드 추가
+ */
+
 package com.ict06.team1_fin_pj.domain.employee.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -157,6 +169,14 @@ public class EmpEntity extends BaseTimeEntity {
     @Column(name = "is_deleted", columnDefinition = "char(1)")
     private String isDeleted = "N";
 
+    //RefreshToken 적용 위해 필드 추가
+    @Column(name = "refresh_token")
+    private String refreshToken;
+
+    public void updateRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
     /*
      * 사원 기본 정보 수정 메서드
      *
@@ -206,5 +226,15 @@ public class EmpEntity extends BaseTimeEntity {
     // 서명 이미지 경로 변경
     public void changeSignImg(String signImg) {
         this.signImg = signImg;
+    }
+
+    @JsonProperty("deptId")
+    public Integer getDeptId() {
+        return department != null ? department.getDeptId() : null;
+    }
+
+    @JsonProperty("deptName")
+    public String getDeptName() {
+        return department != null ? department.getDeptName() : null;
     }
 }

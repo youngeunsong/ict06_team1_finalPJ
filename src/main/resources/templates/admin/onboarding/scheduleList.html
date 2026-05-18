@@ -1,0 +1,107 @@
+<!--
+    @FileName : scheduleList.html
+    @Description : 관리자 온보딩 일정 직원 목록 화면
+    @Author : 김다솜
+    @Date : 2026. 05. 11
+    @Modification_History
+    @
+    @ 수정일자        수정자        수정내용
+    @ ----------    ---------    -------------------------------
+    @ 2026.05.11    김다솜        최초 생성 및 직원별 로드맵 일정/진행 상태 조회 기능 추가
+    @ 2026.05.12    김다솜        직원별 온보딩 학습 목록 수정/알림발송 기능 추가
+-->
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{/admin/common/head.html :: common_header}">
+    <meta charset="UTF-8">
+    <title id="page_title">온보딩 일정 관리</title>
+</head>
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<div class="app-wrapper">
+    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+
+    <main class="app-main">
+        <div class="app-content">
+            <div class="container-fluid p-4" style="max-width: 1180px; margin: 0 auto;">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h3 class="mb-1">온보딩 일정 관리</h3>
+                        <p class="text-muted mb-0">직원별 온보딩 진행 현황을 확인하고, 직원명을 눌러 상세 학습목록을 관리합니다.</p>
+                    </div>
+                    <a th:href="@{/admin/onboarding/roadmaps}" class="btn btn-outline-primary">로드맵 관리</a>
+                </div>
+
+                <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>사번</th>
+                                <th>직원명</th>
+                                <th>로드맵</th>
+                                <th class="text-center">전체</th>
+                                <th class="text-center">완료</th>
+                                <th class="text-center">진행중</th>
+                                <th class="text-center">시작 전</th>
+                                <th style="width: 220px;">진행률</th>
+                                <th class="text-center">관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="employee : ${employeeSchedules}">
+                                <td th:text="${employee.empNo}">20260001</td>
+                                <td>
+                                    <a class="fw-semibold text-decoration-none"
+                                       th:href="@{/admin/onboarding/schedules/{empNo}(empNo=${employee.empNo})}"
+                                       th:text="${employee.employeeName}">
+                                        홍길동
+                                    </a>
+                                </td>
+                                <td th:text="${employee.roadmapTitle}">온보딩 로드맵</td>
+                                <td class="text-center" th:text="${employee.totalCount}">0</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success" th:text="${employee.completedCount}">0</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary" th:text="${employee.inProgressCount}">0</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary" th:text="${employee.notStartedCount}">0</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar" 
+                                                 th:classappend="${employee.progressRate == 100 ? 'bg-success' : (employee.progressRate > 0 ? 'bg-primary' : 'bg-secondary')}"
+                                                 th:style="|width: ${employee.progressRate}%|"></div>
+                                        </div>
+                                        <small class="fw-bold" th:classappend="${employee.progressRate == 100 ? 'text-success' : 'text-muted'}" th:text="|${employee.progressRate}%|">0%</small>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       th:href="@{/admin/onboarding/schedules/{empNo}(empNo=${employee.empNo})}">
+                                        학습목록 보기
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(employeeSchedules)}">
+                                <td colspan="9" class="text-center text-muted py-5">등록된 온보딩 일정이 없습니다.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <th:block th:replace="~{/admin/common/footer}"></th:block>
+</div>
+<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+</body>
+</html>

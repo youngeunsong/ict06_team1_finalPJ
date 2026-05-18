@@ -52,6 +52,7 @@ export const PATH = {
   ONBOARDING: {
     ROOT: "/onboarding",
     ROADMAP: "/onboarding/myroadmap",         // 로드맵
+    DASHBOARD: "/onboarding/dashboard",           // 대시보드
     LEARNING: (contentId) => `/onboarding/learning/${contentId}`,
     LEARNING_DETAIL: "/onboarding/learning/:contentId",           // 학습 상세 페이지
     PROGRESS_COMPLETE: "/onboarding/progress/complete",
@@ -60,16 +61,25 @@ export const PATH = {
 
   // 대분류 : 인사평가 - AI 퀴즈 및 평가
   EVALUATION: {
-    ROOT: "/evaluation",          // 사이드바 진입(평가 현황)
-    QUIZ: "/evaluation/quiz",     // 퀴즈 응시(로드맵에서 연결)
-    RESULT: "/evaluation/result", // 평가 결과 조회
+    // 사이드바 진입(평가 현황)
+    ROOT: "/evaluation",
+    // 퀴즈 응시(로드맵에서 연결)
+    QUIZ: (categoryName) => `/evaluation/quiz?categoryName=${encodeURIComponent(categoryName)}`,
+
+    // 평가 결과 조회(평가 현황에서 연결)
+    RESULT: "/evaluation/result",
+    
+    // 평가 결과 상세 조회(함수형)
+    QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`,
+    // 평가 결과 상세 조회(라우트 등록용)
+    QUIZ_DETAIL_PATTERN: "/evaluation/result/detail/:empNo/:categoryName",
   }, 
   
   // 인사평가 - 외부 AI 서버 통신용
   AI_API: {
     BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000/api',
     ROADMAP: (empNo) => `/ai/roadmap/${empNo}`,
-    CONTENT_DETAIL: (contentId) => `/content/${contentId}`,     // 학습자료 상세 조회
+    CONTENT_DETAIL: (contentId) => `/ai/content/${contentId}`,     // 학습자료 상세 조회
   },
 
   // 대분류 : 인사관리
@@ -111,17 +121,32 @@ export const PATH = {
   API: {
     BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
     USER_ME: '/user/me',
+    USER_UPDATE: '/user/update',
+
+    APPROVAL: {
+      FORMS: '/approval/forms',
+      FORM_DETAIL: (formId) => `/approval/forms/${formId}`,
+      LINE_TEMPLATE_DETAIL: (templateId) => `/approval/line-templates/${templateId}`,
+      EMPLOYEES: '/approval/employees',
+      DRAFTS: '/approval/drafts',
+      SUBMIT: '/approval/submit',
+    },
 
     ONBOARDING: {
+      ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
+      DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
+      CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
       PROGRESS_COMPLETE: "/onboarding/progress/complete",
+      PROGRESS_UNCOMPLETE: "/onboarding/progress/uncomplete",
     },
     EVALUATION: {
       QUIZ_QUESTIONS: (categoryName) => `/evaluation/quiz/category/${encodeURIComponent(categoryName)}`,
       QUIZ_SUBMIT: "/evaluation/quiz/submit",
-      QUIZ_RESULT: (empNo) => `/evaluation/quiz/result/${empNo}`
+      QUIZ_RESULT: (empNo) => `/evaluation/result/${empNo}`,
+      QUIZ_DETAIL: (empNo, categoryName) => `/evaluation/result/detail/${empNo}/${encodeURIComponent(categoryName)}`,
     }
   }
 };

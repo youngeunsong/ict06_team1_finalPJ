@@ -1,5 +1,17 @@
+/**
+ * @FileName : AdAuthController.java
+ * @Description : 관리자 인증 진입 Controller
+ * @Author : 김다솜
+ * @Date : 2026. 05. 10
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.10    김다솜        관리자 로그인 진입을 공용 React 로그인 페이지로 리다이렉트 처리
+ */
 package com.ict06.team1_fin_pj.domain.auth.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -8,14 +20,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin")
 public class AdAuthController {
 
+    @Value("${app.frontend.login-url:http://localhost:3000/auth/login}")
+    private String commonLoginUrl;
+
     // 관리자 로그인 페이지 (임시)
-    // 공통 사이드바 구현을 위해서 임시로 관리자용 로그인 페이지를 구현했습니다. 인증 기능 담당자 분께서 추후 원하시는 대로 수정하셔도 됩니다.
+    // 관리자 인증 진입 화면은 공용 React 로그인 페이지를 사용합니다.
     @GetMapping("/login")
     public String loginPage() {
-        return "admin/auth/login";
+        return "redirect:" + commonLoginUrl;
     }
-
-    // 관리자 홈 (임시)
-    @GetMapping("/home")
-    public String home() { return "admin/auth/home"; }
 }

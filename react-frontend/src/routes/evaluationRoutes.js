@@ -1,13 +1,20 @@
 import React from 'react';
 import { PATH } from "../constants/path";
-import Quiz from 'src/pages/evaluation/Quiz';
 
 // lazy loading 적용
-const Evaluation2 = React.lazy(() => import('src/pages/evaluation/Evaluation2'));
+const Quiz = React.lazy(() => import('src/pages/evaluation/Quiz'));
+const EvaluationResult = React.lazy(() => import('src/pages/evaluation/EvaluationResult'));
+const QuizDetailView = React.lazy(() => import('src/pages/evaluation/QuizDetailView'));
 
 export const  evaluationRoutes = (userInfo) => [
 
-    {path: PATH.EVALUATION.ROOT, element: <Quiz userInfo={userInfo} /> },        // 평가 현황
-    {path: PATH.EVALUATION.QUIZ, element: <Quiz userInfo={userInfo} /> },               // 퀴즈 응시
-    {path: PATH.EVALUATION.RESULT, element: <Evaluation2 userInfo={userInfo} /> },      // 평가 결과 조회
+    // 평가 현황(사이드바 진입)
+    {path: PATH.EVALUATION.ROOT, element: <Quiz /> },
+    // 퀴즈 응시(로드맵에서 연결)
+    { path: "/evaluation/quiz", element: <Quiz /> },
+    
+    // 기존 결과 페이지
+    {path: PATH.EVALUATION.RESULT, element: <EvaluationResult /> },
+    // 상세 결과 페이지
+    {path: PATH.EVALUATION.QUIZ_DETAIL_PATTERN, element: <QuizDetailView />},
 ];
