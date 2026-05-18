@@ -32,14 +32,6 @@ const STATUS_BADGE = {
   CANCELED: 'dark',
 };
 
-const STATUS_OPTIONS = [
-  { value: '', label: '전체' },
-  { value: 'IN_PROGRESS', label: '진행중' },
-  { value: 'COMPLETED', label: '완료' },
-  { value: 'REJECTED', label: '반려' },
-  { value: 'CANCELED', label: '취소' },
-];
-
 const formatDateTime = (value) => {
   if (!value) {
     return '-';
@@ -125,17 +117,6 @@ const UpcomingApprovals = () => {
         <CCardHeader className="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <strong>결재 예정 문서</strong>
           <div className="d-flex flex-wrap gap-2 align-items-center">
-            <CFormSelect
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              style={{ width: '160px' }}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </CFormSelect>
             <CFormInput
               type="date"
               value={startDate}

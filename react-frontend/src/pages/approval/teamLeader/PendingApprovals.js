@@ -40,7 +40,7 @@ const BOX_TYPES = [
 
 const STATUS_OPTIONS = [
   { value: '', label: '전체' },
-  { value: 'IN_PROGRESS', label: '진행중' },
+  // { value: 'IN_PROGRESS', label: '진행중' },
   { value: 'COMPLETED', label: '완료' },
   { value: 'REJECTED', label: '반려' },
   { value: 'CANCELED', label: '취소' },
@@ -146,17 +146,22 @@ const PendingApprovals = () => {
             ))}
           </div>
           <div className="d-flex flex-wrap gap-2 align-items-center">
-            <CFormSelect
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              style={{ width: '160px' }}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </CFormSelect>
+            {/* '처리 완료' 탭에서만 상태 필터 적용 */}
+            {
+              boxType === 'processed' ?
+                <CFormSelect
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                style={{ width: '160px' }}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </CFormSelect>
+              :null
+            }
             <CFormInput
               type="date"
               value={startDate}
