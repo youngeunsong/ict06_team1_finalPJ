@@ -136,6 +136,7 @@ export const PATH = {
       MY_DOCUMENTS: '/approval/my-documents',
       REFERENCED_DOCUMENTS: '/approval/referenced-documents',
       PENDING_DOCUMENTS: '/approval/pending-documents',
+      PROCESSED_DOCUMENTS: '/approval/processed-documents',
       UPCOMING_DOCUMENTS: '/approval/upcoming-documents',
       DETAIL: (approvalId) => `/approval/${approvalId}`,
       APPROVE: (approvalId) => `/approval/${approvalId}/approve`,

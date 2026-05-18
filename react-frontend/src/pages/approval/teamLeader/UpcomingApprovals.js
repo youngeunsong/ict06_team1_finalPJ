@@ -5,6 +5,8 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
+  CFormInput,
+  CFormSelect,
   CPagination,
   CPaginationItem,
   CSpinner,
@@ -25,7 +27,18 @@ const PAGE_SIZE = 10;
 
 const STATUS_BADGE = {
   IN_PROGRESS: 'primary',
+  COMPLETED: 'success',
+  REJECTED: 'danger',
+  CANCELED: 'dark',
 };
+
+const STATUS_OPTIONS = [
+  { value: '', label: '전체' },
+  { value: 'IN_PROGRESS', label: '진행중' },
+  { value: 'COMPLETED', label: '완료' },
+  { value: 'REJECTED', label: '반려' },
+  { value: 'CANCELED', label: '취소' },
+];
 
 const formatDateTime = (value) => {
   if (!value) {
@@ -48,6 +61,9 @@ const UpcomingApprovals = () => {
   const navigate = useNavigate();
 
   const [documents, setDocuments] = useState([]);
+  const [status, setStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -63,6 +79,9 @@ const UpcomingApprovals = () => {
           params: {
             page,
             size: PAGE_SIZE,
+            status: status || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
           },
         });
 
@@ -77,7 +96,12 @@ const UpcomingApprovals = () => {
     };
 
     fetchUpcomingDocuments();
-  }, [page]);
+  }, [page, status, startDate, endDate]);
+
+  // 검색 필터가 바뀌면 첫 페이지부터 다시 조회합니다.
+  useEffect(() => {
+    setPage(0);
+  }, [status, startDate, endDate]);
 
   // 예정 문서는 승인/반려 대상이 아니므로 읽기 전용 상세 화면으로 이동합니다.
   const openDetail = (approvalId) => {
@@ -98,8 +122,36 @@ const UpcomingApprovals = () => {
       </header>
 
       <CCard className="mb-4">
-        <CCardHeader>
+        <CCardHeader className="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <strong>결재 예정 문서</strong>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <CFormSelect
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              style={{ width: '160px' }}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </CFormSelect>
+            <CFormInput
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 시작일"
+            />
+            <span className="text-body-secondary">~</span>
+            <CFormInput
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 종료일"
+            />
+          </div>
         </CCardHeader>
         <CCardBody>
           {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
@@ -113,6 +165,7 @@ const UpcomingApprovals = () => {
             <CTable hover responsive align="middle">
               <CTableHead>
                 <CTableRow>
+                  <CTableHeaderCell style={{ width: '90px' }}>번호</CTableHeaderCell>
                   <CTableHeaderCell style={{ width: '90px' }}>상태</CTableHeaderCell>
                   <CTableHeaderCell>문서 제목</CTableHeaderCell>
                   <CTableHeaderCell>서식</CTableHeaderCell>
@@ -125,7 +178,7 @@ const UpcomingApprovals = () => {
               <CTableBody>
                 {documents.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={8} className="text-center text-body-secondary py-5">
                       결재 예정 문서가 없습니다.
                     </CTableDataCell>
                   </CTableRow>
@@ -136,6 +189,7 @@ const UpcomingApprovals = () => {
                       role="button"
                       onClick={() => openDetail(document.approvalId)}
                     >
+                      <CTableDataCell>{document.approvalId}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color={STATUS_BADGE[document.status] || 'secondary'}>
                           {document.statusLabel || document.status}

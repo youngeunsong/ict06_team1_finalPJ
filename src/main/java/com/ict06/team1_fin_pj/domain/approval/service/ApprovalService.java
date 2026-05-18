@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -100,6 +101,8 @@ public interface ApprovalService {
      */
     Page<ApprovalListResponseDto> getMyDocuments(
             String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     );
@@ -108,6 +111,8 @@ public interface ApprovalService {
      * 로그인한 사용자의 임시저장 문서 목록을 조회합니다.
      */
     Page<ApprovalListResponseDto> getMyDrafts(
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     );
@@ -120,6 +125,8 @@ public interface ApprovalService {
      */
     Page<ApprovalListResponseDto> getMyReferencedDocuments(
             String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     );
@@ -128,6 +135,20 @@ public interface ApprovalService {
      * 현재 로그인 사용자가 지금 결재해야 하는 문서 목록을 조회합니다.
      */
     Page<ApprovalListResponseDto> getPendingApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            PrincipalDetails principal,
+            Pageable pageable
+    );
+
+    /**
+     * 로그인 사용자가 과거에 승인/반려 처리한 문서 목록을 조회합니다.
+     */
+    Page<ApprovalListResponseDto> getProcessedApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     );
@@ -136,6 +157,9 @@ public interface ApprovalService {
      * 로그인 사용자가 결재선에 포함되어 있지만 아직 차례가 오지 않은 문서 목록을 조회합니다.
      */
     Page<ApprovalListResponseDto> getUpcomingApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     );

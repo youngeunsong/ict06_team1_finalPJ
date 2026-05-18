@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   CAlert,
   CBadge,
+  CButton,
   CCard,
   CCardBody,
   CCardHeader,
+  CFormInput,
+  CFormSelect,
   CPagination,
   CPaginationItem,
   CSpinner,
@@ -25,7 +28,23 @@ const PAGE_SIZE = 10;
 
 const STATUS_BADGE = {
   IN_PROGRESS: 'primary',
+  COMPLETED: 'success',
+  REJECTED: 'danger',
+  CANCELED: 'dark',
 };
+
+const BOX_TYPES = [
+  { key: 'pending', label: '결재 대기', apiPath: PATH.API.APPROVAL.PENDING_DOCUMENTS },
+  { key: 'processed', label: '처리 완료', apiPath: PATH.API.APPROVAL.PROCESSED_DOCUMENTS },
+];
+
+const STATUS_OPTIONS = [
+  { value: '', label: '전체' },
+  { value: 'IN_PROGRESS', label: '진행중' },
+  { value: 'COMPLETED', label: '완료' },
+  { value: 'REJECTED', label: '반려' },
+  { value: 'CANCELED', label: '취소' },
+];
 
 const formatDateTime = (value) => {
   if (!value) {
@@ -46,6 +65,10 @@ const PendingApprovals = () => {
   const [userInfo] = useOutletContext();
   const navigate = useNavigate();
 
+  const [boxType, setBoxType] = useState('pending');
+  const [status, setStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [documents, setDocuments] = useState([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -58,10 +81,14 @@ const PendingApprovals = () => {
         setLoading(true);
         setErrorMessage('');
 
-        const response = await axiosInstance.get(PATH.API.APPROVAL.PENDING_DOCUMENTS, {
+        const currentBox = BOX_TYPES.find((item) => item.key === boxType) || BOX_TYPES[0];
+        const response = await axiosInstance.get(currentBox.apiPath, {
           params: {
             page,
             size: PAGE_SIZE,
+            status: status || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
           },
         });
 
@@ -76,10 +103,20 @@ const PendingApprovals = () => {
     };
 
     fetchPendingDocuments();
-  }, [page]);
+  }, [boxType, page, status, startDate, endDate]);
+
+  // 문서함 종류나 검색 필터가 바뀌면 첫 페이지부터 다시 조회합니다.
+  useEffect(() => {
+    setPage(0);
+  }, [boxType, status, startDate, endDate]);
 
   // 결재 대기 상세 화면에서는 승인/반려 처리를 해야 하므로 approvalId를 query string으로 넘깁니다.
   const openDetail = (approvalId) => {
+    if (boxType === 'processed') {
+      navigate(PATH.APPROVAL.UPCOMING_DETAIL_WITH_ID(approvalId));
+      return;
+    }
+
     navigate(PATH.APPROVAL.PENDING_DETAIL_WITH_ID(approvalId));
   };
 
@@ -89,14 +126,53 @@ const PendingApprovals = () => {
         <div>
           <h2 className="mb-1">결재 대기 문서함</h2>
           <div className="text-body-secondary">
-            {userInfo?.name ? `${userInfo.name}님이 지금 결재해야 하는 문서입니다.` : '현재 결재 순서인 문서입니다.'}
+            {userInfo?.name ? `${userInfo.name}님의 결재 대기 및 처리 완료 문서입니다.` : '결재 대기 및 처리 완료 문서입니다.'}
           </div>
         </div>
       </header>
 
       <CCard className="mb-4">
-        <CCardHeader>
-          <strong>결재 대기 문서</strong>
+        <CCardHeader className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div className="d-flex gap-2">
+            {BOX_TYPES.map((item) => (
+              <CButton
+                color={boxType === item.key ? 'primary' : 'secondary'}
+                variant={boxType === item.key ? undefined : 'outline'}
+                key={item.key}
+                onClick={() => setBoxType(item.key)}
+              >
+                {item.label}
+              </CButton>
+            ))}
+          </div>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <CFormSelect
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              style={{ width: '160px' }}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </CFormSelect>
+            <CFormInput
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 시작일"
+            />
+            <span className="text-body-secondary">~</span>
+            <CFormInput
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 종료일"
+            />
+          </div>
         </CCardHeader>
         <CCardBody>
           {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
@@ -110,6 +186,7 @@ const PendingApprovals = () => {
             <CTable hover responsive align="middle">
               <CTableHead>
                 <CTableRow>
+                  <CTableHeaderCell style={{ width: '90px' }}>번호</CTableHeaderCell>
                   <CTableHeaderCell style={{ width: '90px' }}>상태</CTableHeaderCell>
                   <CTableHeaderCell>문서 제목</CTableHeaderCell>
                   <CTableHeaderCell>서식</CTableHeaderCell>
@@ -121,8 +198,8 @@ const PendingApprovals = () => {
               <CTableBody>
                 {documents.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
-                      지금 결재할 문서가 없습니다.
+                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
+                      조회된 문서가 없습니다.
                     </CTableDataCell>
                   </CTableRow>
                 ) : (
@@ -132,6 +209,7 @@ const PendingApprovals = () => {
                       role="button"
                       onClick={() => openDetail(document.approvalId)}
                     >
+                      <CTableDataCell>{document.approvalId}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color={STATUS_BADGE[document.status] || 'secondary'}>
                           {document.statusLabel || document.status}

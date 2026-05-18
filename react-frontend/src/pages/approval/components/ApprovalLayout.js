@@ -53,7 +53,7 @@ const baseMenuItems = [
 const approverMenuItems = [
   {
     label: '결재 대기 문서함',
-    description: '지금 내가 결재해야 하는 문서입니다.',
+    description: '지금 내가 결재해야 하는/결재 완료한 문서입니다.',
     path: PATH.APPROVAL.PENDING,
     matchPaths: [PATH.APPROVAL.PENDING, PATH.APPROVAL.PENDING_DETAIL],
     icon: cilTask,
@@ -139,9 +139,6 @@ const ApprovalLayout = ({ userInfo, children }) => {
             }}
           >
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>전자결재</div>
-              <div style={{ marginTop: 6, fontSize: 12, color: C.sub, lineHeight: 1.5 }}>
-                작성, 임시저장, 결재 문서함을 한 곳에서 이동합니다.
-              </div>
           </div>
 
           <button

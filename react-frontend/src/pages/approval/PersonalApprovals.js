@@ -6,6 +6,7 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
+  CFormInput,
   CFormSelect,
   CPagination,
   CPaginationItem,
@@ -72,6 +73,8 @@ const PersonalApprovals = () => {
 
   const [boxType, setBoxType] = useState('mine');
   const [status, setStatus] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(0);
   const [documents, setDocuments] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -83,10 +86,10 @@ const PersonalApprovals = () => {
     [boxType]
   );
 
-  // 문서함 종류나 상태 필터가 바뀌면 사용자가 첫 페이지부터 다시 보도록 페이지를 초기화합니다.
+  // 문서함 종류나 검색 필터가 바뀌면 사용자가 첫 페이지부터 다시 보도록 페이지를 초기화합니다.
   useEffect(() => {
     setPage(0);
-  }, [boxType, status]);
+  }, [boxType, status, startDate, endDate]);
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -99,6 +102,8 @@ const PersonalApprovals = () => {
             page,
             size: PAGE_SIZE,
             status: status || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
           },
         });
 
@@ -113,7 +118,7 @@ const PersonalApprovals = () => {
     };
 
     fetchDocuments();
-  }, [currentBox.apiPath, page, status]);
+  }, [currentBox.apiPath, page, status, startDate, endDate]);
 
   // 상세 화면은 하나의 라우트를 공유하므로 approvalId를 query string으로 넘깁니다.
   // state.from은 추후 상세에서 "목록으로 돌아가기"를 문서함 종류별로 분기할 때 사용할 수 있습니다.
@@ -148,17 +153,34 @@ const PersonalApprovals = () => {
               </CButton>
             ))}
           </div>
-          <CFormSelect
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            style={{ maxWidth: '180px' }}
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option value={option.value} key={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </CFormSelect>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <CFormSelect
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              style={{ width: '160px' }}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </CFormSelect>
+            <CFormInput
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 시작일"
+            />
+            <span className="text-body-secondary">~</span>
+            <CFormInput
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 종료일"
+            />
+          </div>
         </CCardHeader>
         <CCardBody>
           {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
@@ -172,6 +194,7 @@ const PersonalApprovals = () => {
             <CTable hover responsive align="middle">
               <CTableHead>
                 <CTableRow>
+                  <CTableHeaderCell style={{ width: '90px' }}>번호</CTableHeaderCell>
                   <CTableHeaderCell style={{ width: '90px' }}>상태</CTableHeaderCell>
                   <CTableHeaderCell>문서 제목</CTableHeaderCell>
                   <CTableHeaderCell>서식</CTableHeaderCell>
@@ -184,7 +207,7 @@ const PersonalApprovals = () => {
               <CTableBody>
                 {documents.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={8} className="text-center text-body-secondary py-5">
                       조회된 문서가 없습니다.
                     </CTableDataCell>
                   </CTableRow>
@@ -195,6 +218,7 @@ const PersonalApprovals = () => {
                       role="button"
                       onClick={() => openDetail(document.approvalId)}
                     >
+                      <CTableDataCell>{document.approvalId}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color={STATUS_BADGE[document.status] || 'secondary'}>
                           {document.statusLabel || document.status}

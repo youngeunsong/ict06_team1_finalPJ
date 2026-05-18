@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -284,6 +285,8 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Transactional(readOnly = true)
     public Page<ApprovalListResponseDto> getMyDocuments(
             String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     ) {
@@ -293,6 +296,8 @@ public class ApprovalServiceImpl implements ApprovalService {
         return approvalRepository.findMyDocuments(
                 principal.getEmpNo(),
                 approvalStatus,
+                startDate,
+                endDate,
                 pageable
         );
     }
@@ -303,6 +308,8 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Override
     @Transactional(readOnly = true)
     public Page<ApprovalListResponseDto> getMyDrafts(
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     ) {
@@ -310,6 +317,8 @@ public class ApprovalServiceImpl implements ApprovalService {
 
         return approvalRepository.findMyDrafts(
                 principal.getEmpNo(),
+                startDate,
+                endDate,
                 pageable
         );
     }
@@ -321,6 +330,8 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Transactional(readOnly = true)
     public Page<ApprovalListResponseDto> getMyReferencedDocuments(
             String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     ) {
@@ -330,6 +341,8 @@ public class ApprovalServiceImpl implements ApprovalService {
         return approvalRepository.findMyReferencedDocuments(
                 principal.getEmpNo(),
                 approvalStatus,
+                startDate,
+                endDate,
                 pageable
         );
     }
@@ -340,13 +353,44 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Override
     @Transactional(readOnly = true)
     public Page<ApprovalListResponseDto> getPendingApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     ) {
         validatePrincipal(principal);
 
+        ApprovalStatus approvalStatus = parseStatus(status);
         return approvalRepository.findPendingApprovals(
                 principal.getEmpNo(),
+                approvalStatus,
+                startDate,
+                endDate,
+                pageable
+        );
+    }
+
+    /**
+     * 로그인 사용자가 과거에 결재 처리한 문서 목록을 조회합니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ApprovalListResponseDto> getProcessedApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            PrincipalDetails principal,
+            Pageable pageable
+    ) {
+        validatePrincipal(principal);
+
+        ApprovalStatus approvalStatus = parseStatus(status);
+        return approvalRepository.findProcessedApprovals(
+                principal.getEmpNo(),
+                approvalStatus,
+                startDate,
+                endDate,
                 pageable
         );
     }
@@ -357,13 +401,20 @@ public class ApprovalServiceImpl implements ApprovalService {
     @Override
     @Transactional(readOnly = true)
     public Page<ApprovalListResponseDto> getUpcomingApprovals(
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
             PrincipalDetails principal,
             Pageable pageable
     ) {
         validatePrincipal(principal);
 
+        ApprovalStatus approvalStatus = parseStatus(status);
         return approvalRepository.findUpcomingApprovals(
                 principal.getEmpNo(),
+                approvalStatus,
+                startDate,
+                endDate,
                 pageable
         );
     }

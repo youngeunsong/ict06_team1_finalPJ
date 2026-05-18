@@ -5,6 +5,8 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
+  CFormInput,
+  CFormSelect,
   CPagination,
   CPaginationItem,
   CSpinner,
@@ -43,6 +45,8 @@ const TmpApprovals = () => {
   const navigate = useNavigate();
 
   const [page, setPage] = useState(0);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [documents, setDocuments] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -58,6 +62,8 @@ const TmpApprovals = () => {
           params: {
             page,
             size: PAGE_SIZE,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
           },
         });
 
@@ -72,7 +78,12 @@ const TmpApprovals = () => {
     };
 
     fetchDrafts();
-  }, [page]);
+  }, [page, startDate, endDate]);
+
+  // 상신일 기간 필터가 바뀌면 첫 페이지부터 다시 조회합니다.
+  useEffect(() => {
+    setPage(0);
+  }, [startDate, endDate]);
 
   /*
    * 임시저장 문서는 아직 결재가 시작되지 않은 작성자 개인 작업물이므로,
@@ -98,8 +109,28 @@ const TmpApprovals = () => {
       </header>
 
       <CCard className="mb-4">
-        <CCardHeader>
+        <CCardHeader className="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <strong>임시저장 문서</strong>
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <CFormSelect value="DRAFT" disabled style={{ width: '160px' }} aria-label="상태">
+              <option value="DRAFT">임시저장</option>
+            </CFormSelect>
+            <CFormInput
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 시작일"
+            />
+            <span className="text-body-secondary">~</span>
+            <CFormInput
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              style={{ width: '160px' }}
+              aria-label="상신일 종료일"
+            />
+          </div>
         </CCardHeader>
         <CCardBody>
           {errorMessage && <CAlert color="danger">{errorMessage}</CAlert>}
@@ -113,6 +144,7 @@ const TmpApprovals = () => {
             <CTable hover responsive align="middle">
               <CTableHead>
                 <CTableRow>
+                  <CTableHeaderCell style={{ width: '90px' }}>번호</CTableHeaderCell>
                   <CTableHeaderCell style={{ width: '100px' }}>상태</CTableHeaderCell>
                   <CTableHeaderCell>문서 제목</CTableHeaderCell>
                   <CTableHeaderCell>서식</CTableHeaderCell>
@@ -123,7 +155,7 @@ const TmpApprovals = () => {
               <CTableBody>
                 {documents.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={5} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
                       임시저장된 문서가 없습니다.
                     </CTableDataCell>
                   </CTableRow>
@@ -134,6 +166,7 @@ const TmpApprovals = () => {
                       role="button"
                       onClick={() => openDraft(document.approvalId)}
                     >
+                      <CTableDataCell>{document.approvalId}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color="secondary">
                           {document.statusLabel || '임시저장'}
