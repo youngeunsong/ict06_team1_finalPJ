@@ -24,7 +24,7 @@ import { PATH } from 'src/constants/path';
  * 현재 직급 체계는 사원보다 높은 직급일수록 positionId가 커지는 방식이므로 positionId > 1이면
  * 결재 대기/예정 문서함을 보여줍니다.
  *
- * 로그인 직후처럼 positionId가 없는 경우를 대비해 직급명으로도 한 번 더 판단합니다.
+ * (TODO: 검토 필요 - 로그인 직후처럼 positionId가 없는 경우를 대비해 직급명으로도 한 번 더 판단합니다.)
  * 이 조건은 화면 표시용이고, 실제 승인/반려 권한은 백엔드에서 현재 결재자인지 다시 검증합니다.
  */
 const canViewApproverMenus = (userInfo) => {
@@ -33,20 +33,21 @@ const canViewApproverMenus = (userInfo) => {
         ?? userInfo?.position_id;
     const positionId = Number(rawPositionId);
 
+    // positionId가 유효한 숫자이고 1보다 큰 경우 결재자 메뉴를 보여줍니다.
     if (!Number.isNaN(positionId) && positionId > 0) {
         return positionId > 1;
     }
 
-    const positionName = (
-        userInfo?.position?.positionName
-        || userInfo?.positionName
-        || userInfo?.position_name
-        || ''
-    ).trim();
+    // const positionName = (
+    //     userInfo?.position?.positionName
+    //     || userInfo?.positionName
+    //     || userInfo?.position_name
+    //     || ''
+    // ).trim();
 
-    return ['주임', '선임', '책임', '수석', '팀장', '리더', '관리자'].some((keyword) =>
-        positionName.includes(keyword)
-    );
+    // return ['주임', '선임', '책임', '수석', '팀장', '리더', '관리자'].some((keyword) =>
+    //     positionName.includes(keyword)
+    // );
 };
 
 // [전자결재] 전자결재 메인 페이지
