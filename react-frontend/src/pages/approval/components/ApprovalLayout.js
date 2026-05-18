@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CIcon from '@coreui/icons-react';
 import {
@@ -7,6 +7,8 @@ import {
   cilInbox,
   cilPencil,
   cilTask,
+  cilArrowThickFromRight,
+  cilArrowThickFromLeft,
 } from '@coreui/icons';
 
 import { PATH } from 'src/constants/path';
@@ -21,6 +23,7 @@ const C = {
   muted: '#94A3B8',
   accent: '#2563EB',
   accentBg: '#EEF2FF',
+  hoverBg: '#F8FAFC',
 };
 
 const baseMenuItems = [
@@ -72,12 +75,14 @@ const styles = {
     color: C.text,
   },
   sidebar: {
-    width: 272,
     background: C.sidebar,
     borderRight: `1px solid ${C.border}`,
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
+    overflow: 'hidden',
+    transition: 'width 150ms ease',
+    willChange: 'width',
   },
   main: {
     flex: 1,
@@ -97,6 +102,8 @@ const styles = {
 const ApprovalLayout = ({ userInfo, children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hoveredPath, setHoveredPath] = useState('');
   const showApproverMenus = canViewApproverMenus(userInfo);
   const menuItems = showApproverMenus ? [...baseMenuItems, ...approverMenuItems] : baseMenuItems;
 
@@ -104,70 +111,134 @@ const ApprovalLayout = ({ userInfo, children }) => {
 
   return (
     <div style={styles.app}>
-      <aside style={styles.sidebar}>
-        <div style={{ padding: 22, borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>전자결재</div>
-          <div style={{ marginTop: 6, fontSize: 12, color: C.sub, lineHeight: 1.5 }}>
-            작성, 임시저장, 결재 문서함을 한 곳에서 이동합니다.
+      <aside
+          style={{
+            ...styles.sidebar,
+            width: sidebarOpen ? 272 : 58,
+            padding: sidebarOpen ? 0 : '14px 10px',
+          }}
+      >
+        <div
+          style={{
+            padding: sidebarOpen ? 22 : 0,
+            borderBottom: sidebarOpen ? `1px solid ${C.border}` : 'none',
+            display: 'flex',
+            alignItems: sidebarOpen ? 'flex-start' : 'center',
+            justifyContent: sidebarOpen ? 'space-between' : 'center',
+            gap: 12,
+            transition: 'padding 150ms ease, border-color 150ms ease',
+          }}
+        >
+          <div
+            style={{
+              opacity: sidebarOpen ? 1 : 0,
+              width: sidebarOpen ? 188 : 0,
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              transition: 'opacity 120ms ease, width 150ms ease',
+            }}
+          >
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>전자결재</div>
+              <div style={{ marginTop: 6, fontSize: 12, color: C.sub, lineHeight: 1.5 }}>
+                작성, 임시저장, 결재 문서함을 한 곳에서 이동합니다.
+              </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            title={sidebarOpen ? '전자결재 사이드바 접기' : '전자결재 사이드바 펼치기'}
+            aria-label={sidebarOpen ? '전자결재 사이드바 접기' : '전자결재 사이드바 펼치기'}
+            style={{
+              width: 36,
+              height: 36,
+              border: `0px solid ${C.border}`,
+              borderRadius: 10,
+              background: '#fff',
+              color: C.accent,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'border-color 120ms ease, color 120ms ease, background-color 120ms ease',
+            }}
+          >
+            <CIcon icon={sidebarOpen ? cilArrowThickFromRight : cilArrowThickFromLeft} />
+          </button>
         </div>
 
-        <nav style={styles.menuList} aria-label="전자결재 메뉴">
-          {menuItems.map((item) => {
-            const active = isActive(item);
+        <nav
+          style={{
+            ...styles.menuList,
+            opacity: sidebarOpen ? 1 : 0,
+            pointerEvents: sidebarOpen ? 'auto' : 'none',
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-8px)',
+            transition: 'opacity 120ms ease, transform 150ms ease',
+          }}
+          aria-label="전자결재 메뉴"
+        >
+            {menuItems.map((item) => {
+              const active = isActive(item);
+              const hovered = hoveredPath === item.path;
 
-            return (
-              <button
-                key={item.path}
-                type="button"
-                onClick={() => navigate(item.path)}
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '12px 14px',
-                  background: active ? C.accentBg : 'transparent',
-                  color: active ? C.accent : C.text,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'flex-start',
-                }}
-              >
-                <span
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  onMouseEnter={() => setHoveredPath(item.path)}
+                  onMouseLeave={() => setHoveredPath('')}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    background: active ? '#fff' : '#F8FAFC',
+                    width: '100%',
+                    border: 'none',
+                    borderRadius: 14,
+                    padding: '12px 14px',
+                    background: active ? C.accentBg : hovered ? C.hoverBg : 'transparent',
+                    color: active ? C.accent : C.text,
+                    cursor: 'pointer',
+                    textAlign: 'left',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: active ? C.accent : C.sub,
-                    flexShrink: 0,
+                    gap: 12,
+                    alignItems: 'flex-start',
+                    transition: 'background-color 120ms ease, color 120ms ease',
                   }}
                 >
-                  <CIcon icon={item.icon} />
-                </span>
-
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 14, fontWeight: 900 }}>{item.label}</span>
                   <span
                     style={{
-                      display: 'block',
-                      marginTop: 4,
-                      fontSize: 12,
-                      color: active ? C.accent : C.sub,
-                      lineHeight: 1.4,
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: active ? '#fff' : hovered ? '#fff' : '#F8FAFC',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: active || hovered ? C.accent : C.sub,
+                      flexShrink: 0,
+                      transition: 'background-color 120ms ease, color 120ms ease',
                     }}
                   >
-                    {item.description}
+                    <CIcon icon={item.icon} />
                   </span>
-                </span>
-              </button>
-            );
-          })}
+
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 900 }}>{item.label}</span>
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: 4,
+                        fontSize: 12,
+                        color: active || hovered ? C.accent : C.sub,
+                        lineHeight: 1.4,
+                        transition: 'color 120ms ease',
+                      }}
+                    >
+                      {item.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
         </nav>
       </aside>
 

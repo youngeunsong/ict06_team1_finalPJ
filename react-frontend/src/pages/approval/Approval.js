@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CAlert,
+  CButton,
   CCard,
   CCardBody,
   CCol,
@@ -13,8 +14,6 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react';
-import CIcon from '@coreui/icons-react';
-import { cilArrowRight } from '@coreui/icons';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 
 import axiosInstance from 'src/api/axiosInstance';
@@ -40,7 +39,7 @@ const formatDateTime = (value) => {
 
 const readPageContent = (response) => response.data?.content || [];
 
-// [전자결재] 요약 문서함
+// [전자결재] 메인 화면
 const Approval = () => {
   const outletContext = useOutletContext();
   const [contextUserInfo] = Array.isArray(outletContext) ? outletContext : [];
@@ -161,7 +160,7 @@ const Approval = () => {
   return (
     <div style={containerStyle}>
       <header className="mb-4">
-        <h2 className="mb-1">전자결재 요약 문서함</h2>
+        <h2 className="mb-1">전자결재 메인</h2>
         <div className="text-body-secondary">
           {contextUserInfo?.name
             ? `${contextUserInfo.name}님의 최근 결재 문서를 문서함별로 확인합니다.`
@@ -179,7 +178,7 @@ const Approval = () => {
       ) : (
         <CRow className="g-4">
           {cards.map((card) => (
-            <CCol xs={12} lg={6} xl={4} key={card.key}>
+            <CCol xs={12} lg={6} key={card.key}>
               <SummaryCard card={card} />
             </CCol>
           ))}
@@ -197,15 +196,17 @@ const SummaryCard = ({ card }) => {
       <CCardBody>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="mb-0 fw-bold">{card.title}</h5>
-          <button
+          <CButton
             type="button"
-            className="btn btn-link p-0 text-decoration-none"
+            color="primary"
+            variant="outline"
+            size="sm"
             onClick={() => navigate(card.morePath)}
             title={`${card.title} 더보기`}
             aria-label={`${card.title} 더보기`}
           >
-            <CIcon icon={cilArrowRight} />
-          </button>
+            더보기
+          </CButton>
         </div>
 
         <CTable hover responsive align="middle" className="mb-0">
