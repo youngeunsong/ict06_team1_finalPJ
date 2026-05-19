@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import RecentHireCard from './RecentHireCard';
+import OrganizationSummaryCard from './OrganizationSummaryCard';
 
 // CoreUI
 import {
@@ -6,7 +8,11 @@ import {
     CCardBody,
     CCardHeader,
     CCol,
-    CRow
+    CRow,
+    CModal,
+    CModalHeader,
+    CModalTitle,
+    CModalBody
 } from '@coreui/react';
 
 // 조직도 컴포넌트
@@ -21,8 +27,9 @@ import EmployeeProfileCard from './EmployeeProfileCard';
  * - 조직도 화면 레이아웃 구성
  * - 선택한 부서 상태 관리
  * - 선택한 사원 상태 관리
+ * - 선택한 사원의 상세 정보를 모달로 표시
  */
-const Employee = () => {
+const Employee = ({ userInfo }) => {
 
     /*
      * 현재 선택한 부서 정보
@@ -34,8 +41,18 @@ const Employee = () => {
 
     /*
      * 현재 선택한 사원 정보
+     *
+     * 값이 있으면 상세 모달이 열린다.
+     * null이면 상세 모달이 닫힌다.
      */
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+    /*
+     * 사원 상세 모달 닫기
+     */
+    const closeEmployeeModal = () => {
+        setSelectedEmployee(null);
+    };
 
     return (
         <div className="container-fluid">
@@ -75,6 +92,7 @@ const Employee = () => {
                                 selectedDepartment={selectedDepartment}
                                 setSelectedDepartment={setSelectedDepartment}
                                 setSelectedEmployee={setSelectedEmployee}
+                                userInfo={userInfo}
                             />
 
                         </CCardBody>
@@ -109,13 +127,14 @@ const Employee = () => {
 
                                 <CCardBody
                                     style={{
-                                        height: '45vh',
+                                        height: '50vh',
                                         overflowY: 'auto',
                                     }}
                                 >
 
                                     <OrganizationEmployeeList
                                         selectedDepartment={selectedDepartment}
+                                        selectedEmployee={selectedEmployee}
                                         setSelectedEmployee={setSelectedEmployee}
                                     />
 
@@ -126,25 +145,31 @@ const Employee = () => {
                         </CCol>
 
                         {/* ============================= */}
-                        {/* 사원 상세 카드 영역 */}
+                        {/* 하단 정보 영역 */}
                         {/* ============================= */}
                         <CCol lg={12}>
 
-                            <CCard className="shadow-sm border-0">
+                            <CRow>
 
-                                <CCardHeader className="fw-bold">
-                                    구성원 상세 정보
-                                </CCardHeader>
+                                {/* ============================= */}
+                                {/* 조직 통계 */}
+                                {/* ============================= */}
+                                <CCol lg={5} className="mb-3">
 
-                                <CCardBody>
+                                    <OrganizationSummaryCard />
 
-                                    <EmployeeProfileCard
-                                        selectedEmployee={selectedEmployee}
-                                    />
+                                </CCol>
 
-                                </CCardBody>
+                                {/* ============================= */}
+                                {/* 최근 입사자 */}
+                                {/* ============================= */}
+                                <CCol lg={7} className="mb-3">
 
-                            </CCard>
+                                    <RecentHireCard />
+
+                                </CCol>
+
+                            </CRow>
 
                         </CCol>
 
@@ -153,6 +178,28 @@ const Employee = () => {
                 </CCol>
 
             </CRow>
+
+            {/* ============================= */}
+            {/* 사원 상세 모달 */}
+            {/* ============================= */}
+            <CModal
+                visible={selectedEmployee !== null}
+                onClose={closeEmployeeModal}
+                alignment="center"
+                size="lg"
+            >
+                <CModalHeader>
+                    <CModalTitle>
+                        구성원 상세 정보
+                    </CModalTitle>
+                </CModalHeader>
+
+                <CModalBody>
+                    <EmployeeProfileCard
+                        selectedEmployee={selectedEmployee}
+                    />
+                </CModalBody>
+            </CModal>
 
         </div>
     );
