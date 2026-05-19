@@ -96,6 +96,17 @@ public interface ApprovalService {
     );
 
     /**
+     * 작성자 본인의 임시저장 문서를 삭제합니다.
+     *
+     * 임시저장 문서는 아직 결재자에게 공유되지 않은 개인 작업물이므로,
+     * 작성자 본인이고 DRAFT 상태일 때만 실제 삭제를 허용합니다.
+     */
+    void deleteDraft(
+            Integer approvalId,
+            PrincipalDetails principal
+    );
+
+    /**
      * 로그인한 사용자가 작성한 결재 문서 목록을 조회합니다.
      * status가 null이면 임시저장을 제외한 전체 문서를 조회합니다.
      */

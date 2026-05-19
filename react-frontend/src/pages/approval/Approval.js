@@ -145,9 +145,7 @@ const Approval = () => {
         title: '임시저장 문서',
         documents: summary.drafts,
         morePath: PATH.APPROVAL.TMP,
-        openDocument: (document) => navigate(PATH.APPROVAL.NEW_WRITE, {
-          state: { draftId: document.approvalId },
-        }),
+        openDocument: (document) => navigate(PATH.APPROVAL.TMP_DETAIL_WITH_ID(document.approvalId)),
       },
     ];
 

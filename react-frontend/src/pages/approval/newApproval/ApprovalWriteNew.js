@@ -100,6 +100,20 @@ const ApprovalWriteNew = () => {
   const initialForm = location.state?.selectedForm || null;
   const draftId = location.state?.draftId || null;
 
+  // [결재-근태 연동용]: 근태 화면에서 넘어온 서식 기본값과 사용자가 수정하면 안 되는 필드 목록입니다.
+  const presetFieldValues = useMemo(
+    () => location.state?.presetFieldValues || {},
+    [location.state?.presetFieldValues]
+  );
+  const lockedFieldIds = useMemo(
+    () => location.state?.lockedFieldIds || [],
+    [location.state?.lockedFieldIds]
+  );
+  const lockedFieldIdSet = useMemo(
+    () => new Set(lockedFieldIds),
+    [lockedFieldIds]
+  );
+
   const [selectedForm, setSelectedForm] = useState(initialForm);
   const [loading, setLoading] = useState(Boolean(initialForm?.formId || draftId));
   const [errorMessage, setErrorMessage] = useState('');
@@ -204,8 +218,10 @@ const ApprovalWriteNew = () => {
     setFieldValues((prev) => ({
       ...createEmptyValues(template.fields),
       ...prev,
+      // [결재-근태 연동용]: 근태 화면에서 계산한 조퇴/외근 기본값이 기존 빈 값보다 우선 적용되게 합니다.
+      ...presetFieldValues,
     }));
-  }, [template.fields]);
+  }, [presetFieldValues, template.fields]);
 
   // 첨부파일이 필요 없는 서식으로 바뀌면 이전 선택 파일이 함께 제출되지 않도록 즉시 비웁니다.
   useEffect(() => {
@@ -374,11 +390,16 @@ const ApprovalWriteNew = () => {
         documentTitle,
         content: buildContent(),
         files: canAttachFile ? files : [],
+        // [결재-근태 연동용]: 결재선 설정 화면을 거쳐도 자동 입력값과 잠금 필드 정보를 유지합니다.
+        presetFieldValues,
+        lockedFieldIds,
       },
     });
   };
 
   const renderField = (field) => {
+    // [결재-근태 연동용]: 조퇴 시작 시각, 외근 퇴근 시각처럼 근태 기준값으로 고정해야 하는 필드를 잠급니다.
+    const isLocked = lockedFieldIdSet.has(field.id);
     const commonProps = {
       id: field.id,
       value: fieldValues[field.id] || '',
@@ -388,7 +409,7 @@ const ApprovalWriteNew = () => {
     if (field.type === 'select') {
       const options = Array.isArray(field.options) ? field.options : [];
       return (
-        <CFormSelect {...commonProps}>
+        <CFormSelect {...commonProps} disabled={isLocked}>
           <option value="">선택</option>
           {options.map((option) => (
             <option key={option} value={option}>
@@ -400,7 +421,7 @@ const ApprovalWriteNew = () => {
     }
 
     if (field.type === 'text') {
-      return <CFormTextarea {...commonProps} rows={3} placeholder={field.placeholder || ''} />;
+      return <CFormTextarea {...commonProps} rows={3} placeholder={field.placeholder || ''} readOnly={isLocked} />;
     }
 
     // amount는 사용자가 입력하는 동안에도 1,000원 형식으로 읽히도록 inputGroup으로 렌더링합니다.
@@ -413,6 +434,7 @@ const ApprovalWriteNew = () => {
             inputMode="numeric"
             value={formatAmount(fieldValues[field.id])}
             placeholder={field.placeholder || '0'}
+            readOnly={isLocked}
           />
           <CInputGroupText>원</CInputGroupText>
         </CInputGroup>
@@ -424,6 +446,7 @@ const ApprovalWriteNew = () => {
         {...commonProps}
         type={field.type === 'amount' ? 'text' : field.type || 'text'}
         placeholder={field.placeholder || ''}
+        readOnly={isLocked}
       />
     );
   };
