@@ -10,6 +10,7 @@
  * @ 수정일자        수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.18    김다솜        로그아웃 모달/토스트 스타일 신규 분리
+ * @ 2026.05.19    김다솜        포털 기반 로그아웃 커스텀 모달 오버레이 스타일 추가
  */
 
 const palette = {
@@ -33,6 +34,23 @@ export const dropdownLogoutItemStyle = {
 
 export const logoutModalDialogStyle = {
   fontFamily: 'Pretendard, Apple SD Gothic Neo, Noto Sans KR, sans-serif',
+}
+
+export const logoutBackdropStyle = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 2000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '20px',
+  background: 'rgba(15, 23, 42, 0.42)',
+  backdropFilter: 'blur(8px)',
+}
+
+export const logoutDialogShellStyle = {
+  width: 'min(480px, 100%)',
+  outline: 'none',
 }
 
 export const logoutModalContentStyle = {
@@ -111,6 +129,8 @@ export const logoutSubTextStyle = {
   color: palette.sub,
   fontSize: '0.9rem',
   lineHeight: 1.6,
+  wordBreak: 'keep-all',
+  overflowWrap: 'normal',
 }
 
 export const logoutModalFooterStyle = {
@@ -118,6 +138,9 @@ export const logoutModalFooterStyle = {
   padding: '18px 26px 26px',
   gap: '10px',
   background: palette.card,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
 }
 
 export const logoutCancelButtonStyle = {
