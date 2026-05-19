@@ -1,3 +1,13 @@
+/**
+ * @FileName : path.js
+ * @Description : 프론트엔드 라우팅 및 API 경로 상수 정의
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.19    김다솜        알림 SSE 구독 경로 상수 추가
+ */
+
 // constants/path.js
 // 1) 단순 URL 주소 문자열을 상수로 정의하는 단계 (데이터)
 // path.js(여기!) -> routes/대분류 별 파일 -> routes/index.js -> App.js 
@@ -129,6 +139,10 @@ export const PATH = {
     USER_ME: '/user/me',
     USER_UPDATE: '/user/update',
 
+    NOTIFICATION: {
+      SUBSCRIBE: (token) => `${PATH.API.BASE}/noti/subscribe?token=${encodeURIComponent(token)}`,
+    },
+
     APPROVAL: {
       FORMS: '/approval/forms',
       FORM_DETAIL: (formId) => `/approval/forms/${formId}`,
@@ -156,6 +170,7 @@ export const PATH = {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
       DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
       CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
+      CONTENT_SELF_CHECK: (contentId) => `/onboarding/dashboard/content/${contentId}/self-check`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",

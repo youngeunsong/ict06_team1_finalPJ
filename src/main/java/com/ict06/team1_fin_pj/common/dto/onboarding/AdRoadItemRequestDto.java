@@ -1,5 +1,5 @@
 /**
- * @FileName : AdminRoadItemRequestDto.java
+ * @FileName : AdRoadItemRequestDto.java
  * @Description : 관리자 온보딩 로드맵 아이템 등록 및 수정 요청 DTO
  * @Author : 김다솜
  * @Date : 2026. 05. 10
@@ -18,7 +18,7 @@ import java.time.LocalDate;
 
 @Getter
 @Setter
-public class AdminRoadItemRequestDto {
+public class AdRoadItemRequestDto {
 
     private Integer contentId;
     private String itemTitle;
