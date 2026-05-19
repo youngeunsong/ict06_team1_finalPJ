@@ -215,9 +215,7 @@ public class ApprovalAttendanceSyncService {
             LocalDate endDate,
             String reason
     ) {
-        AttendanceStatus status = LEAVE_EARLY.equals(absenceTypeName)
-                ? AttendanceStatus.EARLY
-                : AttendanceStatus.ON_TIME;
+        AttendanceStatus status = resolveAbsenceAttendanceStatus(absenceTypeName);
         String note = buildApprovalNote(approval, "부재 일정", "유형=" + absenceTypeName, reason);
 
         LocalDate cursor = startDate;
@@ -235,6 +233,24 @@ public class ApprovalAttendanceSyncService {
             attendanceRepository.save(attendance);
             cursor = cursor.plusDays(1);
         }
+    }
+
+    /**
+     * [결재-근태 연동용]: 근태 담당자와 합의한 부재 유형별 AttendanceStatus 매핑을 적용합니다.
+     *
+     * 연차/병가/경조사는 하루 단위 휴가 성격이므로 LEAVE,
+     * 오전반차/오후반차는 HALF_LEAVE, 조퇴는 기존 EARLY 상태를 사용합니다.
+     */
+    private AttendanceStatus resolveAbsenceAttendanceStatus(String absenceTypeName) {
+        if (LEAVE_EARLY.equals(absenceTypeName)) {
+            return AttendanceStatus.EARLY;
+        }
+
+        if (LEAVE_AM_HALF.equals(absenceTypeName) || LEAVE_PM_HALF.equals(absenceTypeName)) {
+            return AttendanceStatus.HALF_LEAVE;
+        }
+
+        return AttendanceStatus.LEAVE;
     }
 
     /**

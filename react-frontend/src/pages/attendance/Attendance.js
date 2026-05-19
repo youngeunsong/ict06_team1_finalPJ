@@ -155,8 +155,8 @@ const Attendance = () => {
     );
   };
 
-  // 연차 요약 데이터
-  // 근태 메인 상단의 "내 연차" 카드에 표시할 데이터
+  // 휴가 요약 데이터
+  // 근태 메인 상단의 "내 휴가" 카드에 표시할 데이터
   const [leaveSummary, setLeaveSummary] = useState({
     usedDays: 0,
     totalDays: 0,
@@ -378,8 +378,8 @@ const Attendance = () => {
     }
   };
 
-  // 연차 요약 조회 함수
-  // 근태 메인에서 "내 연차" 카드에 보여줄 데이터 조회
+  // 휴가 요약 조회 함수
+  // 근태 메인에서 "내 휴가" 카드에 보여줄 데이터 조회
   const fetchLeaveSummary = async () => {
     try {
       // 공통 axios helper 사용
@@ -390,13 +390,13 @@ const Attendance = () => {
 
       const res = await request('GET', '/leave/summary', params);
 
-      console.log('근태 메인 연차 요약:', res.data);
+      console.log('근태 메인 휴가 요약:', res.data);
 
       setLeaveSummary(res.data);
     } catch (error) {
       console.error(error);
 
-      // 연차 데이터 조회 실패 시 화면이 깨지지 않도록 0으로 유지
+      // 휴가 데이터 조회 실패 시 화면이 깨지지 않도록 0으로 유지
       setLeaveSummary({
         usedDays: 0,
         totalDays: 0,
@@ -409,7 +409,7 @@ const Attendance = () => {
   useEffect(() => {
     fetchAttendance();
 
-    // 근태 메인 진입 시 연차 요약도 함께 조회
+    // 근태 메인 진입 시 휴가 요약도 함께 조회
     fetchLeaveSummary();
   }, []);
 
@@ -638,6 +638,8 @@ const Attendance = () => {
   // 상태 배지 색상
   const getBadgeColor = (status) => {
     if (status === 'ON_TIME' || status === '정상출근') return 'success';
+    if (status === 'LEAVE' || status === '휴가') return 'info';
+    if (status === 'HALF_LEAVE' || status === '반차') return 'info';
     if (status === 'LATE' || status === '지각') return 'warning';
     if (status === 'EARLY' || status === '조퇴') return 'danger';
     if (status === 'LEFT' || status === '퇴근') return 'primary';
@@ -648,12 +650,16 @@ const Attendance = () => {
   const getStatusText = (status) => {
     // DB에서 영어 Enum 코드가 올 경우
     if (status === 'ON_TIME') return '정상출근';
+    if (status === 'LEAVE') return '휴가';
+    if (status === 'HALF_LEAVE') return '반차';
     if (status === 'LATE') return '지각';
     if (status === 'EARLY') return '조퇴';
     if (status === 'LEFT') return '퇴근완료';
 
     // DB에서 이미 한글 label이 올 경우
     if (status === '정상출근') return '정상출근';
+    if (status === '휴가') return '휴가';
+    if (status === '반차') return '반차';
     if (status === '지각') return '지각';
     if (status === '조퇴') return '조퇴';
     if (status === '퇴근') return '퇴근완료';
@@ -846,10 +852,10 @@ const Attendance = () => {
           </CCard>
         </CCol>
 
-        {/* 내 연차 카드 */}
+        {/* 내 휴가 카드 */}
         <CCol md={3}>
           <CCard
-            onClick={() => navigate(PATH.ATTENDANCE.HOLIDAYS)} // 연차 현황 페이지로 이동
+            onClick={() => navigate(PATH.ATTENDANCE.HOLIDAYS)} // 휴가 현황 페이지로 이동
             style={{
               cursor: 'pointer',
               border: '1px solid #ddd',
@@ -859,16 +865,16 @@ const Attendance = () => {
           >
             <CCardBody>
               <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                내 연차
+                내 휴가
               </div>
 
-              {/* 남은 연차 / 총 연차 */}
+              {/* 남은 휴가 / 총 휴가 */}
               <h4 className="mt-2 mb-0">
                 {leaveSummary.remainDays} / {leaveSummary.totalDays}일
               </h4>
 
               <div className="mt-2" style={{ fontSize: '13px', color: '#6c757d' }}>
-                클릭하면 연차 현황으로 이동
+                클릭하면 휴가 현황으로 이동
               </div>
             </CCardBody>
           </CCard>
