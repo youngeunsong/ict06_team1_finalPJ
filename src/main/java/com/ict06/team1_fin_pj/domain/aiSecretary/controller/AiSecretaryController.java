@@ -74,6 +74,7 @@ public class AiSecretaryController {
                         .sessionId(session.getSessionId())
                         .empNo(session.getEmployee().getEmpNo())
                         .sessionType(session.getSessionType())
+                        .documentType(resolveDocumentType(session.getSessionId()))
                         .title(session.getTitle())
                         .status(session.getStatus())
                         .lastMessageAt(session.getLastMessageAt())
@@ -241,6 +242,7 @@ public class AiSecretaryController {
 
         String upper = content.toUpperCase();
 
+        if (upper.contains("TEMPLATE") || upper.contains("템플릿")) return "TEMPLATE";
         if (upper.contains("MINUTES")) return "MINUTES";
         if (upper.contains("APPROVAL")) return "APPROVAL";
         return "REPORT";

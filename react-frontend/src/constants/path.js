@@ -43,9 +43,13 @@ export const PATH = {
     TMP: "/approval/tmpApprovals",                          // 임시저장함 페이지
     PERSONAL: "/approval/personalApprovals",                // 개인 문서함 페이지
     PERSONAL_DETAIL: "/approval/personalApprovals/detail",  // 개인 문서 상세 페이지
+    PERSONAL_DETAIL_WITH_ID: (approvalId) => `/approval/personalApprovals/detail?approvalId=${approvalId}`,
     PENDING: "/approval/pendingApprovals",                  // 결재 대기 문서함 페이지
     PENDING_DETAIL: "/approval/pendingApprovals/detail",    // 결재 대기 문서 상세 페이지
+    PENDING_DETAIL_WITH_ID: (approvalId) => `/approval/pendingApprovals/detail?approvalId=${approvalId}`,
     UPCOMING: "/approval/upcomingApprovals",                // 결재 예정 문서함 페이지
+    UPCOMING_DETAIL: "/approval/upcomingApprovals/detail",  // 결재 예정 문서 상세 페이지
+    UPCOMING_DETAIL_WITH_ID: (approvalId) => `/approval/upcomingApprovals/detail?approvalId=${approvalId}`,
   },
 
   // 대분류 : 인사평가 - 온보딩
@@ -123,9 +127,32 @@ export const PATH = {
     USER_ME: '/user/me',
     USER_UPDATE: '/user/update',
 
+    APPROVAL: {
+      FORMS: '/approval/forms',
+      FORM_DETAIL: (formId) => `/approval/forms/${formId}`,
+      LINE_TEMPLATE_DETAIL: (templateId) => `/approval/line-templates/${templateId}`,
+      EMPLOYEES: '/approval/employees',
+      EMPLOYEE_SIGN: (empNo) => `/approval/employees/${empNo}/sign`,
+      MY_DOCUMENTS: '/approval/my-documents',
+      REFERENCED_DOCUMENTS: '/approval/referenced-documents',
+      PENDING_DOCUMENTS: '/approval/pending-documents',
+      PROCESSED_DOCUMENTS: '/approval/processed-documents',
+      UPCOMING_DOCUMENTS: '/approval/upcoming-documents',
+      DETAIL: (approvalId) => `/approval/${approvalId}`,
+      APPROVE: (approvalId) => `/approval/${approvalId}/approve`,
+      REJECT: (approvalId) => `/approval/${approvalId}/reject`,
+      CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
+      DRAFTS: '/approval/drafts',
+      UPDATE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
+      SUBMIT_DRAFT: (approvalId) => `/approval/drafts/${approvalId}/submit`,
+      DELETE_FILE: (fileId) => `/approval/files/${fileId}`,
+      SUBMIT: '/approval/submit',
+    },
+
     ONBOARDING: {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
       DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
+      CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",

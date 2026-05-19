@@ -37,3 +37,15 @@ class DocumentProcessResponse(BaseModel):
     vectorCount: int
     embeddingModel: str = "hash-embedding-v1"
     chunks: list[DocumentChunkResponse] = Field(default_factory=list)
+
+
+class DocumentQuestionRequest(BaseModel):
+    title: str
+    question: str
+    summaryPreview: str | None = None
+    chunks: list[str] = Field(default_factory=list)
+
+
+class DocumentQuestionResponse(BaseModel):
+    answer: str
+    usedChunkCount: int

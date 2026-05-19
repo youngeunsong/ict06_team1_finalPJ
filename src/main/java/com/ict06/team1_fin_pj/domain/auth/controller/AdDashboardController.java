@@ -47,10 +47,12 @@ public class AdDashboardController {
                         "evaluationSubmissions", 0,
                         "aiActivities", 0
                 ),
-                "onboarding", Collections.emptyList(),
+                "onboardingTeam", Collections.emptyList(),
+                "onboardingDivision", Collections.emptyList(),
                 "rag", Collections.emptyList(),
                 "ai_usage", Collections.emptyMap(),
-                "quiz", Collections.emptyList(),
+                "quizTeam", Collections.emptyList(),
+                "quizDivision", Collections.emptyList(),
                 "recentActivities", Collections.emptyList()
         ));
         model.addAttribute("totalOnboarding", 0);

@@ -8,6 +8,7 @@
  * @ 수정일자        수정자        수정내용
  * @ ----------    ---------    -------------------------------
  * @ 2026.05.12    김다솜        최초 생성 및 학습항목 수동 알림, 시작/마감 1일 전 자동 알림 처리 추가
+ * @ 2026.05.14    김다솜        알림 타입 매핑 정렬 및 상수화 처리
  */
 package com.ict06.team1_fin_pj.domain.onboarding.service;
 
@@ -32,7 +33,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OnboardingScheduleNotificationService {
 
-    private static final String NOTIFICATION_TYPE = "ONBOARDING";
+    // NotificationType Enum의 name과 일치시킴
+    private static final String NOTIFICATION_TYPE = NotificationType.ONBOARDING.name();
 
     private final RoadItemRepository roadItemRepository;
     private final RoadProgressRepository roadProgressRepository;
