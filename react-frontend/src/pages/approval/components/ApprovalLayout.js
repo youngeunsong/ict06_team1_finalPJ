@@ -45,7 +45,7 @@ const baseMenuItems = [
     label: '임시저장함',
     description: '상신 전 문서를 이어서 작성합니다.',
     path: PATH.APPROVAL.TMP,
-    matchPaths: [PATH.APPROVAL.TMP],
+    matchPaths: [PATH.APPROVAL.TMP, PATH.APPROVAL.TMP_DETAIL],
     icon: cilInbox,
   },
 ];

@@ -8,6 +8,7 @@ const ApprovalSelectForm = React.lazy(() => import( "../pages/approval/newApprov
 const ApprovalWriteNew = React.lazy(() => import( "../pages/approval/newApproval/ApprovalWriteNew"));
 const ApprovalSetLine = React.lazy(() => import( "../pages/approval/newApproval/ApprovalSetLine"));
 const TmpApprovals = React.lazy(() => import( "../pages/approval/TmpApprovals"));
+const TmpApprovalDetail = React.lazy(() => import( "../pages/approval/TmpApprovalDetail"));
 const PersonalApprovals = React.lazy(() => import( "../pages/approval/PersonalApprovals"));
 const ApprovalsDetail = React.lazy(() => import( "../pages/approval/ApprovalsDetail"));
 const PendingApprovals = React.lazy(() => import( "../pages/approval/teamLeader/PendingApprovals"));
@@ -28,6 +29,7 @@ export const approvalRoutes = (userInfo) => [
   { path: PATH.APPROVAL.NEW_SETLINE, element: withApprovalLayout(userInfo, <ApprovalSetLine userInfo={userInfo} />) }, // 새 결재 진행 - 결재선 설정 페이지
 
   { path: PATH.APPROVAL.TMP, element: withApprovalLayout(userInfo, <TmpApprovals userInfo={userInfo} />) }, // 임시저장함 페이지
+  { path: PATH.APPROVAL.TMP_DETAIL, element: withApprovalLayout(userInfo, <TmpApprovalDetail userInfo={userInfo} />) }, // 임시저장 문서 상세 페이지
   { path: PATH.APPROVAL.PERSONAL, element: withApprovalLayout(userInfo, <PersonalApprovals userInfo={userInfo} />) }, // 개인 문서함 페이지
   { path: PATH.APPROVAL.PERSONAL_DETAIL, element: withApprovalLayout(userInfo, <ApprovalsDetail userInfo={userInfo} />) }, // 개인 문서 상세 페이지
 

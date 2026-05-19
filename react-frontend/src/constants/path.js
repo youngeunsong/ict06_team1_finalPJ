@@ -41,6 +41,8 @@ export const PATH = {
     NEW_WRITE: "/approval/new/write",                       // 새 결재 진행 - 결재 내용 작성 페이지
     NEW_SETLINE: "/approval/new/set-line",                  // 새 결재 진행 - 결재선 설정 페이지
     TMP: "/approval/tmpApprovals",                          // 임시저장함 페이지
+    TMP_DETAIL: "/approval/tmpApprovals/detail",             // 임시저장 문서 상세 페이지
+    TMP_DETAIL_WITH_ID: (approvalId) => `/approval/tmpApprovals/detail?approvalId=${approvalId}`,
     PERSONAL: "/approval/personalApprovals",                // 개인 문서함 페이지
     PERSONAL_DETAIL: "/approval/personalApprovals/detail",  // 개인 문서 상세 페이지
     PERSONAL_DETAIL_WITH_ID: (approvalId) => `/approval/personalApprovals/detail?approvalId=${approvalId}`,
@@ -144,6 +146,7 @@ export const PATH = {
       CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
       DRAFTS: '/approval/drafts',
       UPDATE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
+      DELETE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
       SUBMIT_DRAFT: (approvalId) => `/approval/drafts/${approvalId}/submit`,
       DELETE_FILE: (fileId) => `/approval/files/${fileId}`,
       SUBMIT: '/approval/submit',

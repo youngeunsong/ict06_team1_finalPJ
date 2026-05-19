@@ -579,6 +579,9 @@ const ApprovalSetLine = () => {
                 approverNo: line.approverNo,
                 stepOrder: line.stepOrder,
               })),
+              // [결재-근태 연동용]: 결재선 설정 후 내용 수정으로 돌아가도 근태 연동 기본값과 잠금 상태를 보존합니다.
+              presetFieldValues: location.state?.presetFieldValues,
+              lockedFieldIds: location.state?.lockedFieldIds,
             },
           })}
         >

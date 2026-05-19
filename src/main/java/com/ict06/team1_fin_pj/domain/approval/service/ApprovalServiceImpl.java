@@ -70,6 +70,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     private final AppFormRepository appFormRepository;
     private final AppLineTemplateRepository appLineTemplateRepository;
     private final EmployeeRepository employeeRepository;
+    private final ApprovalAttendanceSyncService approvalAttendanceSyncService;
 
     /**
      * 직원이 새 결재 문서를 작성할 때 선택할 수 있는 결재 서식 목록을 조회합니다.
@@ -279,6 +280,24 @@ public class ApprovalServiceImpl implements ApprovalService {
     }
 
     /**
+     * 작성자 본인의 임시저장 문서를 삭제합니다.
+     *
+     * 임시저장 문서는 아직 결재 흐름이 시작되지 않은 개인 작업물이므로 이력으로 남기지 않고 삭제합니다.
+     * 첨부파일이 있으면 DB 행 삭제 전에 실제 업로드 파일을 먼저 제거합니다.
+     */
+    @Override
+    @Transactional
+    public void deleteDraft(
+            Integer approvalId,
+            PrincipalDetails principal
+    ) {
+        ApprovalEntity approval = getEditableDraft(approvalId, principal);
+
+        approval.getFiles().forEach(this::deletePhysicalFile);
+        approvalRepository.delete(approval);
+    }
+
+    /**
      * 로그인 사용자가 작성한 결재 문서 목록을 조회합니다.
      */
     @Override
@@ -442,6 +461,8 @@ public class ApprovalServiceImpl implements ApprovalService {
             approval.moveToNextApprover(next.getApprover(), next.getStepOrder());
         } else {
             approval.complete();
+            // [결재-근태 연동용]: 마지막 결재자가 승인해 문서가 완료된 시점에만 근태 데이터 반영을 실행합니다.
+            approvalAttendanceSyncService.syncIfAttendanceForm(approval);
         }
 
         return toCreateResponse(approval);
