@@ -1,5 +1,5 @@
 /**
- * @FileName : AdminOnboardingScheduleEmployeeDto.java
+ * @FileName : AdOnboardingScheduleEmployeeDto.java
  * @Description : 관리자 온보딩 일정 직원별 요약 DTO
  * @Author : 김다솜
  * @Date : 2026. 05. 12
@@ -16,7 +16,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class AdminOnboardingScheduleEmployeeDto {
+public class AdOnboardingScheduleEmployeeDto {
 
     private String empNo;
     private String employeeName;

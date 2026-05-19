@@ -1,5 +1,5 @@
 /**
- * @FileName : AdminRoadmapRequestDto.java
+ * @FileName : AdRoadmapRequestDto.java
  * @Description : 관리자 온보딩 로드맵 등록 및 수정 요청 DTO
  * @Author : 김다솜
  * @Date : 2026. 05. 10
@@ -17,7 +17,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AdminRoadmapRequestDto {
+public class AdRoadmapRequestDto {
 
     private String empNo;
     private GeneratedType generatedType;

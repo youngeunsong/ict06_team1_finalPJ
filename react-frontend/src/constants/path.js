@@ -136,6 +136,7 @@ export const PATH = {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
       DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
       CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
+      CONTENT_SELF_CHECK: (contentId) => `/onboarding/dashboard/content/${contentId}/self-check`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",
