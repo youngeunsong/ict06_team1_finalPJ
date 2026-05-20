@@ -88,4 +88,21 @@ public class AttendanceEntity {
         this.overtimeMins = overtimeMins;   // 연장근무 분
         this.status = status;               // 퇴근 상태
     }
+
+    /**
+     * 관리자 근태 수정 메서드
+     *
+     * 관리자 화면에서 출근시간, 퇴근시간, 상태를 수정할 때 사용한다.
+     * Entity의 필드를 직접 set하지 않고,
+     * 의미 있는 메서드를 통해 변경하기 위해 만든다.
+     */
+    public void updateByAdmin(
+            LocalDateTime checkInAt,
+            LocalDateTime checkOutAt,
+            AttendanceStatus status
+    ) {
+        this.checkInAt = checkInAt;     // 관리자 수정 출근 시간
+        this.checkOutAt = checkOutAt;   // 관리자 수정 퇴근 시간
+        this.status = status;           // 관리자 수정 근태 상태
+    }
 }

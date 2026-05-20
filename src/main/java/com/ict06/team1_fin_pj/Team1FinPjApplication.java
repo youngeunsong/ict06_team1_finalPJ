@@ -16,8 +16,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 // http://localhost:8081/admin/login
 @EnableJpaAuditing
-@EnableScheduling
-@SpringBootApplication // 스케줄러 기능 사용 설정
+@EnableScheduling	// 스케줄러 기능 사용 설정
+@SpringBootApplication // Spring Boot 시작 클래스
 public class Team1FinPjApplication {
 
 	public static void main(String[] args) {
