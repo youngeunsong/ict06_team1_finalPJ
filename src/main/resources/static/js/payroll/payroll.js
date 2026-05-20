@@ -1095,11 +1095,11 @@ $(document).ready(function () {
        savePayrollTempState();
    });
 
-    /**
-     * =====================================================
-     * 지급/공제 렌더링
-     * =====================================================
-     */
+   /**
+    * =====================================================
+    * 지급/공제 렌더링
+    * =====================================================
+    */
 
     function renderPayrollItems(items) {
 
@@ -1188,14 +1188,14 @@ $(document).ready(function () {
             }
         });
 
-         /**
-          * 상태별 readonly 재적용
-          *
-          * - CONFIRMED
-          * - PAID
-          *
-          * 상태에서는 input 수정 불가 처리
-          */
+        /**
+         * 상태별 readonly 재적용
+         *
+         * - CONFIRMED
+         * - PAID
+         *
+         * 상태에서는 input 수정 불가 처리
+         */
         applyButtonState(currentPayrollStatus);
     }
 
@@ -2217,7 +2217,7 @@ $(document).ready(function () {
 
         const empName = result.empName || $('#empName').val();
         const empNo = result.empNo || currentEmpNo;
-        const deptName = result.deptName || $('#deptName').val();
+        const deptName = $('#deptName').val() || result.deptName;
         const positionName = result.positionName || $('#positionName').val();
         const payMonth = result.payMonth || currentPayMonth;
 
@@ -2250,22 +2250,22 @@ $(document).ready(function () {
 
                 <div class="col-md-4">
                     <h6 class="fw-bold text-primary">1. 지급 총액</h6>
-                    <table class="table table-bordered align-middle">
+                    <table class="table table-bordered align-middle text-center">
                         <tbody>
                         <tr>
-                            <th>기본급</th>
+                            <th class="text-center">기본급</th>
                             <td class="text-end">${numberFormat(result.baseSalary)}</td>
                         </tr>
                         <tr>
-                            <th>과세 수당 합계</th>
+                            <th class="text-center">과세 수당 합계<br><span class="small text-muted">(기본급 제외)</span></th>
                             <td class="text-end">${numberFormat(result.taxableAllowance)}</td>
                         </tr>
                         <tr>
-                            <th>비과세 수당 합계</th>
+                            <th class="text-center">비과세 수당 합계</th>
                             <td class="text-end">${numberFormat(result.nonTaxableAllowance)}</td>
                         </tr>
                         <tr class="table-light">
-                            <th class="text-primary">총 지급액</th>
+                            <th class="text-center text-primary">총 지급액</th>
                             <td class="text-end fw-bold text-primary">${numberFormat(result.totalGross)}</td>
                         </tr>
                         </tbody>
@@ -2274,7 +2274,7 @@ $(document).ready(function () {
 
                 <div class="col-md-4">
                     <h6 class="fw-bold text-primary">2. 공제 총액</h6>
-                    <table class="table table-bordered align-middle">
+                    <table class="table table-bordered align-middle text-center">
                         <tbody>
                         <tr>
                             <th>4대보험 합계</th>
@@ -2336,22 +2336,26 @@ $(document).ready(function () {
      */
     function renderPreviewAllowanceArea(result) {
 
+        let allowanceRowCount = 0;
+
         let html = `
-            <table class="table table-bordered align-middle">
+            <table class="table table-bordered align-middle text-center">
                 <thead class="table-light">
                 <tr>
                     <th>항목명</th>
                     <th>유형</th>
-                    <th class="text-end">금액</th>
+                    <th>금액(원)</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr>
-                    <td>기본급</td>
-                    <td>과세</td>
+                    <td class="text-center">기본급</td>
+                    <td class="text-center">과세</td>
                     <td class="text-end">${numberFormat(result.baseSalary)}</td>
                 </tr>
         `;
+
+        allowanceRowCount++;
 
         $('.payroll-item-row').each(function () {
 
@@ -2367,11 +2371,13 @@ $(document).ready(function () {
 
             html += `
                 <tr>
-                    <td>${itemName}</td>
-                    <td>${taxType}</td>
+                    <td class="text-center">${itemName}</td>
+                    <td class="text-center">${taxType}</td>
                     <td class="text-end">${amount}</td>
                 </tr>
             `;
+
+            allowanceRowCount++;
         });
 
         html += `
@@ -2387,29 +2393,26 @@ $(document).ready(function () {
      */
     function renderPreviewDeductionArea(result) {
 
+        let deductionRowCount = 0;
+
         let html = `
-            <table class="table table-bordered align-middle">
+            <table class="table table-bordered align-middle text-center">
                 <thead class="table-light">
                 <tr>
                     <th>항목명</th>
-                    <th class="text-end">금액</th>
+                    <th>금액(원)</th>
                 </tr>
                 </thead>
                 <tbody>
         `;
 
-         /**
-         * 4대보험 합계
-         *
-         * 개별 보험 항목은 아래의 "4대보험 계산과정 보기"에서 확인하므로
-         * 공제 상세 영역에는 합계만 표시한다.
-         */
-         html += `
+        html += `
             <tr>
-                <td>4대보험 합계</td>
+                <td class="text-center">4대보험 합계</td>
                 <td class="text-end">${numberFormat(result.totalInsurance)}</td>
             </tr>
         `;
+        deductionRowCount++;
 
         $('.payroll-item-row').each(function () {
 
@@ -2424,26 +2427,46 @@ $(document).ready(function () {
 
             html += `
                 <tr>
-                    <td>${itemName}</td>
+                    <td class="text-center">${itemName}</td>
                     <td class="text-end">${amount}</td>
                 </tr>
             `;
+
+            deductionRowCount++;
         });
 
         html += `
-                <tr>
-                    <td>소득세</td>
-                    <td class="text-end">${numberFormat(result.incomeTax)}</td>
-                </tr>
-                <tr>
-                    <td>지방소득세</td>
-                    <td class="text-end">${numberFormat(result.localIncomeTax)}</td>
-                </tr>
+            <tr>
+                <td class="text-center">소득세</td>
+                <td class="text-end">${numberFormat(result.incomeTax)}</td>
+            </tr>
+            <tr>
+                <td class="text-center">지방소득세</td>
+                <td class="text-end">${numberFormat(result.localIncomeTax)}</td>
+            </tr>
+        `;
+
+       deductionRowCount += 2;
+
+        html += `
                 </tbody>
             </table>
         `;
 
         $('#previewDeductionArea').html(html);
+    }
+
+    /**
+     * 계산 미리보기 상세 테이블 실제 row 수 조회
+     *
+     * 하드코딩 금지
+     * - 현재 tbody tr 기준으로 자동 계산
+     */
+    function getPreviewRowCount(targetSelector) {
+
+        return $(targetSelector)
+            .find('tbody tr')
+            .length;
     }
 
     /**
@@ -2462,11 +2485,23 @@ $(document).ready(function () {
 
                 rowsHtml += `
                     <tr>
-                        <td>${row.name}</td>
-                        <td class="text-end">${numberFormat(row.baseAmount)}</td>
-                        <td class="text-end">${rateFormat(row.rate)}</td>
-                        <td>${row.formula || ''}</td>
-                        <td class="text-end">${numberFormat(row.amount)}</td>
+                        <td class="text-center">${row.name}</td>
+
+                        <td class="text-center">
+                            ${numberFormat(row.baseAmount)}
+                        </td>
+
+                        <td class="text-center">
+                            ${rateFormat(row.rate)}
+                        </td>
+
+                        <td class="text-center">
+                            ${row.formula || ''}
+                        </td>
+
+                        <td class="text-end">
+                            ${numberFormat(row.amount)}
+                        </td>
                     </tr>
                 `;
             });
@@ -2484,20 +2519,61 @@ $(document).ready(function () {
 
                 <div id="insuranceDetailCollapse" class="collapse">
                     <table class="table table-bordered align-middle mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th>구분</th>
-                            <th class="text-end">기준금액</th>
-                            <th class="text-end">요율</th>
-                            <th>계산식</th>
-                            <th class="text-end">금액</th>
-                        </tr>
+                       <thead class="table-light">
+                       <tr>
+                           <th class="text-center">구분</th>
+
+                           <th class="text-center">
+                               기준금액
+                           </th>
+
+                           <th class="text-center">
+                               요율
+                           </th>
+
+                           <th class="text-center">
+                               계산식
+                           </th>
+
+                           <th class="text-center">
+                               금액(원)
+                           </th>
+                       </tr>
                         </thead>
                         <tbody>
                         ${rowsHtml}
                         <tr class="table-light">
-                            <th colspan="4" class="text-primary">4대보험 합계</th>
-                            <th class="text-end text-primary">${numberFormat(result.totalInsurance)}</th>
+
+                            <!-- 구분 -->
+                            <th class="text-center text-primary fw-bold">
+                                4대보험 합계
+                            </th>
+
+                            <!-- 기준금액 -->
+                            <td class="text-center">
+                                -
+                            </td>
+
+                            <!-- 요율 -->
+                            <td class="text-center">
+                                -
+                            </td>
+
+                            <!-- 계산식 -->
+                            <td class="text-center text-primary fw-semibold">
+
+                                ${result.insuranceRows
+                                    .map(row => numberFormat(row.amount))
+                                    .join(' + ')}
+
+                            </td>
+
+                            <!-- 최종 합계 -->
+                            <td class="text-center text-primary fw-bold">
+                                <div class="text-end">
+                                    ${numberFormat(result.totalInsurance)}
+                                </div>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
@@ -2505,7 +2581,7 @@ $(document).ready(function () {
             </div>
 
             <div class="form-text mt-2">
-                계산 기준은 현재 설정된 보험요율을 기준으로 하며, 실제 처리 시 변경될 수 있습니다.
+                ※ 계산 기준은 현재 설정된 보험요율을 기준으로 하며, 실제 처리 시 변경될 수 있습니다.
             </div>
         `;
 
@@ -2565,7 +2641,7 @@ $(document).ready(function () {
                                 <th style="width: 25%">구분</th>
                                 <th style="width: 25%">기준금액</th>
                                 <th style="width: 30%">계산식</th>
-                                <th style="width: 20%">금액</th>
+                                <th style="width: 20%">금액(원)</th>
                             </tr>
 
                         </thead>
@@ -2576,35 +2652,35 @@ $(document).ready(function () {
                                 <td>총 지급액</td>
                                 <td>${numberFormat(totalGross)}</td>
                                 <td>-</td>
-                                <td>${numberFormat(totalGross)}</td>
+                                <td class="text-end">${numberFormat(totalGross)}</td>
                             </tr>
 
                             <tr>
                                 <td>비과세 제외금액</td>
                                 <td>${numberFormat(nonTaxableAmount)}</td>
                                 <td>총지급액 - 비과세수당</td>
-                                <td>${numberFormat(taxableAmount)}</td>
+                                <td class="text-end">${numberFormat(taxableAmount)}</td>
                             </tr>
 
                             <tr>
                                 <td>원천징수 기준금액</td>
                                 <td>${numberFormat(taxableAmount)}</td>
                                 <td>과세대상금액 기준</td>
-                                <td>${numberFormat(taxableAmount)}</td>
+                                <td class="text-end">${numberFormat(taxableAmount)}</td>
                             </tr>
 
                             <tr>
                                 <td>소득세</td>
                                 <td>${numberFormat(taxableAmount)}</td>
                                 <td>${numberFormat(taxableAmount)} × 0.03</td>
-                                <td>${numberFormat(incomeTax)}</td>
+                                <td class="text-end">${numberFormat(incomeTax)}</td>
                             </tr>
 
                             <tr>
                                 <td>지방소득세</td>
                                 <td>${numberFormat(incomeTax)}</td>
                                 <td>${numberFormat(incomeTax)} × 0.1</td>
-                                <td>${numberFormat(localIncomeTax)}</td>
+                                <td class="text-end">${numberFormat(localIncomeTax)}</td>
                             </tr>
 
                             <tr class="table-light fw-bold">
@@ -2634,7 +2710,7 @@ $(document).ready(function () {
 
                                 </td>
 
-                                <td class="text-primary">
+                                <td class="text-end text-primary fw-bold">
                                     ${numberFormat(totalWithholdingTax)}
                                 </td>
 
