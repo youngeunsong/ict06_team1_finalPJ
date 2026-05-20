@@ -636,6 +636,8 @@ public class AdAttendanceServiceImpl implements AdAttendanceService {
             case ABSENT -> "결근";
             case LEFT -> "퇴근완료";
             case OVERTIME -> "연장근무";
+            case LEAVE -> "휴가";
+            case HALF_LEAVE -> "반차";
         };
     }
 
