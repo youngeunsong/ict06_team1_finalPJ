@@ -1,3 +1,13 @@
+/**
+ * @FileName : path.js
+ * @Description : 프론트엔드 라우팅 및 API 경로 상수 정의
+ * @Modification_History
+ * @
+ * @ 수정일자        수정자       수정내용
+ * @ ----------    ---------    -------------------------------
+ * @ 2026.05.19    김다솜        알림 SSE 구독 경로 상수 추가
+ */
+
 // constants/path.js
 // 1) 단순 URL 주소 문자열을 상수로 정의하는 단계 (데이터)
 // path.js(여기!) -> routes/대분류 별 파일 -> routes/index.js -> App.js 
@@ -41,6 +51,8 @@ export const PATH = {
     NEW_WRITE: "/approval/new/write",                       // 새 결재 진행 - 결재 내용 작성 페이지
     NEW_SETLINE: "/approval/new/set-line",                  // 새 결재 진행 - 결재선 설정 페이지
     TMP: "/approval/tmpApprovals",                          // 임시저장함 페이지
+    TMP_DETAIL: "/approval/tmpApprovals/detail",             // 임시저장 문서 상세 페이지
+    TMP_DETAIL_WITH_ID: (approvalId) => `/approval/tmpApprovals/detail?approvalId=${approvalId}`,
     PERSONAL: "/approval/personalApprovals",                // 개인 문서함 페이지
     PERSONAL_DETAIL: "/approval/personalApprovals/detail",  // 개인 문서 상세 페이지
     PERSONAL_DETAIL_WITH_ID: (approvalId) => `/approval/personalApprovals/detail?approvalId=${approvalId}`,
@@ -127,6 +139,10 @@ export const PATH = {
     USER_ME: '/user/me',
     USER_UPDATE: '/user/update',
 
+    NOTIFICATION: {
+      SUBSCRIBE: (token) => `${PATH.API.BASE}/noti/subscribe?token=${encodeURIComponent(token)}`,
+    },
+
     APPROVAL: {
       FORMS: '/approval/forms',
       FORM_DETAIL: (formId) => `/approval/forms/${formId}`,
@@ -144,6 +160,7 @@ export const PATH = {
       CANCEL: (approvalId) => `/approval/${approvalId}/cancel`,
       DRAFTS: '/approval/drafts',
       UPDATE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
+      DELETE_DRAFT: (approvalId) => `/approval/drafts/${approvalId}`,
       SUBMIT_DRAFT: (approvalId) => `/approval/drafts/${approvalId}/submit`,
       DELETE_FILE: (fileId) => `/approval/files/${fileId}`,
       SUBMIT: '/approval/submit',
@@ -153,6 +170,7 @@ export const PATH = {
       ROADMAP: (empNo) => `/onboarding/roadmap/${empNo}`,
       DASHBOARD: (empNo) => `/onboarding/dashboard/${empNo}`,
       CONTENT_DETAIL: (contentId) => `/onboarding/dashboard/content/${contentId}`,
+      CONTENT_SELF_CHECK: (contentId) => `/onboarding/dashboard/content/${contentId}/self-check`,
       CHECKLIST_LIST: (empNo) => `/onboarding/checklist/${empNo}`,
       CHECKLIST_COMPLETE: "/onboarding/checklist/complete",
       CHECKLIST_UNCOMPLETE: "/onboarding/checklist/uncomplete",

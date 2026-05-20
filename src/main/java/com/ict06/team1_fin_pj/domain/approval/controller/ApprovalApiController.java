@@ -379,6 +379,21 @@ public class ApprovalApiController {
     }
 
     /**
+     * 기존 임시저장 문서 삭제 API
+     *
+     * - 작성자 본인의 DRAFT 문서만 삭제할 수 있습니다.
+     * - 임시저장 문서는 아직 결재자에게 공유되지 않은 개인 작업물이므로 실제 삭제합니다.
+     * - 첨부파일이 있으면 서버에 저장된 실제 파일과 APP_FILE 행도 함께 삭제됩니다.
+     */
+    @DeleteMapping("/drafts/{approvalId}")
+    public void deleteDraft(
+            @PathVariable Integer approvalId,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
+        approvalService.deleteDraft(approvalId, principal);
+    }
+
+    /**
      * 기존 임시저장 문서 상신 API(JSON)
      *
      * - 임시저장 상세 화면에서 최종 내용을 함께 전달하고 바로 상신할 때 사용합니다.

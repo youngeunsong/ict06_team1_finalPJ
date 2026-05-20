@@ -6,7 +6,6 @@ import {
   CCardBody,
   CCardHeader,
   CFormInput,
-  CFormSelect,
   CPagination,
   CPaginationItem,
   CSpinner,
@@ -85,16 +84,8 @@ const TmpApprovals = () => {
     setPage(0);
   }, [startDate, endDate]);
 
-  /*
-   * 임시저장 문서는 아직 결재가 시작되지 않은 작성자 개인 작업물이므로,
-   * 기존 작성 화면을 다시 열어 내용과 결재선을 이어서 수정하게 합니다.
-   */
   const openDraft = (approvalId) => {
-    navigate(PATH.APPROVAL.NEW_WRITE, {
-      state: {
-        draftId: approvalId,
-      },
-    });
+    navigate(PATH.APPROVAL.TMP_DETAIL_WITH_ID(approvalId));
   };
 
   return (
@@ -112,9 +103,6 @@ const TmpApprovals = () => {
         <CCardHeader className="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <strong>임시저장 문서</strong>
           <div className="d-flex flex-wrap gap-2 align-items-center">
-            <CFormSelect value="DRAFT" disabled style={{ width: '160px' }} aria-label="상태">
-              <option value="DRAFT">임시저장</option>
-            </CFormSelect>
             <CFormInput
               type="date"
               value={startDate}
