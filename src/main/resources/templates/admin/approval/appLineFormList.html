@@ -9,7 +9,7 @@
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
 <!--begin::Head-->
-<head th:include="admin/common/head :: common_header">
+<head th:include="~{admin/common/head :: common_header}">
     <title id="page_title">결재선 서식 목록</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
 </head>
 <!--end::Head-->
@@ -28,7 +28,7 @@
     <!-- 메인 콘텐츠 시작 -->
     <main class="app-main">
         <!--전자결재용 서브 헤더 시작-->
-        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <th:block th:replace="~{admin/approval/appFormNav}"></th:block>
         <!--전자결재용 서브 헤더 끝-->
         <!--begin::App Content-->
         <div class="app-content">

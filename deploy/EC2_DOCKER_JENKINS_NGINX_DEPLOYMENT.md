@@ -910,7 +910,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location ~ ^/(admin|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -1433,7 +1433,7 @@ docker exec -it team1-backend ls -lh /app/employee/ict_06_uploads
 Nginx도 업로드 파일 URL을 backend로 넘겨야 합니다. `/etc/nginx/sites-available/team1`에 아래 경로가 포함되어 있는지 확인합니다.
 
 ```nginx
-location ~ ^/(admin|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
     proxy_pass http://127.0.0.1:8081;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -1501,6 +1501,25 @@ chmod +x mvnw
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
 docker logs -f team1-backend
+```
+
+전자결재 관리자 화면처럼 특정 관리자 페이지가 빈 화면으로 보이면 해당 템플릿에도 같은 기준을 적용합니다. 특히 아래 항목을 확인합니다.
+
+```html
+<!-- 정상 namespace -->
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- 정상 fragment 경로 -->
+<head th:insert="~{admin/common/head :: common_header}">
+<th:block th:replace="~{admin/approval/appFormNav}"></th:block>
+```
+
+잘못된 예:
+
+```html
+<html xmlns:th="http://www.thymleaf.org">
+<head th:insert="admin/common/head :: common_header">
+<th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
 ```
 
 ### Hibernate Schema validation 타입 오류가 나는 경우

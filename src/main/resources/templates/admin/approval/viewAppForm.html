@@ -8,7 +8,7 @@
 -->
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:include="admin/common/head :: common_header">
+<head th:include="~{admin/common/head :: common_header}">
     <title id="page_title">전자결재 서식 상세</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
@@ -17,7 +17,7 @@
     <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
-        <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
+        <th:block th:replace="~{admin/approval/appFormNav}"></th:block>
 
         <div class="app-content">
             <div class="container-fluid">
