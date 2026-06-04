@@ -1,4 +1,4 @@
-# AWS EC2 + Docker + PostgreSQL 18 + Jenkins + Nginx 배포 절차
+﻿# AWS EC2 + Docker + PostgreSQL 18 + Jenkins + Nginx 배포 절차
 
 이 문서는 Windows 개발환경에서 확인한 프로젝트를 Ubuntu EC2 운영환경에 배포하기 위한 절차입니다.
 
@@ -20,12 +20,12 @@
 ```text
 사용자 브라우저
   -> EC2 Nginx :80 또는 :443
-      /          -> React 정적 파일
-      /api       -> Spring Boot container :8081
-      /ai-api    -> FastAPI container :8000
-      /calendar  -> Spring Boot container :8081
-      /attendance-> Spring Boot container :8081
-      /leave     -> Spring Boot container :8081
+      /           -> React 정적 파일
+      /api        -> Spring Boot container :8081
+      /ai-api     -> FastAPI container :8000
+      /calendar   -> Spring Boot container :8081
+      /attendance -> Spring Boot container :8081
+      /leave      -> Spring Boot container :8081
 
 Docker Compose
   backend     Spring Boot
@@ -56,6 +56,8 @@ EC2 보안그룹 인바운드 규칙:
 8000  FastAPI
 ```
 
+Jenkins 포트를 9090 등으로 바꾼 경우 보안그룹도 해당 포트로 맞춥니다.
+
 ## 3. Windows에서 EC2 접속 준비
 
 Windows 개발 PC에서는 MobaXterm을 사용해 SSH 접속과 파일 업로드를 함께 처리하는 방식이 편합니다.
@@ -80,8 +82,6 @@ SSH Port: 22
 7. `Use private key` 체크 후 `.pem` 키 파일 선택
 8. 접속
 
-처음 접속 시 host key 확인 메시지가 나오면 `Accept`를 선택합니다.
-
 접속 후 기본 확인:
 
 ```bash
@@ -96,14 +96,6 @@ uname -a
 
 MobaXterm으로 SSH 접속하면 왼쪽에 SFTP 파일 탐색 패널이 함께 열립니다. 이 패널로 Windows 파일을 EC2에 드래그 앤 드롭할 수 있습니다.
 
-주로 업로드할 파일:
-
-```text
-DB dump SQL 파일
-배포 테스트용 .env 파일
-수동 배포 시 프로젝트 압축 파일
-```
-
 권장 업로드 위치:
 
 ```text
@@ -112,19 +104,10 @@ DB dump SQL 파일
 
 예를 들어 `backup.sql`을 `/home/ubuntu/backup.sql`로 업로드한 뒤, EC2 터미널에서 `/opt/team1/db/init`로 옮깁니다.
 
-### 3.3 SSH 키 권한 문제
-
-Windows/MobaXterm에서는 보통 `.pem` 권한 문제를 자동 처리합니다. PowerShell `ssh` 또는 `scp`를 직접 쓰는 경우 키 권한 오류가 날 수 있습니다.
-
-PowerShell에서 접속하는 예:
+### 3.3 PowerShell SSH/SCP 대체 명령
 
 ```powershell
 ssh -i "D:\keys\team1.pem" ubuntu@EC2_PUBLIC_IP
-```
-
-파일 업로드 예:
-
-```powershell
 scp -i "D:\keys\team1.pem" D:\backup\backup.sql ubuntu@EC2_PUBLIC_IP:/home/ubuntu/backup.sql
 ```
 
@@ -132,20 +115,25 @@ MobaXterm을 사용할 수 있다면 대용량 dump 파일 업로드는 SFTP 패
 
 ## 4. EC2 기본 패키지 설치
 
+프로젝트 빌드는 JDK 17 기준이므로 JDK 17을 설치합니다.
+
 ```bash
 sudo apt update
 sudo apt upgrade -y
 
 sudo apt install -y \
-  git curl unzip ca-certificates gnupg lsb-release \
-  nginx openjdk-17-jdk
+  git curl wget unzip ca-certificates gnupg lsb-release \
+  nginx fontconfig openjdk-17-jdk
 ```
 
-Java 확인:
+Java 17 확인:
 
 ```bash
-java -version
+/usr/lib/jvm/java-17-openjdk-amd64/bin/java -version
+/usr/lib/jvm/java-17-openjdk-amd64/bin/javac -version
 ```
+
+Jenkins 2.555.x는 Jenkins 자체 실행에 Java 21이 필요합니다. 프로젝트 빌드 JDK 17과 Jenkins 실행 Java 21은 분리해서 사용합니다.
 
 ## 5. Docker 설치
 
@@ -154,9 +142,8 @@ sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
   sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+printf '%s\n' \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 sudo apt update
@@ -171,7 +158,7 @@ sudo systemctl enable docker
 sudo systemctl restart docker
 ```
 
-적용을 위해 SSH 재접속 후 확인:
+그룹 권한 반영을 위해 SSH를 재접속한 뒤 확인합니다.
 
 ```bash
 docker version
@@ -180,19 +167,56 @@ docker compose version
 
 ## 6. Jenkins 설치
 
-```bash
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-  sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+Jenkins 자체 실행용 Java 21 JRE를 설치합니다.
 
-echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-  https://pkg.jenkins.io/debian-stable binary/ | \
+```bash
+sudo apt install -y openjdk-21-jre
+```
+
+Jenkins 저장소 키와 apt source를 등록합니다. Jenkins 저장소 키는 `jenkins.io-2026.key`를 사용합니다.
+
+```bash
+sudo mkdir -p /etc/apt/keyrings
+
+sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+
+printf '%s\n' \
+  "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
   sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
 sudo apt update
 sudo apt install -y jenkins
+```
 
+Jenkins가 Java 21로 실행되도록 systemd drop-in 파일을 작성합니다.
+
+```bash
+sudo mkdir -p /etc/systemd/system/jenkins.service.d
+sudo nano /etc/systemd/system/jenkins.service.d/override.conf
+```
+
+아래 내용을 넣습니다.
+
+```ini
+[Service]
+Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
+Environment="JENKINS_JAVA_CMD=/usr/lib/jvm/java-21-openjdk-amd64/bin/java"
+```
+
+저장 확인:
+
+```bash
+sudo cat /etc/systemd/system/jenkins.service.d/override.conf
+```
+
+Jenkins 시작:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl enable jenkins
 sudo systemctl start jenkins
+sudo systemctl status jenkins --no-pager -l
 ```
 
 초기 비밀번호 확인:
@@ -207,31 +231,93 @@ Jenkins 접속:
 http://EC2_PUBLIC_IP:8080
 ```
 
-Jenkins 사용자에게 Docker 권한 부여:
+초기 화면에서는 `Install suggested plugins`를 선택합니다. 설치 후 아래 플러그인이 있는지 확인하고, 없으면 추가 설치합니다.
+
+```text
+Git
+Pipeline
+Docker Pipeline
+Credentials Binding
+```
+
+Jenkins 사용자에게 Docker 권한을 부여합니다.
 
 ```bash
 sudo usermod -aG docker jenkins
 sudo systemctl restart jenkins
 ```
 
-Jenkins에서 사용할 권장 플러그인:
+### 6.1 Jenkins 8080 포트 충돌 해결
 
-- Git
-- Pipeline
-- Docker Pipeline
-- Credentials Binding
+Jenkins 시작 로그에 아래 메시지가 나오면 8080 포트를 이미 다른 프로세스가 사용 중입니다.
+
+```text
+java.net.BindException: Address already in use
+Failed to bind to 0.0.0.0/0.0.0.0:8080
+```
+
+포트 사용 프로세스 확인:
+
+```bash
+sudo ss -ltnp | grep ':8080'
+sudo lsof -i :8080
+```
+
+이전에 root로 직접 실행된 Jenkins 프로세스가 잡히는 경우가 있습니다.
+
+```bash
+ps -fp PID
+sudo tr '\0' ' ' < /proc/PID/cmdline
+echo
+```
+
+`jenkins.war`가 보이면 종료 후 systemd Jenkins를 다시 시작합니다.
+
+```bash
+sudo kill PID
+sudo ss -ltnp | grep ':8080'
+sudo systemctl reset-failed jenkins
+sudo systemctl restart jenkins
+sudo systemctl status jenkins --no-pager -l
+```
+
+8080을 다른 서비스가 계속 사용해야 한다면 `override.conf`에 포트를 추가합니다.
+
+```ini
+[Service]
+Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
+Environment="JENKINS_JAVA_CMD=/usr/lib/jvm/java-21-openjdk-amd64/bin/java"
+Environment="JENKINS_PORT=9090"
+```
+
+이 경우 접속 주소는 `http://EC2_PUBLIC_IP:9090`입니다.
 
 ## 7. EC2 디렉터리 준비
 
 ```bash
 sudo mkdir -p /opt/team1
 sudo mkdir -p /opt/team1/env
-sudo mkdir -p /opt/team1/uploads
+sudo mkdir -p /opt/team1/uploads/ict_06_uploads
+sudo mkdir -p /opt/team1/uploads/employee
 sudo mkdir -p /opt/team1/db/init
 sudo mkdir -p /var/www/team1
 
 sudo chown -R ubuntu:ubuntu /opt/team1
 sudo chown -R www-data:www-data /var/www/team1
+```
+
+Git에 올리지 않는 업로드 파일은 EC2 호스트의 `/opt/team1/uploads` 아래에 보관합니다. backend 컨테이너를 재생성해도 이 디렉터리는 유지됩니다.
+
+```text
+/opt/team1/uploads/ict_06_uploads  -> 컨테이너 /app/ict_06_uploads
+/opt/team1/uploads/employee        -> 컨테이너 /app/employee
+```
+
+Windows 개발환경의 프로젝트 루트에 있던 아래 폴더는 MobaXterm SFTP로 업로드해 위 경로에 맞춥니다.
+
+```text
+Windows: \ict06_team1_finalPJ\ict_06_uploads  -> EC2: /opt/team1/uploads/ict_06_uploads
+Windows: \ict06_team1_finalPJ\employee        -> EC2: /opt/team1/uploads/employee
 ```
 
 ## 8. 운영 환경변수 파일 작성
@@ -243,7 +329,7 @@ deploy/backend.env.example
 deploy/ai.env.example
 ```
 
-EC2에서 실제 파일 생성:
+EC2에서 실제 파일을 생성합니다.
 
 ```bash
 sudo nano /opt/team1/env/backend.env
@@ -298,33 +384,221 @@ OLLAMA_MODEL=llama3.1:8b
 권한 제한:
 
 ```bash
-sudo chmod 600 /opt/team1/env/backend.env /opt/team1/env/ai.env
-sudo chown root:root /opt/team1/env/backend.env /opt/team1/env/ai.env
+sudo chown root:docker /opt/team1/env/backend.env /opt/team1/env/ai.env
+sudo chmod 640 /opt/team1/env/backend.env /opt/team1/env/ai.env
 ```
 
-## 9. Spring properties 파일 준비
+## 9. 배포용 브랜치 확인 및 전환
 
-현재 저장소는 `application*.properties`가 `.gitignore`에 들어 있습니다. Jenkins 빌드 전에 아래 예시 파일을 실제 리소스 파일로 복사해야 합니다.
+EC2에 받아온 프로젝트 브랜치에 `deploy/` 폴더나 Docker/Jenkins/Nginx 배포용 파일이 없으면 이후 명령이 실패합니다.
+
+예를 들어 아래 오류는 현재 체크아웃된 브랜치에 `deploy/application.properties.example` 파일이 없을 때 발생합니다.
+
+```bash
+cp: cannot stat 'deploy/application.properties.example': No such file or directory
+```
+
+먼저 현재 브랜치와 파일 존재 여부를 확인합니다.
+
+```bash
+cd ~/ict06_team1_finalPJ
+
+git branch --show-current
+ls deploy
+```
+
+`deploy/` 폴더가 없다면 배포용 파일이 들어 있는 브랜치로 전환해야 합니다. 아래 브랜치명은 예시입니다. 실제로는 팀에서 배포 테스트용 파일을 넣어둔 브랜치명을 사용합니다.
+
+```bash
+git fetch --all --prune
+git switch 배포용_브랜치명
+```
+
+예시:
+
+```bash
+git switch topic/aws_test
+```
+
+원격 브랜치만 있고 로컬 브랜치가 아직 없다면 다음처럼 전환합니다.
+
+```bash
+git switch -c 배포용_브랜치명 origin/배포용_브랜치명
+```
+
+전환 후 다시 확인합니다.
+
+```bash
+git branch --show-current
+ls deploy
+ls deploy/application.properties.example deploy/application-prod.properties.example
+```
+
+Jenkins Pipeline 사용 시에도 같은 원칙을 적용합니다. Jenkins job의 SCM 설정에서 배포용 파일이 포함된 브랜치를 지정하거나, Pipeline에서 해당 브랜치를 checkout하도록 설정합니다.
+
+```text
+Branches to build: */배포용_브랜치명
+```
+
+중요한 기준은 특정 브랜치명이 아니라, **EC2/Jenkins가 checkout한 코드에 배포용 파일이 포함되어 있어야 한다**는 점입니다.
+
+## 10. Spring Properties 파일 준비
+
+현재 저장소는 보안상 `src/main/resources/application*.properties` 파일을 `.gitignore`로 제외하고 있습니다.
+
+따라서 EC2/Jenkins에서 Git checkout만 하면 아래 파일들이 없을 수 있습니다.
+
+```text
+src/main/resources/application.properties
+src/main/resources/application-prod.properties
+```
+
+운영 배포에서는 실제 비밀번호/API 키를 properties 파일에 직접 넣지 않습니다. properties 파일은 환경변수 이름만 매핑하고, 실제 값은 `/opt/team1/env/backend.env`에서 주입합니다.
+
+### 10.1 사용할 예시 파일
 
 ```text
 deploy/application.properties.example
 deploy/application-prod.properties.example
 ```
 
-Jenkins 빌드 단계에서 수행할 명령:
+역할:
+
+```text
+application.properties.example       공통 설정, active profile, CORS 기본값, API key 환경변수 매핑
+application-prod.properties.example  운영 DB/Redis/JWT/AI 서버 환경변수 매핑
+```
+
+### 10.2 Jenkins 빌드 전에 복사
+
+Jenkins Pipeline의 backend build 전에 아래 명령을 실행합니다.
 
 ```bash
 cp deploy/application.properties.example src/main/resources/application.properties
 cp deploy/application-prod.properties.example src/main/resources/application-prod.properties
 ```
 
-운영 비밀값은 properties에 직접 쓰지 않고 `/opt/team1/env/backend.env`에서 주입합니다.
+### 10.3 운영 환경변수 파일과 연결 (확인용)
 
-## 10. Dockerfile 작성
+`application-prod.properties.example`은 아래와 같은 환경변수를 읽도록 되어 있습니다.
 
-### 10.1 Backend Dockerfile
+```properties
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
 
-프로젝트 루트에 `Dockerfile.backend`를 둡니다.
+jwt.secret=${JWT_SECRET}
+
+app.frontend.origin=${APP_FRONTEND_ORIGIN}
+app.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:${app.frontend.origin}}
+
+ai.server.base-url=${AI_SERVER_BASE_URL:http://127.0.0.1:8000}
+```
+
+실제 값은 EC2의 이 파일에 둡니다.
+
+```text
+/opt/team1/env/backend.env
+```
+
+Docker Compose에서 backend 컨테이너가 이 파일을 읽도록 설정합니다. 이 설정은 프로젝트 루트의 `docker-compose.prod.yml` 파일 안에 들어갑니다.
+
+예를 들어 `docker-compose.prod.yml`의 `backend` 서비스는 아래처럼 작성합니다.
+
+```yaml
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: team1-backend
+    restart: unless-stopped
+    env_file:
+      - /opt/team1/env/backend.env
+    depends_on:
+      - postgres
+      - redis
+      - ai-server
+    ports:
+      - "127.0.0.1:8081:8081"
+```
+
+핵심은 이 부분입니다.
+
+```yaml
+env_file:
+  - /opt/team1/env/backend.env
+```
+
+이렇게 하면 Docker Compose가 backend 컨테이너를 실행할 때 `/opt/team1/env/backend.env`에 있는 값을 컨테이너 환경변수로 주입합니다. Spring Boot의 `${DB_URL}`, `${JWT_SECRET}`, `${AI_SERVER_BASE_URL}` 같은 설정이 이 환경변수 값을 읽게 됩니다.
+
+현재 프로젝트에 `docker-compose.prod.yml`이 아직 없다면 12번 섹션에서 파일을 생성합니다. 이미 있다면 아래 명령으로 `backend` 서비스에 `env_file`이 들어 있는지 확인합니다.
+
+```bash
+cd ~/ict06_team1_finalPJ
+cat docker-compose.prod.yml
+```
+
+컨테이너 실행 후 환경변수가 들어갔는지 확인하려면 다음 명령을 사용할 수 있습니다.
+
+```bash
+docker exec team1-backend printenv | grep -E 'DB_URL|REDIS_HOST|AI_SERVER_BASE_URL|SPRING_PROFILES_ACTIVE'
+```
+
+### 10.4 Docker Compose 환경에서 주의할 URL (확인용)
+
+Docker Compose 내부에서는 `localhost`가 EC2 자신이 아니라 각 컨테이너 자기 자신입니다.
+
+따라서 `/opt/team1/env/backend.env`에서는 아래처럼 서비스 이름을 사용합니다.
+
+```env
+DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
+REDIS_HOST=redis
+AI_SERVER_BASE_URL=http://ai-server:8000
+```
+
+### 10.5 Jenkins Java와 프로젝트 Java 구분 (확인용)
+
+Jenkins 실행:
+
+```text
+Java 21
+```
+
+프로젝트 빌드:
+
+```text
+JDK 17
+```
+
+Pipeline build 예:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+java -version
+chmod +x mvnw
+./mvnw clean package -DskipTests
+```
+
+## 11. Dockerfile 작성
+
+여기서부터는 실제 파일을 생성하는 단계입니다. 아래 명령은 프로젝트 루트에서 실행합니다.
+
+```bash
+cd ~/ict06_team1_finalPJ
+```
+
+11.1은 `Dockerfile.backend` 파일을 만들고 문서의 Dockerfile 코드를 그대로 넣는다는 의미입니다. 11.2도 같은 방식으로 `Dockerfile.ai` 파일을 만듭니다.
+
+### 11.1 Backend Dockerfile
+
+프로젝트 루트에 `Dockerfile.backend` 파일을 생성합니다.
+
+```bash
+# 파일 생성
+nano Dockerfile.backend
+```
 
 ```dockerfile
 FROM eclipse-temurin:17-jre
@@ -336,9 +610,14 @@ EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
-### 10.2 AI Server Dockerfile
+### 11.2 AI Server Dockerfile
 
-프로젝트 루트에 `Dockerfile.ai`를 둡니다.
+프로젝트 루트에 `Dockerfile.ai` 파일을 생성합니다.
+
+```bash
+# 파일 생성
+nano Dockerfile.ai
+```
 
 ```dockerfile
 FROM python:3.11-slim
@@ -358,9 +637,14 @@ EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-## 11. Docker Compose 작성
+## 12. Docker Compose 작성
 
 프로젝트 루트에 `docker-compose.prod.yml`을 둡니다.
+
+```bash
+cd ~/ict06_team1_finalPJ
+nano docker-compose.prod.yml
+```
 
 ```yaml
 services:
@@ -374,7 +658,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: Asia/Seoul
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
       - /opt/team1/db/init:/docker-entrypoint-initdb.d
     networks:
       - team1-net
@@ -389,25 +673,6 @@ services:
     networks:
       - team1-net
 
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: team1-backend
-    restart: unless-stopped
-    env_file:
-      - /opt/team1/env/backend.env
-    depends_on:
-      - postgres
-      - redis
-      - ai-server
-    volumes:
-      - /opt/team1/uploads:/app/uploads
-    networks:
-      - team1-net
-    ports:
-      - "127.0.0.1:8081:8081"
-
   ai-server:
     build:
       context: .
@@ -421,6 +686,26 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: team1-backend
+    restart: unless-stopped
+    env_file:
+      - /opt/team1/env/backend.env
+    depends_on:
+      - postgres
+      - redis
+      - ai-server
+    volumes:
+      - /opt/team1/uploads/ict_06_uploads:/app/ict_06_uploads
+      - /opt/team1/uploads/employee:/app/employee
+    networks:
+      - team1-net
+    ports:
+      - "127.0.0.1:8081:8081"
+
 networks:
   team1-net:
 
@@ -429,7 +714,7 @@ volumes:
   redis-data:
 ```
 
-Compose에서 `${POSTGRES_PASSWORD}`를 쓰려면 Jenkins 실행 전에 같은 값이 들어 있는 `.env` 파일을 배포 디렉터리에 둡니다.
+Compose에서 `${POSTGRES_PASSWORD}`를 쓰기 위해 `/opt/team1/.env`를 만듭니다.
 
 ```bash
 sudo nano /opt/team1/.env
@@ -439,41 +724,31 @@ sudo nano /opt/team1/.env
 POSTGRES_PASSWORD=운영_DB_비밀번호
 ```
 
-권한:
-
 ```bash
-sudo chmod 600 /opt/team1/.env
-sudo chown root:root /opt/team1/.env
+sudo chown root:docker /opt/team1/.env
+sudo chmod 640 /opt/team1/.env
 ```
 
-## 12. PostgreSQL 18 DB 복원
+## 13. PostgreSQL 18 DB 복원
 
-### 12.1 dump SQL 파일 업로드
+### 13.1 dump SQL 파일 업로드
 
-서버컴퓨터에서 받은 SQL dump 파일을 EC2로 복사합니다. MobaXterm을 쓰는 경우 SFTP 패널에서 드래그 앤 드롭으로 업로드하는 방식을 권장합니다.
+MobaXterm SFTP 패널에서 dump 방식으로 서버컴 db를 백업한 파일(형식: `dump-ict06_team1_finalpj-(백업날짜).sql`) 을 드래그 앤 드롭하여 `/home/ubuntu/backup.sql`로 업로드합니다.
+업로드 후 파일 우클릭->rename 기능 이용하여 `backup.sql`로 파일명 변경합니다.
 
-MobaXterm 방식:
-
-```text
-1. MobaXterm으로 EC2 SSH 접속
-2. 왼쪽 SFTP 패널에서 /home/ubuntu 경로로 이동
-3. Windows의 backup.sql 파일을 SFTP 패널로 드래그 앤 드롭
-4. EC2 터미널에서 파일 확인
-```
+업로드 확인:
 
 ```bash
 ls -lh /home/ubuntu/backup.sql
 ```
 
-PowerShell `scp` 방식:
-
-Windows PowerShell 예시:
+(Mobaxterm 으로 업로드 성공 시 패쓰 가능) PowerShell `scp` 방식:
 
 ```powershell
 scp -i "키파일.pem" D:\backup\backup.sql ubuntu@EC2_PUBLIC_IP:/home/ubuntu/backup.sql
 ```
 
-EC2에서 init 폴더로 이동:
+init 폴더로 이동:
 
 ```bash
 sudo cp /home/ubuntu/backup.sql /opt/team1/db/init/01_backup.sql
@@ -481,7 +756,7 @@ sudo chown root:root /opt/team1/db/init/01_backup.sql
 sudo chmod 644 /opt/team1/db/init/01_backup.sql
 ```
 
-파일 용량이 큰 경우 업로드 후 체크섬을 비교하면 좋습니다.
+대용량 파일은 체크섬 비교를 권장합니다.
 
 Windows PowerShell:
 
@@ -495,9 +770,7 @@ EC2:
 sha256sum /home/ubuntu/backup.sql
 ```
 
-두 해시값이 같으면 전송이 정상입니다.
-
-### 12.2 최초 기동 시 자동 복원
+### 13.2 최초 기동 시 자동 복원
 
 PostgreSQL Docker 이미지는 데이터 디렉터리가 비어 있을 때 `/docker-entrypoint-initdb.d/*.sql`을 자동 실행합니다.
 
@@ -507,26 +780,78 @@ docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d postg
 docker logs -f team1-postgres
 ```
 
-주의:
+주의: `postgres-data` 볼륨이 이미 만들어진 뒤에는 init SQL이 다시 실행되지 않습니다.
 
-- `postgres-data` 볼륨이 이미 만들어진 뒤에는 init SQL이 다시 실행되지 않습니다.
-- 다시 복원해야 한다면 기존 볼륨 삭제가 필요합니다. 운영 DB 삭제 위험이 있으니 반드시 백업 후 진행합니다.
+PostgreSQL 18 Docker 이미지는 볼륨을 `/var/lib/postgresql/data`가 아니라 `/var/lib/postgresql`에 마운트해야 합니다. compose 파일의 postgres 볼륨은 아래처럼 되어 있어야 합니다.
 
-개발/초기 테스트에서만 볼륨 삭제:
-
-```bash
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml down
-docker volume rm current_postgres-data
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d postgres
+```yaml
+volumes:
+  - postgres-data:/var/lib/postgresql
+  - /opt/team1/db/init:/docker-entrypoint-initdb.d
 ```
 
-### 12.3 수동 복원 방식
+만약 `/var/lib/postgresql/data`로 한 번 실행해서 오류가 났다면, 아직 운영 데이터가 없는 초기 배포 테스트라는 전제에서 실패한 볼륨을 삭제한 뒤 다시 기동합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml down
+docker volume ls | grep postgres
+```
+
+표시된 postgres 볼륨이 초기 테스트 중 생성된 빈/실패 볼륨임을 확인한 뒤 삭제합니다. 예시는 프로젝트 디렉터리명이 `current`일 때입니다.
+
+```bash
+docker volume rm current_postgres-data
+```
+
+그 다음 compose 파일을 수정한 상태에서 다시 시작합니다.
+
+```bash
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d postgres
+docker logs -f team1-postgres
+```
+
+### 13.3 수동 복원 방식
 
 이미 DB 컨테이너가 떠 있다면 수동 복원도 가능합니다.
 
+먼저 dump 파일을 컨테이너 안으로 복사합니다.
+
 ```bash
 docker cp /home/ubuntu/backup.sql team1-postgres:/tmp/backup.sql
-docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -f /tmp/backup.sql
+```
+
+dump 파일 형식에 따라 복원 명령이 다릅니다.
+
+#### PostgreSQL custom-format dump인 경우 (현재 우리 팀 방식)
+
+아래 메시지가 나오면 파일 확장자가 `.sql`이어도 실제로는 custom-format dump입니다.
+
+```text
+The input is a PostgreSQL custom-format dump.
+Use the pg_restore command-line client to restore this dump to a database.
+```
+
+이 경우 `pg_restore`를 사용합니다.
+
+```bash
+docker exec -it team1-postgres pg_restore \
+  -U postgres \
+  -d ict06_team1_finalpj \
+  --verbose \
+  /tmp/backup.sql
+```
+
+기존 객체가 일부 만들어진 상태에서 다시 복원해야 하면 `--clean --if-exists`를 추가합니다.
+
+```bash
+docker exec -it team1-postgres pg_restore \
+  -U postgres \
+  -d ict06_team1_finalpj \
+  --clean \
+  --if-exists \
+  --verbose \
+  /tmp/backup.sql
 ```
 
 복원 확인:
@@ -535,21 +860,19 @@ docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -f /tmp/b
 docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "\dt"
 ```
 
-## 13. Nginx 설정
+#### plain SQL dump인 경우
 
-프로젝트의 예시 파일:
+일반 SQL 텍스트 파일이면 `psql -f`를 사용합니다.
 
-```text
-deploy/nginx-team1.conf.example
+```bash
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -f /tmp/backup.sql
 ```
 
-EC2에서 설정:
+## 14. Nginx 설정
 
 ```bash
 sudo nano /etc/nginx/sites-available/team1
 ```
-
-예시:
 
 ```nginx
 server {
@@ -579,7 +902,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location ~ ^/(calendar|attendance|leave|test)(/|$) {
+    location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -593,27 +916,40 @@ server {
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/team1 /etc/nginx/sites-enabled/team1
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-기본 사이트가 충돌하면 제거:
-
-```bash
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 14. Jenkins Pipeline 구성
+## 15. Jenkins Pipeline 구성
 
+웹브라우저의 Jenkins 페이지에서 진행.
 Jenkins Item:
 
 ```text
-New Item -> Pipeline -> Pipeline script from SCM
+New Item 
+-> item name = '(원하는 이름)', item type = Pipeline 
+-> Pipeline script from SCM
 ```
 
-권장 Jenkinsfile:
+처음 배포 테스트라면 이렇게 하시면 됩니다.
+
+**General**
+
+* 설명: 선택 사항
+* Do not allow concurrent builds: 체크 추천
+* 나머지: 비워도 됨
+
+**Triggers**
+* 전부 비워도 됨
+* 지금은 자동 빌드가 아니라 수동으로 Build Now 할 거라서 필요 없습니다.
+
+**Pipeline**
+* Definition: Pipeline script 선택
+* Script: 문서의 권장 Pipeline 스크립트 붙여넣기
+* Use Groovy Sandbox: 체크 유지
+
+권장 Pipeline 스크립트:
 
 ```groovy
 pipeline {
@@ -642,7 +978,13 @@ pipeline {
 
         stage('Build Backend Jar') {
             steps {
-                sh './mvnw clean package -DskipTests'
+                sh '''
+                export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+                export PATH=$JAVA_HOME/bin:$PATH
+                java -version
+                chmod +x mvnw
+                ./mvnw clean package -DskipTests
+                '''
             }
         }
 
@@ -651,6 +993,7 @@ pipeline {
                 dir('react-frontend') {
                     sh '''
                     npm ci
+                    NODE_OPTIONS=--max-old-space-size=2048 \
                     REACT_APP_SERVER_URL=/api \
                     REACT_APP_AI_SERVER_URL=/ai-api \
                     npm run build
@@ -705,22 +1048,11 @@ pipeline {
                 '''
             }
         }
-
-        stage('Health Check') {
-            steps {
-                sh '''
-                sleep 10
-                curl -f http://127.0.0.1:8081 || true
-                curl -f http://127.0.0.1:8000/health
-                curl -f http://127.0.0.1/
-                '''
-            }
-        }
     }
 }
 ```
 
-Jenkins 사용자가 `sudo`로 필요한 작업만 할 수 있게 제한합니다.
+이후 터미널에서 Jenkins 사용자가 필요한 sudo 명령만 실행할 수 있게 제한합니다.
 
 ```bash
 sudo visudo
@@ -732,9 +1064,13 @@ sudo visudo
 jenkins ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/rsync, /usr/bin/cp, /usr/bin/rm, /usr/bin/chown, /usr/sbin/nginx, /bin/systemctl reload nginx
 ```
 
-## 15. 최초 수동 배포 테스트
+## 16. 최초 수동 배포 테스트
 
 Jenkins 자동화 전, EC2에서 한 번 수동으로 확인합니다.
+
+Linux에서 `./mvnw: Permission denied`가 나오면 Maven Wrapper에 실행 권한이 없는 상태입니다. 이 경우 `sudo`로 실행하지 말고 `chmod +x mvnw`를 먼저 실행합니다.
+
+Querydsl을 사용하는 프로젝트라면 개발 환경에서 Maven `clean` 후 `build/package`를 실행해 QClass를 생성했던 과정이 배포 시에도 빌드 단계에 포함되어야 합니다. 다만 별도 명령을 추가할 필요는 없고, Maven 설정이 정상이라면 아래의 `./mvnw clean package -DskipTests` 과정에서 annotation processing이 실행되며 QClass가 생성되고 jar에 포함됩니다. QClass 생성 문제가 있으면 보통 Docker 실행 후 런타임 오류가 아니라 Maven 빌드 중 `cannot find symbol Q...` 형태의 컴파일 오류로 실패합니다.
 
 ```bash
 cd /opt/team1/current
@@ -742,11 +1078,14 @@ cd /opt/team1/current
 cp deploy/application.properties.example src/main/resources/application.properties
 cp deploy/application-prod.properties.example src/main/resources/application-prod.properties
 
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+chmod +x mvnw
 ./mvnw clean package -DskipTests
 
 cd react-frontend
 npm ci
-REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
 cd ..
 
 sudo rm -rf /var/www/team1/*
@@ -766,14 +1105,11 @@ docker logs -f team1-ai-server
 docker logs -f team1-postgres
 ```
 
-## 16. 배포 후 확인 URL
+## 17. 배포 후 확인 URL
 
 ```text
 React
 http://EC2_PUBLIC_IP
-
-Spring API
-http://EC2_PUBLIC_IP/api/auth/login
 
 AI health through Nginx
 http://EC2_PUBLIC_IP/ai-api/health
@@ -788,14 +1124,7 @@ curl http://127.0.0.1:8000/health
 POST http://EC2_PUBLIC_IP/api/auth/login
 ```
 
-아래처럼 보이면 React 빌드 환경변수 또는 Nginx 경로 설정이 잘못된 것입니다.
-
-```text
-POST http://EC2_PUBLIC_IP:3000/api/auth/login
-POST http://localhost:3000/api/auth/login
-```
-
-## 17. 운영 명령 모음
+## 18. 운영 명령 모음
 
 서비스 재시작:
 
@@ -809,14 +1138,6 @@ docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml restart
 ```bash
 cd /opt/team1/current
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml down
-```
-
-이미지 재빌드:
-
-```bash
-cd /opt/team1/current
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build --no-cache
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d
 ```
 
 로그:
@@ -837,9 +1158,7 @@ sudo tail -f /var/log/nginx/access.log
 sudo tail -f /var/log/nginx/error.log
 ```
 
-## 18. DB 백업
-
-운영 DB 백업:
+## 19. DB 백업
 
 ```bash
 mkdir -p /opt/team1/backups
@@ -856,8 +1175,88 @@ docker exec team1-postgres pg_dump \
 ls -lh /opt/team1/backups
 ```
 
-## 19. 자주 나는 문제
+## 20. 자주 나는 문제
 
+### React build가 JavaScript heap out of memory로 실패하는 경우
+
+아래 오류가 나오면 React build 중 Node.js 메모리 제한에 걸린 것입니다.
+
+```text
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+```
+
+이 경우 `npm run build` 앞에 `NODE_OPTIONS=--max-old-space-size=2048`를 붙여 다시 실행합니다.
+
+```bash
+cd /opt/team1/current/react-frontend
+NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+```
+
+EC2 메모리가 충분하다면 3072 또는 4096으로 올릴 수 있습니다.
+
+```bash
+NODE_OPTIONS=--max-old-space-size=4096 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+```
+
+메모리 자체가 부족한 EC2라면 swap을 추가한 뒤 다시 빌드합니다.
+
+```bash
+free -h
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
+```
+
+영구 적용하려면 `/etc/fstab`에 아래 줄을 추가합니다.
+
+```text
+/swapfile none swap sw 0 0
+```
+### Docker Compose가 env 파일 permission denied로 실패하는 경우
+
+아래 오류가 나오면 Docker Compose를 실행하는 사용자(`ubuntu` 또는 `jenkins`)가 env 파일을 읽지 못하는 상태입니다.
+
+```text
+open /opt/team1/.env: permission denied
+open /opt/team1/env/backend.env: permission denied
+open /opt/team1/env/ai.env: permission denied
+```
+
+수동 배포와 Jenkins 배포 모두 Docker Compose가 env 파일을 읽어야 하므로, env 파일의 그룹을 `docker`로 두고 그룹 읽기 권한을 줍니다.
+
+```bash
+sudo chown root:docker /opt/team1/.env
+sudo chmod 640 /opt/team1/.env
+
+sudo chown root:docker /opt/team1/env/backend.env /opt/team1/env/ai.env
+sudo chmod 640 /opt/team1/env/backend.env /opt/team1/env/ai.env
+```
+
+확인:
+
+```bash
+ls -l /opt/team1/.env /opt/team1/env/backend.env /opt/team1/env/ai.env
+```
+
+아래처럼 보이면 정상입니다.
+
+```text
+-rw-r----- 1 root docker ... /opt/team1/.env
+-rw-r----- 1 root docker ... /opt/team1/env/backend.env
+-rw-r----- 1 root docker ... /opt/team1/env/ai.env
+```
+
+현재 사용자와 Jenkins 사용자가 `docker` 그룹에 들어 있는지도 확인합니다.
+
+```bash
+groups
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+```
+
+`ubuntu` 사용자의 `groups`에 `docker`가 없다면 SSH를 재접속한 뒤 다시 확인합니다.
 ### React가 `/api`를 React 서버로 보내는 경우
 
 운영 빌드는 다음 값으로 빌드해야 합니다.
@@ -866,8 +1265,6 @@ ls -lh /opt/team1/backups
 REACT_APP_SERVER_URL=/api
 REACT_APP_AI_SERVER_URL=/ai-api
 ```
-
-개발환경의 `http://localhost:8081/api` 값을 운영 빌드에 넣지 않습니다.
 
 ### CORS 오류
 
@@ -901,11 +1298,189 @@ Docker Compose 내부에서는 DB host가 `localhost`가 아닙니다.
 DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
 ```
 
-잘못된 예:
+backend 로그에 아래와 비슷한 메시지가 나오면 Spring Boot 컨테이너가 DB 주소를 `127.0.0.1` 또는 `localhost`로 보고 있는 상태입니다.
+
+```text
+Connection to 127.0.0.1:5432 refused
+Unable to open JDBC Connection for DDL execution
+```
+
+이 경우 `/opt/team1/env/backend.env`를 확인합니다.
+
+```bash
+grep '^DB_URL' /opt/team1/env/backend.env
+```
+
+반드시 아래처럼 Docker Compose 서비스명 `postgres`를 사용해야 합니다.
 
 ```env
-DB_URL=jdbc:postgresql://localhost:5432/ict06_team1_finalpj
+DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
 ```
+
+함께 확인할 값:
+
+```env
+SPRING_PROFILES_ACTIVE=prod
+REDIS_HOST=redis
+AI_SERVER_BASE_URL=http://ai-server:8000
+```
+
+배포 테스트처럼 dump로 복원한 DB 스키마를 그대로 사용할 때는 Hibernate가 테이블을 생성하거나 수정하지 않도록 아래 값도 추가하는 것을 권장합니다.
+
+```env
+SPRING_JPA_HIBERNATE_DDL_AUTO=none
+```
+
+수정이 필요하면:
+
+```bash
+sudo nano /opt/team1/env/backend.env
+sudo chown root:docker /opt/team1/env/backend.env
+sudo chmod 640 /opt/team1/env/backend.env
+```
+
+환경변수 파일을 수정한 뒤에는 단순 restart보다 backend 컨테이너를 재생성하는 것이 확실합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+docker logs -f team1-backend
+```
+
+컨테이너에 실제 주입된 환경변수는 다음으로 확인할 수 있습니다.
+
+```bash
+docker exec team1-backend printenv | grep -E 'DB_URL|REDIS_HOST|AI_SERVER_BASE_URL|SPRING_PROFILES_ACTIVE'
+```
+
+backend 컨테이너가 너무 빨리 종료되어 `docker exec`가 안 되면 `docker inspect`로 확인합니다.
+
+```bash
+docker inspect team1-backend --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E 'DB_URL|REDIS_HOST|AI_SERVER_BASE_URL|SPRING_PROFILES_ACTIVE'
+```
+
+### Git에 없는 업로드 폴더를 EC2에 반영하는 경우
+
+`ict_06_uploads`, `employee`처럼 `.gitignore`로 제외한 업로드 폴더는 Git/Jenkins 배포로 전달되지 않습니다. Google Drive에서 받은 파일을 MobaXterm SFTP로 EC2에 업로드한 뒤, backend 컨테이너에 bind mount로 연결해서 사용합니다.
+
+EC2에서 영구 보관 디렉터리를 준비합니다.
+
+```bash
+sudo mkdir -p /opt/team1/uploads/ict_06_uploads
+sudo mkdir -p /opt/team1/uploads/employee
+sudo chown -R ubuntu:ubuntu /opt/team1/uploads
+```
+
+MobaXterm SFTP 패널에서 아래처럼 업로드합니다.
+
+```text
+Windows \ict06_team1_finalPJ\ict_06_uploads  -> EC2 /opt/team1/uploads/ict_06_uploads
+Windows \ict06_team1_finalPJ\employee        -> EC2 /opt/team1/uploads/employee
+```
+
+업로드 후 EC2에서 확인합니다.
+
+```bash
+ls -lh /opt/team1/uploads
+ls -lh /opt/team1/uploads/ict_06_uploads
+ls -lh /opt/team1/uploads/employee
+```
+
+`docker-compose.prod.yml`의 backend 서비스에 아래 volume이 있어야 합니다.
+
+```yaml
+services:
+  backend:
+    volumes:
+      - /opt/team1/uploads/ict_06_uploads:/app/ict_06_uploads
+      - /opt/team1/uploads/employee:/app/employee
+```
+
+주의: 이 설정은 반드시 `backend:` 서비스 아래에 있어야 합니다. `postgres:` 서비스의 `volumes:` 아래에 넣으면 backend 컨테이너에는 적용되지 않습니다. 기존에 `- /opt/team1/uploads:/app/uploads`가 남아 있다면 제거하고 위 두 줄로 교체합니다.
+
+이 매핑이 필요한 이유는 Spring 코드가 컨테이너 내부에서 다음 경로를 기준으로 파일을 읽고 쓰기 때문입니다.
+
+```text
+/app/ict_06_uploads/approval      -> 브라우저 /approval/uploads/**
+/app/employee/ict_06_uploads      -> 브라우저 /employee/uploads/**
+```
+
+volume 설정을 추가하거나 업로드 파일을 교체했다면 backend 컨테이너를 재생성합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+컨테이너 안에서도 파일이 보이는지 확인합니다.
+
+```bash
+docker exec -it team1-backend ls -lh /app/ict_06_uploads
+docker exec -it team1-backend ls -lh /app/employee
+docker exec -it team1-backend ls -lh /app/employee/ict_06_uploads
+```
+
+Nginx도 업로드 파일 URL을 backend로 넘겨야 합니다. `/etc/nginx/sites-available/team1`에 아래 경로가 포함되어 있는지 확인합니다.
+
+```nginx
+location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    proxy_pass http://127.0.0.1:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Nginx 설정을 수정했다면 적용합니다.
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+브라우저에서 기존 DB에 저장된 파일 경로를 열어 확인합니다.
+
+```text
+http://EC2_PUBLIC_IP/approval/uploads/파일명
+http://EC2_PUBLIC_IP/employee/uploads/profile/파일명
+http://EC2_PUBLIC_IP/employee/uploads/sign/파일명
+```
+
+주의: `docker compose down -v`는 DB 볼륨을 지울 수 있으므로 업로드 폴더와 직접 관련은 없더라도 운영/테스트 데이터가 있는 상태에서는 신중하게 사용합니다.
+
+### Hibernate Schema validation 타입 오류가 나는 경우
+
+DB 연결은 성공했지만 아래처럼 `Schema validation` 오류로 backend가 종료될 수 있습니다.
+
+```text
+Schema validation: wrong column type encountered in column [is_deleted] in table [employee]
+found [bpchar (Types#CHAR)], but expecting [char(1) (Types#VARCHAR)]
+```
+
+이 로그는 QClass 문제가 아니라 Hibernate가 엔티티와 실제 DB 컬럼 타입을 엄격하게 비교하다가 시작을 중단한 것입니다. 이미 서버컴퓨터 DB를 dump로 복원한 상태라면, 배포 테스트에서는 Hibernate 스키마 검증을 끄고 애플리케이션을 먼저 기동하는 방식이 안전합니다.
+
+`/opt/team1/env/backend.env`에 아래 값을 추가합니다.
+
+```env
+SPRING_JPA_HIBERNATE_DDL_AUTO=none
+```
+
+적용:
+
+```bash
+sudo nano /opt/team1/env/backend.env
+sudo chown root:docker /opt/team1/env/backend.env
+sudo chmod 640 /opt/team1/env/backend.env
+
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+docker logs -f team1-backend
+```
+
+정상이라면 더 이상 `Schema validation`에서 종료되지 않고 Tomcat 8081 기동 완료 로그가 이어집니다.
+
+장기적으로는 `EmpEntity.isDeleted` 매핑과 실제 DB의 `employee.is_deleted` 타입을 일치시키는 코드 수정 또는 DB migration을 별도 브랜치에서 정리하는 것이 좋습니다.
 
 ### AI 서버를 Spring이 못 찾는 경우
 
@@ -917,6 +1492,27 @@ Docker Compose 내부에서는 AI host가 `localhost`가 아닙니다.
 AI_SERVER_BASE_URL=http://ai-server:8000
 ```
 
+### AI 서버가 f-string SyntaxError로 시작하지 못하는 경우
+
+AI 서버 로그에 아래 오류가 반복되면 FastAPI 앱이 뜨기 전에 Python 문법 오류로 종료되는 상태입니다.
+
+```text
+SyntaxError: f-string: expressions nested too deeply
+```
+
+주로 `f"""..."""` 문자열 안에 JSON 예시를 그대로 넣었을 때 발생합니다. f-string 안에서 변수 치환용이 아닌 JSON 중괄호는 `{{`와 `}}`로 이스케이프해야 합니다.
+
+코드 수정 후 AI 서버 이미지를 다시 빌드하고 컨테이너를 재생성합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
+docker logs -f team1-ai-server
+```
+
+정상이라면 더 이상 Traceback이 반복되지 않고 Uvicorn 기동 로그가 이어집니다.
+
 ### PostgreSQL init SQL이 다시 실행되지 않는 경우
 
 `/docker-entrypoint-initdb.d`는 PostgreSQL 데이터 볼륨이 처음 생성될 때만 실행됩니다. 이미 볼륨이 있으면 수동 복원을 사용합니다.
@@ -926,21 +1522,139 @@ docker cp backup.sql team1-postgres:/tmp/backup.sql
 docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -f /tmp/backup.sql
 ```
 
-## 20. 최종 배포 순서 요약
+### 새 backup.sql로 EC2 DB를 교체하고 싶은 경우
+
+DBeaver 등에서 DB 컬럼 타입을 수정한 뒤 새 dump backup을 만들었다면, EC2의 기존 `backup.sql`을 새 파일로 교체하고 PostgreSQL 컨테이너에 다시 복원합니다.
+
+먼저 기존 파일을 보관합니다.
+
+```bash
+mv /home/ubuntu/backup.sql /home/ubuntu/backup.old.sql
+```
+
+MobaXterm SFTP 패널로 새 dump 파일을 아래 경로에 업로드합니다.
+
+```text
+/home/ubuntu/backup.sql
+```
+
+업로드 확인:
+
+```bash
+ls -lh /home/ubuntu/backup.sql
+```
+
+DB를 다시 복원하는 동안 backend가 DB에 접속하지 않도록 잠시 중지합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml stop backend
+```
+
+새 dump 파일을 PostgreSQL 컨테이너 안으로 복사합니다.
+
+```bash
+docker cp /home/ubuntu/backup.sql team1-postgres:/tmp/backup.sql
+```
+
+기존 DB를 삭제하고 새로 만듭니다. 배포 테스트 환경 기준이며, 기존 EC2 DB 내용은 삭제됩니다.
+
+```bash
+docker exec -it team1-postgres psql -U postgres -d postgres -c "
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = 'ict06_team1_finalpj'
+  AND pid <> pg_backend_pid();
+"
+
+docker exec -it team1-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS ict06_team1_finalpj;"
+docker exec -it team1-postgres psql -U postgres -d postgres -c "CREATE DATABASE ict06_team1_finalpj;"
+```
+
+현재 우리 팀 dump 파일처럼 PostgreSQL custom-format dump라면 `pg_restore`를 사용합니다.
+
+```bash
+docker exec -it team1-postgres pg_restore \
+  -U postgres \
+  -d ict06_team1_finalpj \
+  --verbose \
+  /tmp/backup.sql
+```
+
+일반 plain SQL dump라면 아래처럼 `psql -f`를 사용합니다.
+
+```bash
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -f /tmp/backup.sql
+```
+
+복원 확인:
+
+```bash
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "\dt"
+```
+
+특정 컬럼 타입 변경을 반영한 dump라면 해당 컬럼도 확인합니다. 예를 들어 `employee.is_deleted`를 `varchar(1)`로 바꾼 경우:
+
+```bash
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "
+SELECT column_name, data_type, character_maximum_length
+FROM information_schema.columns
+WHERE table_name = 'employee'
+  AND column_name = 'is_deleted';
+"
+```
+
+backend를 다시 기동합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+docker logs -f team1-backend
+```
+
+아래 로그가 나오면 정상 기동입니다.
+
+```text
+Started Team1FinPjApplication
+```
+
+추후 빈 PostgreSQL 볼륨에서 초기 복원용으로 사용할 파일도 교체해둡니다.
+
+```bash
+sudo cp /home/ubuntu/backup.sql /opt/team1/db/init/01_backup.sql
+sudo chown root:root /opt/team1/db/init/01_backup.sql
+sudo chmod 644 /opt/team1/db/init/01_backup.sql
+```
+
+단, custom-format dump는 `/docker-entrypoint-initdb.d`에서 자동 실행되지 않습니다. custom-format dump는 위 절차처럼 `pg_restore`로 복원합니다.
+
+## 21. 최종 배포 순서 요약
 
 ```text
 1. EC2 보안그룹 설정
-2. Ubuntu 패키지, Docker, Jenkins, Nginx 설치
-3. /opt/team1 디렉터리 준비
-4. backend.env, ai.env, .env 작성
-5. DB dump SQL 업로드
-6. Dockerfile.backend, Dockerfile.ai, docker-compose.prod.yml 준비
-7. Nginx sites-available/team1 설정
-8. Jenkins Pipeline 등록
-9. Jenkins 빌드 실행
-10. PostgreSQL 복원 확인
-11. Docker 컨테이너 상태 확인
-12. Nginx reload
-13. 브라우저에서 http://EC2_PUBLIC_IP 접속 및 로그인 테스트
-14. 운영 DB 백업 스케줄 등록
+2. MobaXterm으로 EC2 SSH 접속
+3. Ubuntu 패키지, Docker, Jenkins, Nginx 설치
+4. Jenkins Java 21 실행 설정 및 JDK 17 빌드 설정 확인
+5. /opt/team1 디렉터리 준비
+6. backend.env, ai.env, /opt/team1/.env 작성
+7. DB dump SQL 업로드
+8. Dockerfile.backend, Dockerfile.ai, docker-compose.prod.yml 준비
+9. Nginx sites-available/team1 설정
+10. Jenkins Pipeline 등록
+11. Jenkins 빌드 실행
+12. PostgreSQL 복원 확인
+13. Docker 컨테이너 상태 확인
+14. Nginx reload
+15. 브라우저에서 http://EC2_PUBLIC_IP 접속 및 로그인 테스트
+16. 운영 DB 백업 스케줄 등록
 ```
+
+
+
+
+
+
+
+
+
+

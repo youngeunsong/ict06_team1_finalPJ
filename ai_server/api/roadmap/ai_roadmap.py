@@ -125,15 +125,15 @@ def get_roadmap(emp_no: str):
    - AI 활용 교육
 
 반드시 아래 키를 가진 JSON 객체 형식으로만 출력해. 다른 텍스트 없이 JSON만:
-{
+{{
   "recommended_roadmap": [
-    {"category_name": "필수이수교육", "items": [{"item_title": "강의제목", "content_id": 1}]},
-    {"category_name": "직무교육 (백엔드)", "items": [{"item_title": "강의제목", "content_id": 2}]},
-    {"category_name": "직무교육 (프론트엔드)", "items": [{"item_title": "강의제목", "content_id": 3}]},
-    {"category_name": "심화교육", "items": [{"item_title": "강의제목", "content_id": 4}]},
-    {"category_name": "AI 활용 교육", "items": [{"item_title": "강의제목", "content_id": 5}]}
+    {{"category_name": "필수이수교육", "items": [{{"item_title": "강의제목", "content_id": 1}}]}},
+    {{"category_name": "직무교육 (백엔드)", "items": [{{"item_title": "강의제목", "content_id": 2}}]}},
+    {{"category_name": "직무교육 (프론트엔드)", "items": [{{"item_title": "강의제목", "content_id": 3}}]}},
+    {{"category_name": "심화교육", "items": [{{"item_title": "강의제목", "content_id": 4}}]}},
+    {{"category_name": "AI 활용 교육", "items": [{{"item_title": "강의제목", "content_id": 5}}]}}
   ]
-}
+}}
 """
 
         # API 호출

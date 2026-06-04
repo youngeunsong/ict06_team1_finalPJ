@@ -25,8 +25,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Existing React helper calls still use these backend root paths.
-    location ~ ^/(calendar|attendance|leave|test)(/|$) {
+    # Existing React helper calls and uploaded files still use these backend root paths.
+    location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
