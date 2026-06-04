@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/onboarding/progress")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class RoadProgressController {
 
     private final RoadProgressServiceImpl progressService;

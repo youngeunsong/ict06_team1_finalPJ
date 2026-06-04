@@ -62,6 +62,9 @@ public class SecurityConfig {
     @Value("${app.frontend.login-url:http://localhost:3000/auth/login}")
     private String commonLoginUrl;
 
+    @Value("${app.cors.allowed-origins:http://localhost:3000}")
+    private List<String> allowedOrigins;
+
     /**
      * 1. [React API용] JWT 기반 인증 필터 체인
      * - Stateless 세션 관리
@@ -242,7 +245,7 @@ public class SecurityConfig {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
         //React 포트 허용(3000)
-        corsConfig.setAllowedOrigins(List.of("http://localhost:3000"));
+        corsConfig.setAllowedOrigins(allowedOrigins);
 
         //HTTP 메서드
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

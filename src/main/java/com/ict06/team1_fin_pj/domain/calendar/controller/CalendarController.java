@@ -22,7 +22,6 @@ import java.util.List;
  */
 @RequestMapping("/calendar")
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
 public class CalendarController {
 
     @Autowired

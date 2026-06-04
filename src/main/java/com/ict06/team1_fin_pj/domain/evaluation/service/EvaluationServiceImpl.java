@@ -45,6 +45,7 @@ import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadProgressRepositor
 import com.ict06.team1_fin_pj.domain.onboarding.repository.RoadmapRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.service.LearningSelfCheckService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -76,6 +77,9 @@ public class EvaluationServiceImpl {
     private final LearningSelfCheckService learningSelfCheckService;
     private final RoadmapRepository roadmapRepository;
     private final RoadProgressRepository roadProgressRepository;
+
+    @Value("${ai.server.base-url:http://localhost:8000}")
+    private String aiServerBaseUrl;
 
     //학습 카테고리별 퀴즈 문항 조회
     public List<EvaluationQuestionResponse> getQuizQuestionsByCategory(String categoryName) {
@@ -192,7 +196,7 @@ public class EvaluationServiceImpl {
                 score = 0;
 
                 try {
-                    String url = "http://localhost:8000/api/ai/evaluation/evaluate";
+                    String url = aiServerUrl("/api/ai/evaluation/evaluate");
 
                     Map<String, Object> body = new LinkedHashMap<>();
                     body.put("user_answer", answer.getAnswerText() != null ? answer.getAnswerText() : "");
@@ -469,5 +473,13 @@ public class EvaluationServiceImpl {
         }
 
         return answerNo + ". " + optionText;
+    }
+
+    private String aiServerUrl(String path) {
+        String baseUrl = aiServerBaseUrl == null ? "http://localhost:8000" : aiServerBaseUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + path;
     }
 }

@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/onboarding/roadmap")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class RoadmapController {
 
     private final RoadmapServiceImpl roadmapService;

@@ -14,6 +14,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.service;
 import com.ict06.team1_fin_pj.common.dto.onboarding.AdDocumentRequestDto;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +26,9 @@ public class AdOnboardingServiceImpl {
 
     private final DocumentRepository documentRepository;
     private final RestTemplate restTemplate;
-    private final String AI_RAG_API = "http://localhost:8000/api/rag/process";
+
+    @Value("${ai.server.base-url:http://localhost:8000}")
+    private String aiServerBaseUrl;
 
     @Transactional
     public void saveDocumentAndTriggerRag(AdDocumentRequestDto dto) {
@@ -36,9 +39,17 @@ public class AdOnboardingServiceImpl {
         // 2. AI 서버에 RAG 처리 요청 (비동기 처리 권장)
         try {
             Map<String, Object> params = Map.of("doc_id", 1, "file_path", dto.getFilePath()); // 예시 ID
-            restTemplate.postForObject(AI_RAG_API, params, Map.class);
+            restTemplate.postForObject(aiServerUrl("/api/rag/process"), params, Map.class);
         } catch (Exception e) {
             // 로그 기록 후 사용자에게는 등록 완료 알림
         }
+    }
+
+    private String aiServerUrl(String path) {
+        String baseUrl = aiServerBaseUrl == null ? "http://localhost:8000" : aiServerBaseUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + path;
     }
 }

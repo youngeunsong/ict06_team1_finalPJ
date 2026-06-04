@@ -13,8 +13,11 @@
 */
 
 import axios from 'axios'; // npm i axios
+import { PATH } from '../constants/path';
 
-axios.defaults.baseURL = 'http://localhost:8081'; // 백엔드 주소 
+const defaultBackendOrigin = PATH.API.BASE.replace(/\/api$/, '');
+
+axios.defaults.baseURL = process.env.REACT_APP_SERVER_ORIGIN ?? defaultBackendOrigin;
 axios.defaults.headers.post["content-type"] = 'application/json';  
 
 // backend와 통신
@@ -66,5 +69,4 @@ export const request = (method, url, data) => {
         data: (upperMethod !== 'GET' && upperMethod !== 'DELETE') ? data : null
     });
 };
-
 

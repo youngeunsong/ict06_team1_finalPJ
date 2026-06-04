@@ -23,7 +23,6 @@ import java.util.List;
 
 @RequestMapping("/test")
 @RestController
-@CrossOrigin(origins = "http://localhost:3000") // 리액트와 통신을 위해 cross origin 설정 필요
 public class TestController {
 
     @Autowired

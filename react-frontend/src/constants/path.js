@@ -94,7 +94,7 @@ export const PATH = {
   
   // 인사평가 - 외부 AI 서버 통신용
   AI_API: {
-    BASE: process.env.REACT_APP_AI_SERVER_URL || 'http://localhost:8000/api',
+    BASE: process.env.REACT_APP_AI_SERVER_URL || '/ai-api',
     ROADMAP: (empNo) => `/ai/roadmap/${empNo}`,
     CONTENT_DETAIL: (contentId) => `/ai/content/${contentId}`,     // 학습자료 상세 조회
   },
@@ -136,7 +136,7 @@ export const PATH = {
 
   // SpringBoot REST API
   API: {
-    BASE: process.env.REACT_APP_SERVER_URL || 'http://localhost:8081/api',
+    BASE: process.env.REACT_APP_SERVER_URL || '/api',
     ADMIN_SIGNUP: '/auth/admin-signup',
     USER_ME: '/user/me',
     USER_UPDATE: '/user/update',

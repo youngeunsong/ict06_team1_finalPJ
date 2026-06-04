@@ -17,6 +17,7 @@ package com.ict06.team1_fin_pj.domain.auth.controller;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,7 +41,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdDashboardController {
 
-    private static final String AI_SERVER_URL = "http://localhost:8000/api/stats/dashboard";
+    @Value("${ai.server.base-url:http://localhost:8000}")
+    private String aiServerBaseUrl;
 
     private final RestTemplate restTemplate;
     private final EntityManager entityManager;
@@ -51,7 +53,7 @@ public class AdDashboardController {
         Map<String, Object> dashboardStats = buildDbDashboardStats();
 
         try {
-            Map<String, Object> aiStats = restTemplate.getForObject(AI_SERVER_URL, Map.class);
+            Map<String, Object> aiStats = restTemplate.getForObject(aiServerUrl("/api/stats/dashboard"), Map.class);
             if (aiStats != null) {
                 dashboardStats = mergeDashboardStats(dashboardStats, aiStats);
             }
@@ -73,6 +75,14 @@ public class AdDashboardController {
         model.addAttribute("recentActivities", recentActivities);
 
         return "admin/auth/home";
+    }
+
+    private String aiServerUrl(String path) {
+        String baseUrl = aiServerBaseUrl == null ? "http://localhost:8000" : aiServerBaseUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + path;
     }
 
     private Map<String, Object> buildDbDashboardStats() {
