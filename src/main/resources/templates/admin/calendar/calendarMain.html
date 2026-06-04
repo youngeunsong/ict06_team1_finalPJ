@@ -10,7 +10,7 @@
 <!doctype html>
 <html xmlns:th="http://www.thymleaf.org">
 <!--begin::Head-->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">캘린더 메인</title>
 </head>
 
@@ -24,11 +24,11 @@
 <!--begin::App Wrapper-->
 <div class="app-wrapper">
     <!-- 헤더 시작 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
     <!-- 헤더 끝 -->
 
     <!-- 사이드바 시작-->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
     <!-- 사이드바 끝-->
 
     <!-- 메인 콘텐츠 시작 -->
@@ -523,12 +523,12 @@
     </main>
     <!-- 메인 콘텐츠 끝 -->
     <!-- 푸터 시작 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
     <!-- 푸터 끝 -->
 </div>
 <!--end::App Wrapper-->
 <!--스크립트 시작-->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<th:block th:replace="~{admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
 
 <!-- 관리자 Thymeleaf 캘린더 화면에서 사용할 FullCalendar JS를 로드한다. -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>

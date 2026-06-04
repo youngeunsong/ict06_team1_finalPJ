@@ -13,7 +13,7 @@
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
 <!--begin::Head-->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <meta charset="UTF-8">
     <title id="page_title">온보딩 로드맵 관리</title>
 </head>
@@ -23,11 +23,11 @@
 <!--begin::App Wrapper-->
 <div class="app-wrapper">
     <!-- 헤더 시작 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
     <!-- 헤더 끝 -->
 
     <!-- 사이드바 시작 -->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
     <!-- 사이드바 끝 -->
 
     <!-- 메인 콘텐츠 시작 -->
@@ -155,12 +155,12 @@
     <!-- 메인 콘텐츠 끝 -->
 
     <!-- 푸터 시작 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
     <!-- 푸터 끝 -->
 </div>
 <!--end::App Wrapper-->
 <!-- 스크립트 시작 -->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const rows = Array.from(document.querySelectorAll('#roadmapTable tbody .roadmap-row'));

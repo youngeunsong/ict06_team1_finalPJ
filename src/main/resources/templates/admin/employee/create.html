@@ -14,7 +14,7 @@
     - 본부를 선택하면 JS에서 해당 본부의 하위 팀 목록을 불러온다.
     - 실제 employee.dept_id에는 팀 ID가 저장된다.
 -->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">사원 등록</title>
 </head>
 
@@ -22,10 +22,10 @@
 <div class="app-wrapper">
 
     <!-- 공통 상단 헤더 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
 
     <!-- 공통 사이드바 -->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <div class="app-content">
@@ -366,11 +366,11 @@
     </main>
 
     <!-- 공통 푸터 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
 
 <!-- 공통 JS -->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 
 <!-- 사원 등록 화면 전용 JS -->
 <script th:src="@{/js/employee/create.js}"></script>

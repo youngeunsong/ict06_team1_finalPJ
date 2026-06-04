@@ -12,14 +12,14 @@
 -->
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{/admin/common/head.html :: common_header}">
+<head th:replace="~{admin/common/head :: common_header}">
     <meta charset="UTF-8">
     <title id="page_title">학습 목록 관리</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
-    <th:block th:replace="~{/admin/common/header}"></th:block>
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <div class="app-content">
@@ -114,8 +114,8 @@
         </div>
     </main>
 
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 </body>
 </html>

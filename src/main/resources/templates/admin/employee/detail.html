@@ -9,7 +9,7 @@
     - 수정 버튼을 누르면 해당 사원의 수정 화면으로 이동한다.
     - 화면 동작 JS는 /static/js/employee/detail.js 로 분리했다.
 -->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">사원 상세</title>
 </head>
 
@@ -17,10 +17,10 @@
 <div class="app-wrapper">
 
     <!-- 공통 상단 헤더 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
 
     <!-- 공통 사이드바 -->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <div class="app-content">
@@ -223,11 +223,11 @@
     </main>
 
     <!-- 공통 푸터 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
 
 <!-- 공통 JS -->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 
 <!-- 사원 상세 화면 전용 JS -->
 <script th:src="@{/js/employee/detail.js}"></script>

@@ -8,13 +8,13 @@
 -->
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">전자결재 서식 상세</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
-    <th:block th:replace="~{/admin/common/header}"></th:block>
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
@@ -69,10 +69,10 @@
         </div>
     </main>
 
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
 
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="/js/approval/deleteAppForm.js"></script>
 <script>

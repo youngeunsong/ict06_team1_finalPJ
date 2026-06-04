@@ -16,7 +16,7 @@
 
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">AI 비서 운영 대시보드</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
@@ -106,8 +106,8 @@
     }
 </style>
 <div class="app-wrapper">
-    <th:block th:replace="~{/admin/common/header}"></th:block>
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <div class="app-content">
@@ -500,7 +500,7 @@
         </div>
     </main>
 
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
 
 <script th:inline="javascript">
@@ -517,7 +517,7 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 <script th:src="@{/js/aiSecretary/adAiDashboard.js}"></script>
 </body>
 </html>

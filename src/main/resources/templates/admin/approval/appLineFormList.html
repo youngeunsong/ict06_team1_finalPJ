@@ -1,4 +1,4 @@
-﻿<!--
+<!--
  * @author : 송영은
  * description : 관리자용 전자결재 결재선 템플릿 관리
  * ========================================
@@ -9,7 +9,7 @@
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
 <!--begin::Head-->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">결재선 서식 목록</title>    <!-- 해당 페이지별 사용할 title 내용 넣기 -->
 </head>
 <!--end::Head-->
@@ -18,11 +18,11 @@
 <!--begin::App Wrapper-->
 <div class="app-wrapper">
     <!-- 헤더 시작 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
     <!-- 헤더 끝 -->
 
     <!-- 사이드바 시작-->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
     <!-- 사이드바 끝-->
 
     <!-- 메인 콘텐츠 시작 -->
@@ -98,12 +98,12 @@
     </main>
     <!-- 메인 콘텐츠 끝 -->
     <!-- 푸터 시작 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
     <!-- 푸터 끝 -->
 </div>
 <!--end::App Wrapper-->
 <!--스크립트 시작-->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
+<th:block th:replace="~{admin/common/commonJs}"></th:block> <!-- 공통 사용 스크립트 불러오기-->
 <!-- 각 페이지 별로 필요한 스크립트 작성 혹은 임포트 -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> <!-- jQuery -->
 <script src="/js/approval/deleteAppLineForm.js"></script> <!-- 결재선 서식 삭제 js -->

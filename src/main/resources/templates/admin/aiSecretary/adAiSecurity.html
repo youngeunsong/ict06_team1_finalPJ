@@ -36,7 +36,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <!-- begin::Head -->
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
     <title id="page_title">보안 및 권한 제어</title>
 </head>
 <!-- end::Head -->
@@ -48,11 +48,11 @@
 <div class="app-wrapper">
 
     <!-- 헤더 시작 -->
-    <th:block th:replace="~{/admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
     <!-- 헤더 끝 -->
 
     <!-- 사이드바 시작 -->
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
     <!-- 사이드바 끝 -->
 
     <!-- 메인 콘텐츠 시작 -->
@@ -1413,14 +1413,14 @@
     <!-- 메인 콘텐츠 끝 -->
 
     <!-- 푸터 시작 -->
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
     <!-- 푸터 끝 -->
 
 </div>
 <!-- end::App Wrapper -->
 
 <!-- 공통 사용 스크립트 불러오기 -->
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 
 <!--
 [adAiSecurity 페이지 전용 스크립트]

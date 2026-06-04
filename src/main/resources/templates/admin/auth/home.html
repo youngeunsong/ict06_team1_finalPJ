@@ -16,13 +16,13 @@
  -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:insert="~{/admin/common/head.html :: common_header}">
+<head th:insert="~{admin/common/head :: common_header}">
     <title id="page_title">COREWORK Admin Dashboard</title>
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
-    <th:block th:replace="~{/admin/common/header}"></th:block>
-    <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+    <th:block th:replace="~{admin/common/header}"></th:block>
+    <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
     <main class="app-main">
         <div class="container-fluid p-4 cw-page-container">
@@ -182,10 +182,10 @@
         </div>
     </main>
 
-    <th:block th:replace="~{/admin/common/footer}"></th:block>
+    <th:block th:replace="~{admin/common/footer}"></th:block>
 </div>
 
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', function() {

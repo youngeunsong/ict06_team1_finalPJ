@@ -1,4 +1,4 @@
-﻿<!--
+<!--
  * @FileName : adAiRagManage.html
  * @Description : 관리자 지식 베이스 및 RAG 관리 화면
  * @Author : 송혜진
@@ -16,7 +16,7 @@
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-<head th:include="/admin/common/head.html :: common_header">
+<head th:include="admin/common/head :: common_header">
   <title id="page_title">지식 베이스 및 RAG 관리</title>
 </head>
 
@@ -210,8 +210,8 @@
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
 <div class="app-wrapper">
 
-  <th:block th:replace="~{/admin/common/header}"></th:block>
-  <th:block th:replace="~{/admin/common/sidebar}"></th:block>
+  <th:block th:replace="~{admin/common/header}"></th:block>
+  <th:block th:replace="~{admin/common/sidebar}"></th:block>
 
   <main class="app-main">
     <div class="app-content">
@@ -1163,7 +1163,7 @@
   </main>
 </div>
 
-<th:block th:replace="~{/admin/common/commonJs}"></th:block>
+<th:block th:replace="~{admin/common/commonJs}"></th:block>
 <script th:inline="javascript">
   window.adAiRagManageSuggestions = {
     requestTypes: /*[[${requestTypeOptions}]]*/ [],

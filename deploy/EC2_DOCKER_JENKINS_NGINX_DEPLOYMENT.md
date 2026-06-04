@@ -894,6 +894,14 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /ai-api/health {
+        proxy_pass http://127.0.0.1:8000/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /ai-api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host $host;
@@ -902,7 +910,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    location ~ ^/(admin|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -1117,6 +1125,8 @@ http://EC2_PUBLIC_IP/ai-api/health
 AI health direct local on EC2
 curl http://127.0.0.1:8000/health
 ```
+
+`/ai-api/health`는 Nginx의 별도 health location을 통해 AI 서버의 `/health`로 전달됩니다. 일반 AI API 요청은 `/ai-api/ai/...` 형태로 호출되고, Nginx에서 AI 서버의 `/api/ai/...`로 전달됩니다.
 
 로그인 요청이 정상이라면 브라우저 개발자도구 Network에서 요청 주소가 다음처럼 보여야 합니다.
 
@@ -1423,7 +1433,7 @@ docker exec -it team1-backend ls -lh /app/employee/ict_06_uploads
 Nginx도 업로드 파일 URL을 backend로 넘겨야 합니다. `/etc/nginx/sites-available/team1`에 아래 경로가 포함되어 있는지 확인합니다.
 
 ```nginx
-location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+location ~ ^/(admin|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
     proxy_pass http://127.0.0.1:8081;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -1448,6 +1458,50 @@ http://EC2_PUBLIC_IP/employee/uploads/sign/파일명
 ```
 
 주의: `docker compose down -v`는 DB 볼륨을 지울 수 있으므로 업로드 폴더와 직접 관련은 없더라도 운영/테스트 데이터가 있는 상태에서는 신중하게 사용합니다.
+
+### `/admin/home`에서 Thymeleaf template 500 오류가 나는 경우
+
+관리자 로그인 후 `/admin/home`에서 Whitelabel 500이 나오고 backend 로그에 아래 오류가 보이면 Thymeleaf fragment 경로 문제입니다.
+
+```text
+Error resolving template [/admin/common/head.html]
+template: "admin/auth/home"
+```
+
+Spring Boot jar 배포 환경에서는 공통 fragment를 절대 경로처럼 `/admin/common/head.html`로 부르면 템플릿 리졸버가 찾지 못할 수 있습니다. `src/main/resources/templates` 기준의 상대 템플릿명으로 작성합니다.
+
+잘못된 예:
+
+```html
+<head th:insert="~{/admin/common/head.html :: common_header}">
+<th:block th:replace="~{/admin/common/header}"></th:block>
+```
+
+정상 예:
+
+```html
+<head th:insert="~{admin/common/head :: common_header}">
+<th:block th:replace="~{admin/common/header}"></th:block>
+```
+
+수정 후 backend jar를 다시 빌드하고 backend 이미지를 재생성해야 합니다.
+
+```bash
+cd /opt/team1/current
+git pull
+
+cp deploy/application.properties.example src/main/resources/application.properties
+cp deploy/application-prod.properties.example src/main/resources/application-prod.properties
+
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+chmod +x mvnw
+./mvnw clean package -DskipTests
+
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+docker logs -f team1-backend
+```
 
 ### Hibernate Schema validation 타입 오류가 나는 경우
 
@@ -1512,6 +1566,127 @@ docker logs -f team1-ai-server
 ```
 
 정상이라면 더 이상 Traceback이 반복되지 않고 Uvicorn 기동 로그가 이어집니다.
+
+### Docker build 중 no space left on device가 나는 경우
+
+아래 오류는 Docker 이미지 빌드 마지막 단계에서 EC2 디스크 또는 Docker 저장소(`/var/lib/docker`) 공간이 부족하다는 뜻입니다.
+
+```text
+failed to solve: failed to extract layer ...
+no space left on device
+```
+
+먼저 디스크와 Docker 사용량을 확인합니다.
+
+```bash
+df -h
+docker system df
+```
+
+안 쓰는 Docker build cache와 dangling image를 정리합니다.
+
+```bash
+docker builder prune -f
+docker image prune -f
+```
+
+그래도 부족하면 사용하지 않는 Docker 이미지, 중지된 컨테이너, build cache를 한 번에 정리합니다.
+
+```bash
+docker system prune -af
+```
+
+주의: DB 데이터가 들어 있는 Docker volume은 삭제하면 안 됩니다. 아래 명령은 운영/배포 테스트 DB를 날릴 수 있으므로 실행하지 않습니다.
+
+```bash
+docker volume prune
+docker compose down -v
+```
+
+OS 패키지 캐시와 오래된 journal 로그도 정리할 수 있습니다.
+
+```bash
+sudo apt clean
+sudo journalctl --vacuum-time=7d
+```
+
+정리 후 다시 빌드합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
+docker logs -f team1-ai-server
+```
+
+위 정리 후에도 공간이 부족하면 EC2 EBS 볼륨 크기를 늘린 뒤 Ubuntu에서 파티션/파일시스템 확장을 진행해야 합니다.
+
+#### EBS 용량을 추가 구매해서 확장하는 방법
+
+현재처럼 Docker AI 서버 이미지 빌드가 `no space left on device`로 반복 실패하면 루트 EBS 볼륨을 늘리는 것이 가장 확실합니다. 우리 프로젝트 기준으로는 최소 50GB, 여유 있게는 60GB 이상을 권장합니다.
+
+현재 용량과 사용량은 EC2에서 확인합니다.
+
+```bash
+df -h
+docker system df
+lsblk
+```
+
+판단 기준:
+
+```text
+df -h에서 / 사용률이 80% 이상이면 Docker build 중 임시 레이어 때문에 실패할 가능성이 큼
+docker system df에서 Images, Build Cache가 수 GB 이상이면 정리 후 재시도
+정리 후에도 실패하면 EBS 볼륨 확장 권장
+```
+
+AWS Console에서 EBS 볼륨을 확장합니다.
+
+```text
+1. AWS Console 접속
+2. EC2 -> Instances -> 현재 인스턴스 선택
+3. Storage 탭 -> Root volume 클릭
+4. EBS Volumes 화면에서 해당 volume 선택
+5. Actions -> Modify volume
+6. Size를 50 또는 60 GiB 등으로 변경
+7. Type은 gp3 유지
+8. IOPS/Throughput은 기본값 유지
+9. Modify 클릭
+```
+
+AWS에서 볼륨 크기를 늘린 뒤, Ubuntu 안에서 파티션과 파일시스템을 확장합니다. 먼저 루트 파티션을 확인합니다.
+
+```bash
+lsblk
+df -Th /
+```
+
+예를 들어 `/`가 `/dev/nvme0n1p1`에 붙어 있다면 다음처럼 실행합니다.
+
+```bash
+sudo growpart /dev/nvme0n1 1
+sudo resize2fs /dev/nvme0n1p1
+df -h
+```
+
+인스턴스에 따라 디바이스 이름은 `/dev/xvda1`처럼 다를 수 있습니다. `lsblk`에서 `/`가 붙어 있는 파티션을 기준으로 명령을 맞춥니다.
+
+참고 자료: [AWS EC2 인스턴스 용량 확장](https://velog.io/@harvey/AWS-EC2-%EC%9D%B8%EC%8A%A4%ED%84%B4%EC%8A%A4-%EC%9A%A9%EB%9F%89-%ED%99%95%EC%9E%A5). 이 글도 EBS 볼륨 확장과 Linux 파일 시스템 확장의 두 단계로 설명합니다.
+
+확장 후 Docker 정리를 한 번 더 하고 다시 빌드합니다.
+
+```bash
+docker builder prune -af
+docker image prune -f
+
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
+docker logs -f team1-ai-server
+```
+
+과금은 EBS의 프로비저닝한 GB/월 기준입니다. AWS Free Tier에는 일반적으로 EBS 30GB가 포함되므로, 50GB로 늘리면 초과분 약 20GB, 60GB로 늘리면 초과분 약 30GB에 대해 월 과금이 발생한다고 보면 됩니다. 정확한 금액은 리전, EBS 타입, 환율, 세금에 따라 달라지므로 AWS Pricing Calculator에서 `Amazon EBS`, 리전 `Asia Pacific (Seoul)`, 타입 `gp3`, 용량 `50GB` 또는 `60GB`로 계산합니다.
 
 ### PostgreSQL init SQL이 다시 실행되지 않는 경우
 
