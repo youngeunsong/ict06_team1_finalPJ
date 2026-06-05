@@ -36,27 +36,74 @@ Docker Compose
 
 Nginx만 외부에 공개하고, Spring/FastAPI/PostgreSQL/Redis는 EC2 내부 Docker 네트워크에서만 접근하게 둡니다.
 
-## 2. AWS 보안그룹 설정
+## 2. AWS 설정
 
-EC2 보안그룹 인바운드 규칙:
+### 2.1 AWS에서 인스턴스 생성 & 설정
 
-```text
-22    SSH       본인 IP만 허용
-80    HTTP      0.0.0.0/0
-443   HTTPS     0.0.0.0/0, SSL 적용 시
-8080  Jenkins   본인 IP만 허용 또는 VPN/IP 제한
-```
+1. https://aws.amazon.com/ko/ 에 접속 -> 프리티어로 회원가입
+1. 루트 사용자로 로그인
+1. '검색' 탭에서 'EC2' 검색
+1. 사이트 상단에 선택된 지역이 '아시아 태평양(서울)'인지 확인. 아니라면 수정 필요.
+1. '인스턴스' 시작 클릭
+1. '이름' 란에 인스턴스 이름 입력
+1. '애플리케이션 및 OS 이미지' - 'Quick Start' - 'Ubuntu' 선택
+1. '인스턴스 유형' -> 't3.micro' 선택
+1. '키 페어(로그인)' - '새 키 페어 생성' 클릭
+1. '키 페어 생성': 아래 항목 입력/선택 후 '키 페어 생성' 클릭, 파일 다운로드.
 
-열지 않는 포트:
+    - '키 페어 이름' 입력
+    - '키 페어 유형' - 'RSA' 선택
+    - '프라이빗 키 파일 형식' - '.pem' 선택
 
-```text
-5432  PostgreSQL
-6379  Redis
-8081  Spring Boot
-8000  FastAPI
-```
+1. '스토리지 구성' - 30 GiB, gp3 로 설정 (프리 티어 최대 허용 용량. 추후 용량 추가 예정.)
+1. '인스턴스 시작' 클릭
 
-Jenkins 포트를 9090 등으로 바꾼 경우 보안그룹도 해당 포트로 맞춥니다.
+### 2.2 AWS 보안그룹 설정
+
+1. 사이드바 - '네트워크 및 보안' - '보안 그룹' 선택
+1. '보안 그룹 생성' 클릭
+1. '보안 그룹 이름', '설명(영어로만 작성 가능)' 작성
+1. '인바운드 규칙'에서 '규칙 추가' 클릭
+1. 아래대로 입력하며 총 4개의 규칙 생성 -> '보안 그룹 생성' 클릭
+
+    ```text
+    포트 범위   유형      소스          CIDR 블록 
+    22          SSH       내 IP 
+    80          HTTP      사용자 지정   0.0.0.0/0
+    443         HTTPS     사용자 지정   0.0.0.0/0, SSL 적용 시
+    8080        Jenkins   내 IP (본인 IP만 허용 또는 VPN/IP 제한)
+    ```
+
+    열지 않는 포트:
+
+    ```text
+    5432  PostgreSQL
+    6379  Redis
+    8081  Spring Boot
+    8000  FastAPI
+    ```
+
+    Jenkins 포트를 9090 등으로 바꾼 경우 보안그룹도 해당 포트로 맞춥니다.
+
+1. 사이드바 - 인스턴스 - 인스턴스 - 생성했던 인스턴스의 인스턴스 ID 항목 클릭
+1. 작업 - 보안 - 보안 그룹 변경 클릭
+1. 연결된 보안 그룹 - 보안 그룹 선택 - 방금 생성한 보안 그룹 선택 - 보안 그룹 추가 클릭 - 저장
+
+### 2.3 탄력적 IP 설정
+
+1. 사이드바 - 네트워크 및 보안 - 탄력적 IP 클릭
+1. '탄력적 IP 주소 할당' 버튼 클릭
+1. 네트워크 경계 그룹: ap-northeast-2 처럼 서울 지역 포함하는 그룹이어야 함. 만약 이 값이 아니라면 사이트 상단에 선택된 지역이 '아시아 태평양(서울)'이 아닌 것이므로 수정 필요.
+1. '할당' 클릭
+1. 사이드바 - 인스턴스 - 인스턴스 - 생성했던 인스턴스의 인스턴스 ID 항목 클릭
+1. 작업 - 네트워킹 - 탄력적 IP 주소 연결 클릭
+1. 다음과 같이 설정:
+
+    - 리소스 유형: 인스턴스
+    - 인스턴스 : 생성한 인스턴스로 선택
+
+1. 연결 클릭
+1. 인스턴스 세부 정보에서 이제 탄력적 IP 주소 확인 가능. 이 주소가 바로 **앞으로 개발한 사이트로 접속할 수 있는 ip 주소**.  
 
 ## 3. Windows에서 EC2 접속 준비
 
@@ -70,6 +117,15 @@ SSH User: ubuntu
 Key file: .pem 파일
 SSH Port: 22
 ```
+
+- 깃허브에서 배포용 브랜치로 pull 한 상태로 진행.
+- 배포 전 윈도우에서 프로젝트 정상 작동하는 지 확인하고 싶은 경우 '시스템 환경 변수 편집' 기능을 이용해 아래 두 변수를 새로 등록해주세요:
+  - REACT_APP_SERVER_URL
+    - 변수명: REACT_APP_SERVER_URL
+    - 변수 값: http://localhost:8081/api
+  - REACT_APP_AI_SERVER_URL
+    - 변수명: REACT_APP_AI_SERVER_URL
+    - 변수 값: http://localhost:8000/api
 
 ### 3.1 MobaXterm SSH 접속
 
@@ -92,7 +148,7 @@ uname -a
 
 정상이라면 사용자는 `ubuntu`입니다.
 
-### 3.2 MobaXterm SFTP 패널 사용
+### 3.2 MobaXterm SFTP 패널 사용(참고)
 
 MobaXterm으로 SSH 접속하면 왼쪽에 SFTP 파일 탐색 패널이 함께 열립니다. 이 패널로 Windows 파일을 EC2에 드래그 앤 드롭할 수 있습니다.
 
@@ -104,7 +160,7 @@ MobaXterm으로 SSH 접속하면 왼쪽에 SFTP 파일 탐색 패널이 함께 �
 
 예를 들어 `backup.sql`을 `/home/ubuntu/backup.sql`로 업로드한 뒤, EC2 터미널에서 `/opt/team1/db/init`로 옮깁니다.
 
-### 3.3 PowerShell SSH/SCP 대체 명령
+### 3.3 PowerShell SSH/SCP 대체 명령(참고)
 
 ```powershell
 ssh -i "D:\keys\team1.pem" ubuntu@EC2_PUBLIC_IP
@@ -247,7 +303,7 @@ sudo usermod -aG docker jenkins
 sudo systemctl restart jenkins
 ```
 
-### 6.1 Jenkins 8080 포트 충돌 해결
+### 6.1 Jenkins 8080 포트 충돌 해결(참고)
 
 Jenkins 시작 로그에 아래 메시지가 나오면 8080 포트를 이미 다른 프로세스가 사용 중입니다.
 
@@ -860,7 +916,7 @@ docker exec -it team1-postgres pg_restore \
 docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "\dt"
 ```
 
-#### plain SQL dump인 경우
+#### plain SQL dump인 경우 (참고)
 
 일반 SQL 텍스트 파일이면 `psql -f`를 사용합니다.
 
@@ -894,14 +950,6 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location = /ai-api/health {
-        proxy_pass http://127.0.0.1:8000/health;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
     location /ai-api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host $host;
@@ -910,7 +958,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -942,20 +990,22 @@ New Item
 
 처음 배포 테스트라면 이렇게 하시면 됩니다.
 
-**General**
+### General
 
-* 설명: 선택 사항
-* Do not allow concurrent builds: 체크 추천
-* 나머지: 비워도 됨
+- 설명: 선택 사항
+- Do not allow concurrent builds: 체크 추천
+- 나머지: 비워도 됨
 
-**Triggers**
-* 전부 비워도 됨
-* 지금은 자동 빌드가 아니라 수동으로 Build Now 할 거라서 필요 없습니다.
+### Triggers
 
-**Pipeline**
-* Definition: Pipeline script 선택
-* Script: 문서의 권장 Pipeline 스크립트 붙여넣기
-* Use Groovy Sandbox: 체크 유지
+- 전부 비워도 됨
+- 지금은 자동 빌드가 아니라 수동으로 Build Now 할 거라서 필요 없습니다.
+
+### Pipeline
+
+- Definition: Pipeline script 선택
+- Script: 문서의 권장 Pipeline 스크립트 붙여넣기
+- Use Groovy Sandbox: 체크 유지
 
 권장 Pipeline 스크립트:
 
@@ -1078,7 +1128,7 @@ Jenkins 자동화 전, EC2에서 한 번 수동으로 확인합니다.
 
 Linux에서 `./mvnw: Permission denied`가 나오면 Maven Wrapper에 실행 권한이 없는 상태입니다. 이 경우 `sudo`로 실행하지 말고 `chmod +x mvnw`를 먼저 실행합니다.
 
-Querydsl을 사용하는 프로젝트라면 개발 환경에서 Maven `clean` 후 `build/package`를 실행해 QClass를 생성했던 과정이 배포 시에도 빌드 단계에 포함되어야 합니다. 다만 별도 명령을 추가할 필요는 없고, Maven 설정이 정상이라면 아래의 `./mvnw clean package -DskipTests` 과정에서 annotation processing이 실행되며 QClass가 생성되고 jar에 포함됩니다. QClass 생성 문제가 있으면 보통 Docker 실행 후 런타임 오류가 아니라 Maven 빌드 중 `cannot find symbol Q...` 형태의 컴파일 오류로 실패합니다.
+(참고)Querydsl을 사용하는 프로젝트라면 개발 환경에서 Maven `clean` 후 `build/package`를 실행해 QClass를 생성했던 과정이 배포 시에도 빌드 단계에 포함되어야 합니다. 다만 별도 명령을 추가할 필요는 없고, Maven 설정이 정상이라면 아래의 `./mvnw clean package -DskipTests` 과정에서 annotation processing이 실행되며 QClass가 생성되고 jar에 포함됩니다. QClass 생성 문제가 있으면 보통 Docker 실행 후 런타임 오류가 아니라 Maven 빌드 중 `cannot find symbol Q...` 형태의 컴파일 오류로 실패합니다.
 
 ```bash
 cd /opt/team1/current
@@ -1125,8 +1175,6 @@ http://EC2_PUBLIC_IP/ai-api/health
 AI health direct local on EC2
 curl http://127.0.0.1:8000/health
 ```
-
-`/ai-api/health`는 Nginx의 별도 health location을 통해 AI 서버의 `/health`로 전달됩니다. 일반 AI API 요청은 `/ai-api/ai/...` 형태로 호출되고, Nginx에서 AI 서버의 `/api/ai/...`로 전달됩니다.
 
 로그인 요청이 정상이라면 브라우저 개발자도구 Network에서 요청 주소가 다음처럼 보여야 합니다.
 
@@ -1224,6 +1272,7 @@ free -h
 ```text
 /swapfile none swap sw 0 0
 ```
+
 ### Docker Compose가 env 파일 permission denied로 실패하는 경우
 
 아래 오류가 나오면 Docker Compose를 실행하는 사용자(`ubuntu` 또는 `jenkins`)가 env 파일을 읽지 못하는 상태입니다.
@@ -1267,6 +1316,7 @@ sudo systemctl restart jenkins
 ```
 
 `ubuntu` 사용자의 `groups`에 `docker`가 없다면 SSH를 재접속한 뒤 다시 확인합니다.
+
 ### React가 `/api`를 React 서버로 보내는 경우
 
 운영 빌드는 다음 값으로 빌드해야 합니다.
@@ -1406,8 +1456,6 @@ services:
       - /opt/team1/uploads/employee:/app/employee
 ```
 
-주의: 이 설정은 반드시 `backend:` 서비스 아래에 있어야 합니다. `postgres:` 서비스의 `volumes:` 아래에 넣으면 backend 컨테이너에는 적용되지 않습니다. 기존에 `- /opt/team1/uploads:/app/uploads`가 남아 있다면 제거하고 위 두 줄로 교체합니다.
-
 이 매핑이 필요한 이유는 Spring 코드가 컨테이너 내부에서 다음 경로를 기준으로 파일을 읽고 쓰기 때문입니다.
 
 ```text
@@ -1433,7 +1481,7 @@ docker exec -it team1-backend ls -lh /app/employee/ict_06_uploads
 Nginx도 업로드 파일 URL을 backend로 넘겨야 합니다. `/etc/nginx/sites-available/team1`에 아래 경로가 포함되어 있는지 확인합니다.
 
 ```nginx
-location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
     proxy_pass http://127.0.0.1:8081;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -1458,69 +1506,6 @@ http://EC2_PUBLIC_IP/employee/uploads/sign/파일명
 ```
 
 주의: `docker compose down -v`는 DB 볼륨을 지울 수 있으므로 업로드 폴더와 직접 관련은 없더라도 운영/테스트 데이터가 있는 상태에서는 신중하게 사용합니다.
-
-### `/admin/home`에서 Thymeleaf template 500 오류가 나는 경우
-
-관리자 로그인 후 `/admin/home`에서 Whitelabel 500이 나오고 backend 로그에 아래 오류가 보이면 Thymeleaf fragment 경로 문제입니다.
-
-```text
-Error resolving template [/admin/common/head.html]
-template: "admin/auth/home"
-```
-
-Spring Boot jar 배포 환경에서는 공통 fragment를 절대 경로처럼 `/admin/common/head.html`로 부르면 템플릿 리졸버가 찾지 못할 수 있습니다. `src/main/resources/templates` 기준의 상대 템플릿명으로 작성합니다.
-
-잘못된 예:
-
-```html
-<head th:insert="~{/admin/common/head.html :: common_header}">
-<th:block th:replace="~{/admin/common/header}"></th:block>
-```
-
-정상 예:
-
-```html
-<head th:insert="~{admin/common/head :: common_header}">
-<th:block th:replace="~{admin/common/header}"></th:block>
-```
-
-수정 후 backend jar를 다시 빌드하고 backend 이미지를 재생성해야 합니다.
-
-```bash
-cd /opt/team1/current
-git pull
-
-cp deploy/application.properties.example src/main/resources/application.properties
-cp deploy/application-prod.properties.example src/main/resources/application-prod.properties
-
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$PATH
-chmod +x mvnw
-./mvnw clean package -DskipTests
-
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
-docker logs -f team1-backend
-```
-
-전자결재 관리자 화면처럼 특정 관리자 페이지가 빈 화면으로 보이면 해당 템플릿에도 같은 기준을 적용합니다. 특히 아래 항목을 확인합니다.
-
-```html
-<!-- 정상 namespace -->
-<html xmlns:th="http://www.thymeleaf.org">
-
-<!-- 정상 fragment 경로 -->
-<head th:insert="~{admin/common/head :: common_header}">
-<th:block th:replace="~{admin/approval/appFormNav}"></th:block>
-```
-
-잘못된 예:
-
-```html
-<html xmlns:th="http://www.thymleaf.org">
-<head th:insert="admin/common/head :: common_header">
-<th:block th:replace="~{/admin/approval/appFormNav}"></th:block>
-```
 
 ### Hibernate Schema validation 타입 오류가 나는 경우
 
@@ -1564,148 +1549,6 @@ Docker Compose 내부에서는 AI host가 `localhost`가 아닙니다.
 ```env
 AI_SERVER_BASE_URL=http://ai-server:8000
 ```
-
-### AI 서버가 f-string SyntaxError로 시작하지 못하는 경우
-
-AI 서버 로그에 아래 오류가 반복되면 FastAPI 앱이 뜨기 전에 Python 문법 오류로 종료되는 상태입니다.
-
-```text
-SyntaxError: f-string: expressions nested too deeply
-```
-
-주로 `f"""..."""` 문자열 안에 JSON 예시를 그대로 넣었을 때 발생합니다. f-string 안에서 변수 치환용이 아닌 JSON 중괄호는 `{{`와 `}}`로 이스케이프해야 합니다.
-
-코드 수정 후 AI 서버 이미지를 다시 빌드하고 컨테이너를 재생성합니다.
-
-```bash
-cd /opt/team1/current
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
-docker logs -f team1-ai-server
-```
-
-정상이라면 더 이상 Traceback이 반복되지 않고 Uvicorn 기동 로그가 이어집니다.
-
-### Docker build 중 no space left on device가 나는 경우
-
-아래 오류는 Docker 이미지 빌드 마지막 단계에서 EC2 디스크 또는 Docker 저장소(`/var/lib/docker`) 공간이 부족하다는 뜻입니다.
-
-```text
-failed to solve: failed to extract layer ...
-no space left on device
-```
-
-먼저 디스크와 Docker 사용량을 확인합니다.
-
-```bash
-df -h
-docker system df
-```
-
-안 쓰는 Docker build cache와 dangling image를 정리합니다.
-
-```bash
-docker builder prune -f
-docker image prune -f
-```
-
-그래도 부족하면 사용하지 않는 Docker 이미지, 중지된 컨테이너, build cache를 한 번에 정리합니다.
-
-```bash
-docker system prune -af
-```
-
-주의: DB 데이터가 들어 있는 Docker volume은 삭제하면 안 됩니다. 아래 명령은 운영/배포 테스트 DB를 날릴 수 있으므로 실행하지 않습니다.
-
-```bash
-docker volume prune
-docker compose down -v
-```
-
-OS 패키지 캐시와 오래된 journal 로그도 정리할 수 있습니다.
-
-```bash
-sudo apt clean
-sudo journalctl --vacuum-time=7d
-```
-
-정리 후 다시 빌드합니다.
-
-```bash
-cd /opt/team1/current
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
-docker logs -f team1-ai-server
-```
-
-위 정리 후에도 공간이 부족하면 EC2 EBS 볼륨 크기를 늘린 뒤 Ubuntu에서 파티션/파일시스템 확장을 진행해야 합니다.
-
-#### EBS 용량을 추가 구매해서 확장하는 방법
-
-현재처럼 Docker AI 서버 이미지 빌드가 `no space left on device`로 반복 실패하면 루트 EBS 볼륨을 늘리는 것이 가장 확실합니다. 우리 프로젝트 기준으로는 최소 50GB, 여유 있게는 60GB 이상을 권장합니다.
-
-현재 용량과 사용량은 EC2에서 확인합니다.
-
-```bash
-df -h
-docker system df
-lsblk
-```
-
-판단 기준:
-
-```text
-df -h에서 / 사용률이 80% 이상이면 Docker build 중 임시 레이어 때문에 실패할 가능성이 큼
-docker system df에서 Images, Build Cache가 수 GB 이상이면 정리 후 재시도
-정리 후에도 실패하면 EBS 볼륨 확장 권장
-```
-
-AWS Console에서 EBS 볼륨을 확장합니다.
-
-```text
-1. AWS Console 접속
-2. EC2 -> Instances -> 현재 인스턴스 선택
-3. Storage 탭 -> Root volume 클릭
-4. EBS Volumes 화면에서 해당 volume 선택
-5. Actions -> Modify volume
-6. Size를 50 또는 60 GiB 등으로 변경
-7. Type은 gp3 유지
-8. IOPS/Throughput은 기본값 유지
-9. Modify 클릭
-```
-
-AWS에서 볼륨 크기를 늘린 뒤, Ubuntu 안에서 파티션과 파일시스템을 확장합니다. 먼저 루트 파티션을 확인합니다.
-
-```bash
-lsblk
-df -Th /
-```
-
-예를 들어 `/`가 `/dev/nvme0n1p1`에 붙어 있다면 다음처럼 실행합니다.
-
-```bash
-sudo growpart /dev/nvme0n1 1
-sudo resize2fs /dev/nvme0n1p1
-df -h
-```
-
-인스턴스에 따라 디바이스 이름은 `/dev/xvda1`처럼 다를 수 있습니다. `lsblk`에서 `/`가 붙어 있는 파티션을 기준으로 명령을 맞춥니다.
-
-참고 자료: [AWS EC2 인스턴스 용량 확장](https://velog.io/@harvey/AWS-EC2-%EC%9D%B8%EC%8A%A4%ED%84%B4%EC%8A%A4-%EC%9A%A9%EB%9F%89-%ED%99%95%EC%9E%A5). 이 글도 EBS 볼륨 확장과 Linux 파일 시스템 확장의 두 단계로 설명합니다.
-
-확장 후 Docker 정리를 한 번 더 하고 다시 빌드합니다.
-
-```bash
-docker builder prune -af
-docker image prune -f
-
-cd /opt/team1/current
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build ai-server
-docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
-docker logs -f team1-ai-server
-```
-
-과금은 EBS의 프로비저닝한 GB/월 기준입니다. AWS Free Tier에는 일반적으로 EBS 30GB가 포함되므로, 50GB로 늘리면 초과분 약 20GB, 60GB로 늘리면 초과분 약 30GB에 대해 월 과금이 발생한다고 보면 됩니다. 정확한 금액은 리전, EBS 타입, 환율, 세금에 따라 달라지므로 AWS Pricing Calculator에서 `Amazon EBS`, 리전 `Asia Pacific (Seoul)`, 타입 `gp3`, 용량 `50GB` 또는 `60GB`로 계산합니다.
 
 ### PostgreSQL init SQL이 다시 실행되지 않는 경우
 
@@ -1842,13 +1685,3 @@ sudo chmod 644 /opt/team1/db/init/01_backup.sql
 15. 브라우저에서 http://EC2_PUBLIC_IP 접속 및 로그인 테스트
 16. 운영 DB 백업 스케줄 등록
 ```
-
-
-
-
-
-
-
-
-
-
