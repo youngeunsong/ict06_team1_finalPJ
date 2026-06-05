@@ -1032,6 +1032,390 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+### 14.1 HTTPS 적용
+
+브라우저 Geolocation API는 `https://도메인` 또는 `http://localhost` 같은 보안 출처에서만 동작합니다. 출근/퇴근 GPS 기능을 배포 환경에서 테스트하려면 IP 주소 HTTP 접속이 아니라 HTTPS 도메인 접속으로 바꿔야 합니다.
+
+전체 순서:
+
+```text
+sslip.io 무료 도메인 또는 무료 DDNS 서브도메인 준비
+-> sslip.io는 별도 DNS 설정 없이 EC2 탄력적 IP 기반 주소 사용
+-> AWS 보안그룹에서 80, 443 오픈
+-> Nginx server_name을 도메인으로 변경
+-> Certbot으로 Let's Encrypt 인증서 발급
+-> backend env의 frontend/cors origin을 https 도메인으로 변경
+-> Jenkins webhook URL도 https 도메인으로 변경
+```
+
+#### 14.1.1 프리티어 시연용 도메인 선택
+
+유료 도메인을 구매하지 않아도 HTTPS 적용은 가능합니다. Let's Encrypt 인증서는 IP 주소 자체에는 발급할 수 없지만, `sslip.io`처럼 IP를 도메인 이름에 포함하는 무료 DNS 주소나 DuckDNS 같은 무료 DDNS 서브도메인에는 발급할 수 있습니다.
+
+이 프로젝트의 프리티어 시연에서는 DuckDNS의 CAA DNS 조회가 Let's Encrypt 검증 과정에서 타임아웃될 수 있으므로, 기본 방식은 `sslip.io`를 사용합니다.
+
+권장 선택지:
+
+```text
+프리티어 시연 기본값: sslip.io 사용
+무료 DDNS 대안: DuckDNS 사용. DNS CAA 조회 타임아웃이 발생하면 인증서 발급이 실패할 수 있음
+유료로 진행: Route 53 또는 외부 도메인 구매 후 DNS A 레코드 연결
+임시 우회: Chrome insecure origin 허용 옵션 사용. 운영 방식 아님
+```
+
+sslip.io는 도메인 이름 앞부분의 IP를 그대로 DNS A 레코드로 응답하는 무료 서비스입니다. 따라서 별도 회원가입, 서브도메인 생성, DNS A 레코드 설정이 필요 없습니다.
+
+예시:
+
+```text
+43.200.198.243.sslip.io -> 43.200.198.243
+```
+
+이 프로젝트의 HTTPS 시연 주소:
+
+```text
+YOUR_DOMAIN = 43.200.198.243.sslip.io
+```
+
+확인:
+
+```bash
+nslookup 43.200.198.243.sslip.io
+```
+
+결과 IP가 EC2 탄력적 IP로 나오면 이후 문서의 `YOUR_DOMAIN` 자리에 `43.200.198.243.sslip.io`를 넣습니다.
+
+주의:
+
+```text
+sslip.io는 프리티어 시연, 통합테스트, 포트폴리오 확인 용도에는 적합합니다.
+다만 내 소유 도메인이 아니므로 장기 운영 또는 공식 서비스 주소로는 유료 도메인이나 안정적인 DNS를 권장합니다.
+```
+
+DuckDNS를 대안으로 사용하는 경우:
+
+```text
+YOUR_SUBDOMAIN.duckdns.org -> EC2 탄력적 IP
+```
+
+```text
+1. https://www.duckdns.org 접속
+2. GitHub/Google 등으로 로그인
+3. 원하는 subdomain 생성
+4. current ip 또는 ip 입력칸에 EC2 탄력적 IP 입력
+5. update ip 클릭
+```
+
+예시:
+
+```text
+corework.duckdns.org -> 43.200.198.243
+```
+
+확인:
+
+```bash
+nslookup corework.duckdns.org
+```
+
+결과 IP가 EC2 탄력적 IP로 나오면 이후 문서의 `YOUR_DOMAIN` 자리에 DuckDNS 주소를 넣으면 됩니다.
+
+```text
+YOUR_DOMAIN = corework.duckdns.org
+```
+
+만약 Certbot 실행 시 아래처럼 CAA 조회 타임아웃이 발생하면 DuckDNS DNS 응답 문제일 가능성이 큽니다.
+
+```text
+DNS problem: query timed out looking up CAA for duckdns.org
+```
+
+이 경우 짧은 시간에 반복 재시도하지 말고, 프리티어 시연에서는 `sslip.io` 방식으로 우회하는 것을 권장합니다.
+
+유료 도메인을 쓰는 경우에는 도메인 관리 화면에서 A 레코드를 추가합니다.
+
+```text
+Type: A
+Name: @ 또는 원하는 서브도메인
+Value: EC2 탄력적 IP
+TTL: 기본값 또는 300
+```
+
+예시:
+
+```text
+team1.example.com -> 43.200.198.243
+```
+
+DNS 전파 확인:
+
+```bash
+nslookup YOUR_DOMAIN
+```
+
+결과 IP가 EC2 탄력적 IP로 나오면 다음 단계로 진행합니다.
+
+AWS에서 유료 도메인을 관리하려면 Route 53을 사용합니다. 프리티어만 사용할 계획이라면 이 Route 53 도메인 구매 단계는 건너뛰고 `sslip.io` 방식을 사용합니다.
+
+Route 53에서 새 도메인을 구매하는 경우:
+
+```text
+AWS Console
+-> Route 53
+-> Registered domains
+-> Register domain
+-> 원하는 도메인 검색 및 구매
+```
+
+도메인을 구매하면 보통 Hosted zone이 함께 생성됩니다. 생성되지 않았다면 아래처럼 직접 만듭니다.
+
+```text
+Route 53
+-> Hosted zones
+-> Create hosted zone
+-> Domain name: YOUR_DOMAIN
+-> Type: Public hosted zone
+-> Create hosted zone
+```
+
+Hosted zone 안에서 A 레코드를 생성합니다.
+
+```text
+Create record
+-> Record name: 비워두면 루트 도메인, www/team1 등 입력하면 서브도메인
+-> Record type: A
+-> Value: EC2 탄력적 IP
+-> TTL: 기본값
+-> Routing policy: Simple routing
+-> Create records
+```
+
+예시:
+
+```text
+example.com       A  43.200.198.243
+www.example.com   A  43.200.198.243
+```
+
+이미 다른 업체에서 구매한 도메인을 Route 53 Hosted zone으로 관리하려면, Route 53 Hosted zone에 표시된 NS 레코드 4개를 도메인 구매처의 네임서버 설정에 등록해야 합니다.
+
+```text
+Route 53 Hosted zone의 NS 값 확인
+-> 도메인 구매처 DNS/네임서버 설정 화면
+-> 기존 네임서버를 Route 53 NS 4개로 교체
+```
+
+도메인 구매처 DNS를 그대로 쓸 경우에는 Route 53을 만들 필요 없이, 도메인 구매처 DNS 관리 화면에서 A 레코드만 EC2 탄력적 IP로 추가하면 됩니다.
+
+#### 14.1.2 보안그룹 확인
+
+AWS EC2 보안그룹 인바운드 규칙에 아래가 열려 있어야 합니다.
+
+```text
+80   HTTP   0.0.0.0/0
+443  HTTPS  0.0.0.0/0
+22   SSH    내 IP
+```
+
+Jenkins 8080은 외부 전체 공개하지 않는 것을 권장합니다. GitHub webhook은 Nginx의 `/github-webhook/` 프록시로 받습니다.
+
+#### 14.1.3 Nginx server_name 변경
+
+EC2에서 Nginx 설정을 수정합니다.
+
+```bash
+sudo nano /etc/nginx/sites-available/team1
+```
+
+`server_name`을 IP 대신 도메인으로 바꿉니다.
+
+프리티어 시연 기준:
+
+```nginx
+server_name 43.200.198.243.sslip.io;
+```
+
+전체 예시:
+
+```nginx
+server {
+    listen 80;
+    server_name YOUR_DOMAIN;
+
+    root /var/www/team1;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8081/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /ai-api/health {
+        proxy_pass http://127.0.0.1:8000/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ai-api/ {
+        proxy_pass http://127.0.0.1:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /github-webhook/ {
+        proxy_pass http://127.0.0.1:8080/github-webhook/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+적용 전 문법 확인:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### 14.1.4 Certbot 설치 및 인증서 발급
+
+Ubuntu에서 Certbot을 설치합니다.
+
+```bash
+sudo apt update
+sudo apt install -y certbot python3-certbot-nginx
+```
+
+인증서를 발급하고 Nginx HTTPS 설정을 자동 적용합니다.
+
+```bash
+sudo certbot --nginx -d YOUR_DOMAIN
+```
+
+프리티어 시연 기준:
+
+```bash
+sudo certbot --nginx -d 43.200.198.243.sslip.io
+```
+
+진행 중 이메일을 입력하고, HTTP를 HTTPS로 redirect할지 물으면 redirect를 선택합니다. 성공하면 Certbot이 Nginx 설정에 443 SSL server block과 인증서 경로를 추가합니다.
+
+확인:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+curl -I https://YOUR_DOMAIN
+```
+
+프리티어 시연 기준:
+
+```bash
+curl -I https://43.200.198.243.sslip.io
+```
+
+인증서 자동 갱신 확인:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+#### 14.1.5 backend env origin 변경
+
+HTTPS 도메인을 쓰면 backend origin 설정도 도메인으로 맞춥니다.
+
+```bash
+sudo nano /opt/team1/env/backend.env
+```
+
+아래 값을 변경합니다.
+
+```env
+APP_FRONTEND_ORIGIN=https://YOUR_DOMAIN
+APP_CORS_ALLOWED_ORIGINS=https://YOUR_DOMAIN
+```
+
+프리티어 시연 기준:
+
+```env
+APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+```
+
+backend 컨테이너 재생성:
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+#### 14.1.6 GitHub webhook URL 변경
+
+GitHub repository의 webhook URL도 HTTPS 도메인으로 바꿉니다.
+
+```text
+Payload URL: https://YOUR_DOMAIN/github-webhook/
+Content type: application/json
+Events: Just the push event
+Active: 체크
+```
+
+프리티어 시연 기준:
+
+```text
+Payload URL: https://43.200.198.243.sslip.io/github-webhook/
+```
+
+GitHub Webhook 상세 화면의 `Recent Deliveries`에서 응답 코드가 `200`인지 확인합니다.
+
+#### 14.1.7 HTTPS 접속 확인
+
+브라우저에서 아래를 확인합니다.
+
+```text
+https://YOUR_DOMAIN
+https://YOUR_DOMAIN/admin/login
+https://YOUR_DOMAIN/ai-api/health
+```
+
+프리티어 시연 기준:
+
+```text
+https://43.200.198.243.sslip.io
+https://43.200.198.243.sslip.io/admin/login
+https://43.200.198.243.sslip.io/ai-api/health
+```
+
+출근/퇴근 GPS 테스트:
+
+```text
+1. https://43.200.198.243.sslip.io 로 접속
+2. 주소창 왼쪽 사이트 설정에서 위치 권한 허용
+3. 출근하기 클릭
+4. 브라우저 콘솔에서 Only secure origins are allowed 오류가 사라졌는지 확인
+```
+
 ## 15. Jenkins Pipeline 구성
 
 이 단계부터는 수동으로 입력하던 빌드/복사/컨테이너 재생성 명령을 Jenkins가 대신 실행하게 만듭니다.
@@ -1306,17 +1690,49 @@ Settings
 Webhook 값:
 
 ```text
-Payload URL: http://EC2_PUBLIC_IP:8080/github-webhook/
+Payload URL: https://43.200.198.243.sslip.io/github-webhook/
 Content type: application/json
 Events: Just the push event
 Active: 체크
 ```
 
+Jenkins 8080 포트를 GitHub webhook 때문에 외부에 직접 열어둘 수도 있지만, 운영 기준으로는 Nginx에서 webhook 경로만 Jenkins로 프록시하는 방식을 권장합니다. 이 경우 Jenkins 8080 포트는 보안그룹에서 내 IP만 허용하거나 닫아두고, GitHub webhook은 443의 `/github-webhook/`으로 받습니다.
+
+Nginx 설정에 아래 location을 추가합니다.
+
+```nginx
+location /github-webhook/ {
+    proxy_pass http://127.0.0.1:8080/github-webhook/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+적용:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Nginx 프록시 방식을 사용하면 GitHub Webhook 값은 아래처럼 설정합니다.
+
+```text
+Payload URL: https://43.200.198.243.sslip.io/github-webhook/
+Content type: application/json
+Events: Just the push event
+Active: 체크
+```
+
+GitHub webhook 저장 후 GitHub의 Webhook 상세 화면에서 `Recent Deliveries`를 열어 응답 코드가 `200`인지 확인합니다. 이후 배포 브랜치에 push하면 Jenkins job의 Build History에 새 빌드가 자동으로 생성되어야 합니다.
+
 주의:
 
 ```text
-EC2 보안그룹에서 Jenkins 포트 8080이 GitHub webhook 요청을 받을 수 있어야 함
-Jenkins를 외부에 계속 열어두는 것이 부담되면 webhook은 나중에 붙이고 Build Now 방식만 사용
+8080 직접 호출 방식은 Jenkins 포트를 외부에 열어야 하므로 권장하지 않음
+Nginx 프록시 방식을 쓰면 443만 GitHub webhook에 사용하고 Jenkins 8080은 외부에 직접 열지 않는 것을 권장
 운영 배포 브랜치에 push할 때만 자동 배포되도록 브랜치명을 명확히 관리
 ```
 
@@ -2254,6 +2670,64 @@ curl -i --max-time 10 http://127.0.0.1:8081/admin/onboarding/documents
 curl -i --max-time 10 http://127.0.0.1/admin/onboarding/documents
 docker logs --tail=100 team1-backend
 ```
+
+### 출근/퇴근 클릭 시 GPS 위치 정보가 없다고 나오는 경우
+
+브라우저 콘솔에 아래 오류가 나오면 프론트엔드 코드나 backend API 문제가 아니라, 브라우저가 HTTP 배포 주소에서 Geolocation API 사용을 차단한 것입니다.
+
+```text
+Only secure origins are allowed
+GeolocationPositionError code: 1
+GPS 위치 정보가 없습니다.
+```
+
+브라우저의 Geolocation API는 보안 출처에서만 동작합니다.
+
+```text
+허용: https://도메인, http://localhost
+차단: http://EC2_PUBLIC_IP
+```
+
+따라서 `http://43.200.198.243` 같은 HTTP IP 주소로 접속한 배포 환경에서는 출근/퇴근 GPS 기능이 정상 동작하지 않습니다. 통합테스트에서 출퇴근 기능까지 확인하려면 아래 중 하나를 선택합니다.
+
+권장 방식: sslip.io + HTTPS 적용
+
+```text
+43.200.198.243.sslip.io처럼 EC2 탄력적 IP 기반 sslip.io 주소 사용
+별도 DNS 설정 없이 해당 주소가 EC2 탄력적 IP를 가리키는지 확인
+Nginx server_name을 sslip.io 주소로 변경
+Let's Encrypt/Certbot 등으로 SSL 인증서 발급
+https://43.200.198.243.sslip.io 로 접속해서 출근/퇴근 테스트
+```
+
+DuckDNS를 사용할 수도 있지만, Let's Encrypt 인증서 발급 중 아래 오류가 반복되면 DuckDNS DNS CAA 조회 타임아웃 문제일 가능성이 있습니다.
+
+```text
+DNS problem: query timed out looking up CAA for duckdns.org
+```
+
+이 경우 프리티어 시연에서는 DuckDNS 대신 `sslip.io`로 진행하는 것이 빠릅니다.
+
+임시 테스트 방식: Chrome insecure origin 허용
+
+```text
+Chrome 실행 옵션에 아래 값을 추가해서 테스트 PC에서만 HTTP IP를 임시 허용
+--unsafely-treat-insecure-origin-as-secure=http://EC2_PUBLIC_IP
+```
+
+이 방식은 개발/통합테스트용 임시 우회입니다. 팀원 각자 브라우저에 적용해야 하며, 운영 사용자에게 안내할 방식은 아닙니다.
+
+확인 순서:
+
+```text
+1. https://43.200.198.243.sslip.io 또는 임시 허용된 브라우저로 접속
+2. 주소창 왼쪽 사이트 설정에서 위치 권한 허용
+3. 출근하기 클릭
+4. 브라우저 콘솔에 Only secure origins are allowed가 사라졌는지 확인
+5. backend가 회사 반경 검증을 통과하는지 확인
+```
+
+GPS 권한이 정상으로 바뀐 뒤에도 실패한다면 그때는 backend의 회사 위치/허용 반경 검증 문제일 수 있습니다. backend 기준 위치는 `AttendanceServiceImpl`의 `COMPANY_LAT`, `COMPANY_LNG`, `ALLOWED_DISTANCE_METER` 값을 확인합니다.
 
 ### Docker build 중 no space left on device가 나는 경우
 
