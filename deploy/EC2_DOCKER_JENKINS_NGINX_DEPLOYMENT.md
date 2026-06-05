@@ -178,7 +178,7 @@ sudo apt update
 sudo apt upgrade -y
 
 sudo apt install -y \
-  git curl wget unzip ca-certificates gnupg lsb-release \
+  git curl wget unzip ca-certificates gnupg lsb-release rsync \
   nginx fontconfig openjdk-17-jdk
 ```
 
@@ -190,6 +190,21 @@ Java 17 확인:
 ```
 
 Jenkins 2.555.x는 Jenkins 자체 실행에 Java 21이 필요합니다. 프로젝트 빌드 JDK 17과 Jenkins 실행 Java 21은 분리해서 사용합니다.
+
+React build를 위해 Node.js/npm도 필요합니다. Ubuntu 기본 저장소 버전이 너무 낮으면 NodeSource 또는 nvm을 사용하고, 우선 아래 명령으로 설치 여부를 확인합니다.
+
+```bash
+node -v
+npm -v
+```
+
+없다면 설치합니다.
+
+```bash
+sudo apt install -y nodejs npm
+node -v
+npm -v
+```
 
 ## 5. Docker 설치
 
@@ -979,13 +994,43 @@ sudo systemctl reload nginx
 
 ## 15. Jenkins Pipeline 구성
 
-웹브라우저의 Jenkins 페이지에서 진행.
+이 단계부터는 수동으로 입력하던 빌드/복사/컨테이너 재생성 명령을 Jenkins가 대신 실행하게 만듭니다.
+
+처음에는 GitHub push 자동 트리거까지 바로 연결하지 말고, Jenkins 화면에서 `Build Now` 버튼을 누르면 배포되는 방식으로 구성합니다. 이 방식이 안정화된 뒤 GitHub webhook을 붙입니다.
+
+자동 배포가 하는 일:
+
+```text
+GitHub 브랜치 checkout
+-> Spring properties 파일 복사
+-> backend jar 빌드
+-> React build
+-> React build 결과를 /var/www/team1에 복사
+-> /opt/team1/current에 배포 파일 동기화
+-> Docker image build
+-> docker compose up -d로 컨테이너 재생성
+-> Nginx reload
+```
+
+자동 배포가 하지 않는 일:
+
+```text
+DB drop/create
+backup.sql 복원
+docker volume prune
+docker compose down -v
+/opt/team1/uploads 삭제
+```
+
+DB 복원, backup.sql 교체, 업로드 폴더 이관은 별도 운영 작업으로 분리합니다.
+
+웹브라우저의 Jenkins 페이지에서 진행합니다.
 Jenkins Item:
 
 ```text
 New Item 
 -> item name = '(원하는 이름)', item type = Pipeline 
--> Pipeline script from SCM
+-> OK
 ```
 
 처음 배포 테스트라면 이렇게 하시면 됩니다.
@@ -999,7 +1044,7 @@ New Item
 ### Triggers
 
 - 전부 비워도 됨
-- 지금은 자동 빌드가 아니라 수동으로 Build Now 할 거라서 필요 없습니다.
+- 지금은 GitHub webhook이 아니라 Jenkins 화면에서 `Build Now`로 실행할 것이므로 필요 없습니다.
 
 ### Pipeline
 
@@ -1007,13 +1052,15 @@ New Item
 - Script: 문서의 권장 Pipeline 스크립트 붙여넣기
 - Use Groovy Sandbox: 체크 유지
 
-권장 Pipeline 스크립트:
+권장 Pipeline 스크립트입니다. `BRANCH_NAME`은 실제 배포용 파일이 들어 있는 브랜치명으로 바꿉니다.
 
 ```groovy
 pipeline {
     agent any
 
     environment {
+        REPOSITORY_URL = "https://github.com/youngeunsong/ict06_team1_finalPJ.git"
+        BRANCH_NAME = "topic/aws_test"
         DEPLOY_DIR = "/opt/team1/current"
         FRONT_DIR = "/var/www/team1"
     }
@@ -1021,7 +1068,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: "${BRANCH_NAME}", url: "${REPOSITORY_URL}"
             }
         }
 
@@ -1050,8 +1097,11 @@ pipeline {
             steps {
                 dir('react-frontend') {
                     sh '''
+                    export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+                    node -v
+                    npm -v
                     npm ci
-                    NODE_OPTIONS=--max-old-space-size=2048 \
+                    NODE_OPTIONS=--max-old-space-size=1024 \
                     REACT_APP_SERVER_URL=/api \
                     REACT_APP_AI_SERVER_URL=/ai-api \
                     npm run build
@@ -1070,6 +1120,9 @@ pipeline {
                   --exclude react-frontend/node_modules \
                   --exclude react-frontend/build \
                   --exclude target \
+                  --exclude .env \
+                  --exclude application.properties \
+                  --exclude application-prod.properties \
                   ./ $DEPLOY_DIR/
 
                 sudo mkdir -p $DEPLOY_DIR/target
@@ -1092,7 +1145,7 @@ pipeline {
             steps {
                 sh '''
                 cd $DEPLOY_DIR
-                docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build
+                docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend ai-server
                 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d
                 '''
             }
@@ -1106,11 +1159,29 @@ pipeline {
                 '''
             }
         }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                docker ps
+                curl -f http://127.0.0.1/ || true
+                curl -f http://127.0.0.1/ai-api/health
+                '''
+            }
+        }
     }
 }
 ```
 
-이후 터미널에서 Jenkins 사용자가 필요한 sudo 명령만 실행할 수 있게 제한합니다.
+GitHub 저장소가 private이면 Jenkins Credentials에 GitHub token 또는 SSH key를 등록한 뒤 checkout 부분에 `credentialsId`를 추가합니다.
+
+```groovy
+git branch: "${BRANCH_NAME}",
+    url: "${REPOSITORY_URL}",
+    credentialsId: "github-credentials-id"
+```
+
+이후 EC2 터미널에서 Jenkins 사용자가 필요한 sudo 명령만 실행할 수 있게 제한합니다.
 
 ```bash
 sudo visudo
@@ -1119,7 +1190,74 @@ sudo visudo
 추가:
 
 ```text
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/rsync, /usr/bin/cp, /usr/bin/rm, /usr/bin/chown, /usr/sbin/nginx, /bin/systemctl reload nginx
+jenkins ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/rsync, /usr/bin/cp, /usr/bin/rm, /usr/bin/chown, /usr/sbin/nginx, /bin/systemctl reload nginx, /usr/bin/systemctl reload nginx
+```
+
+Jenkins가 Docker와 env 파일을 읽을 수 있는지 확인합니다.
+
+```bash
+sudo usermod -aG docker jenkins
+
+sudo chown root:docker /opt/team1/.env
+sudo chmod 640 /opt/team1/.env
+
+sudo chown root:docker /opt/team1/env/backend.env /opt/team1/env/ai.env
+sudo chmod 640 /opt/team1/env/backend.env /opt/team1/env/ai.env
+
+sudo systemctl restart jenkins
+```
+
+Jenkins 재시작 후 웹브라우저에서 Jenkins job으로 들어가 `Build Now(▶️지금 빌드)`를 클릭합니다. 왼쪽 `Build History`에서 새 빌드를 클릭한 뒤 `Console Output`을 보면 진행 상황을 확인할 수 있습니다.
+
+빌드 성공 후 확인:
+
+```bash
+docker ps
+curl http://127.0.0.1/ai-api/health
+curl -I http://127.0.0.1/admin/login
+```
+
+브라우저에서 확인:
+
+```text
+http://EC2_PUBLIC_IP
+http://EC2_PUBLIC_IP/admin/login
+```
+
+### 15.1 GitHub push 시 자동 실행으로 바꾸기
+
+`Build Now` 방식이 안정화된 뒤에만 GitHub webhook을 연결합니다.
+
+Jenkins job 설정:
+
+```text
+Triggers
+-> GitHub hook trigger for GITScm polling 체크
+```
+
+GitHub repository 설정:
+
+```text
+Settings
+-> Webhooks
+-> Add webhook
+```
+
+Webhook 값:
+
+```text
+Payload URL: http://EC2_PUBLIC_IP:8080/github-webhook/
+Content type: application/json
+Events: Just the push event
+Active: 체크
+```
+
+주의:
+
+```text
+EC2 보안그룹에서 Jenkins 포트 8080이 GitHub webhook 요청을 받을 수 있어야 함
+Jenkins를 외부에 계속 열어두는 것이 부담되면 webhook은 나중에 붙이고 Build Now 방식만 사용
+운영 배포 브랜치에 push할 때만 자동 배포되도록 브랜치명을 명확히 관리
 ```
 
 ## 16. 최초 수동 배포 테스트
@@ -1271,6 +1409,114 @@ free -h
 
 ```text
 /swapfile none swap sw 0 0
+```
+
+### Jenkins React build 중 OOM killer가 Jenkins를 종료하는 경우
+
+Jenkins Console Output이 아래 상태에서 오래 멈춘 뒤 Jenkins가 재시작되거나 빌드가 중단되면, React build가 오래 걸리는 것이 아니라 EC2 메모리 부족으로 Jenkins 프로세스가 종료된 상황일 수 있습니다.
+
+```text
+Creating an optimized production build...
+```
+
+Jenkins 로그에 아래 메시지가 보이면 커널 OOM killer가 Jenkins를 종료한 것입니다.
+
+```text
+The kernel OOM killer killed some processes in this unit.
+jenkins.service: Failed with result 'oom-kill'.
+```
+
+이 경우 `react-frontend/build` 폴더가 있어도 비어 있을 수 있습니다.
+
+```bash
+ls -lh /var/lib/jenkins/workspace/JOB_NAME/react-frontend/build
+```
+
+먼저 메모리와 swap 상태를 확인합니다.
+
+```bash
+free -h
+swapon --show
+sudo journalctl -u jenkins -n 150 --no-pager | grep -i -E 'oom|killed'
+```
+
+swap이 없거나 너무 작다면 4G swap을 추가합니다. 이미 `/swapfile`이 있으면 아래 명령을 바로 실행하지 말고 `swapon --show`, `ls -lh /swapfile`로 기존 swap 크기부터 확인합니다.
+
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
+```
+
+이미 `/swapfile`이 사용 중인데 크기를 늘리려고 하면 아래처럼 실패합니다.
+
+```text
+fallocate: fallocate failed: Text file busy
+mkswap: error: /swapfile is mounted; will not make swapspace
+swapon: /swapfile: swapon failed: Device or resource busy
+```
+
+이 경우 기존 `/swapfile`을 건드리지 말고, 추가 swap 파일을 하나 더 만드는 방식이 가장 간단합니다. 예를 들어 기존 swap이 2G라면 2G를 추가해서 총 4G로 맞춥니다.
+
+```bash
+df -h
+sudo fallocate -l 2G /swapfile2
+sudo chmod 600 /swapfile2
+sudo mkswap /swapfile2
+sudo swapon /swapfile2
+free -h
+swapon --show
+```
+
+추가한 swap도 재부팅 후 유지하려면 `/etc/fstab`에 아래 줄을 추가합니다.
+
+```bash
+echo '/swapfile2 none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+재부팅 후에도 유지하려면 `/etc/fstab`에 아래 줄을 추가합니다.
+
+```bash
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+작은 EC2에서는 Jenkins executor를 `1`로 두는 것을 권장합니다.
+
+```text
+Jenkins 관리
+-> Nodes
+-> Built-In Node
+-> Configure
+-> Number of executors = 1
+```
+
+그리고 Pipeline의 React build 단계에서는 Node가 과도한 메모리를 잡지 않도록 `NODE_OPTIONS=--max-old-space-size=1024` 정도로 시작합니다.
+
+```groovy
+stage('Build React') {
+    steps {
+        dir('react-frontend') {
+            sh '''
+            export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+            node -v
+            npm -v
+            npm ci
+            NODE_OPTIONS=--max-old-space-size=1024 \
+            REACT_APP_SERVER_URL=/api \
+            REACT_APP_AI_SERVER_URL=/ai-api \
+            npm run build
+            '''
+        }
+    }
+}
+```
+
+조치 후 Jenkins를 재시작하고, 대기 중이거나 실패한 이전 빌드는 취소한 뒤 다시 `Build Now`를 실행합니다.
+
+```bash
+sudo systemctl restart jenkins
 ```
 
 ### Docker Compose가 env 파일 permission denied로 실패하는 경우
@@ -1549,6 +1795,227 @@ Docker Compose 내부에서는 AI host가 `localhost`가 아닙니다.
 ```env
 AI_SERVER_BASE_URL=http://ai-server:8000
 ```
+
+### Jenkins가 Waiting for next available executor에서 멈추는 경우
+
+Jenkins Console Output이 아래 상태로 오래 멈추면 빌드가 아직 시작되지 못한 것입니다.
+
+```text
+Still waiting to schedule task
+Waiting for next available executor
+```
+
+먼저 Jenkins executor 설정을 확인합니다.
+
+```text
+Jenkins 관리
+-> Nodes
+-> Built-In Node
+-> Configure
+-> Number of executors = 1 또는 2
+```
+
+EC2 사양이 작다면 `1`을 권장합니다. executor를 늘렸는데도 계속 대기하면 Jenkins controller가 disk monitor 때문에 offline 상태일 수 있습니다.
+
+Jenkins 상태 로그에 아래 경고가 보이면 임시 디렉터리 공간이 너무 작다는 뜻입니다.
+
+```text
+temporary-space : Only 0.447 Gb free on (controller)
+```
+
+Ubuntu EC2에서 `/tmp`가 작은 tmpfs로 잡혀 있으면 Jenkins가 사용할 임시 디렉터리를 디스크 공간이 넉넉한 곳으로 바꿉니다.
+
+```bash
+sudo mkdir -p /var/lib/jenkins/tmp
+sudo chown jenkins:jenkins /var/lib/jenkins/tmp
+sudo chmod 750 /var/lib/jenkins/tmp
+```
+
+Jenkins systemd override를 수정합니다.
+
+```bash
+sudo nano /etc/systemd/system/jenkins.service.d/override.conf
+```
+
+아래처럼 `JAVA_OPTS`를 추가합니다. 기존 Java 21 설정은 유지합니다.
+
+```ini
+[Service]
+Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
+Environment="JENKINS_JAVA_CMD=/usr/lib/jvm/java-21-openjdk-amd64/bin/java"
+Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.io.tmpdir=/var/lib/jenkins/tmp"
+```
+
+적용:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart jenkins
+sudo systemctl status jenkins --no-pager -l
+```
+
+Jenkins 실행 명령에 `-Djava.io.tmpdir=/var/lib/jenkins/tmp`가 포함되어 있는지 확인합니다.
+
+```bash
+ps -ef | grep '[j]enkins.war'
+```
+
+Jenkins 웹에서 대기 중인 이전 빌드를 취소한 뒤 다시 `Build Now`를 클릭합니다. 정상이라면 Console Output이 `Checkout`, `Build Backend Jar` 같은 stage로 넘어갑니다.
+
+### Jenkins에서 npm: not found가 나는 경우
+
+Console Output에서 React build 단계가 아래처럼 실패하면 Jenkins 실행 환경에서 `npm`을 찾지 못하는 상태입니다.
+
+```text
+npm: not found
+ERROR: script returned exit code 127
+```
+
+EC2에서 먼저 Node.js/npm 설치 여부를 확인합니다.
+
+```bash
+which node
+which npm
+node -v
+npm -v
+```
+
+설치되어 있지 않다면 설치합니다.
+
+```bash
+sudo apt update
+sudo apt install -y nodejs npm
+node -v
+npm -v
+```
+
+Jenkins 사용자 기준으로도 보이는지 확인합니다.
+
+```bash
+sudo -u jenkins which node
+sudo -u jenkins which npm
+sudo -u jenkins node -v
+sudo -u jenkins npm -v
+```
+
+설치 후 Jenkins를 재시작하고 다시 `Build Now`를 실행합니다.
+
+```bash
+sudo systemctl restart jenkins
+```
+
+만약 `ubuntu` 사용자에서는 보이는데 `jenkins` 사용자에서는 안 보이면 Node/npm 경로를 Pipeline에 명시합니다. 예를 들어 `which npm` 결과가 `/usr/bin/npm`이면 React build stage에서 아래처럼 PATH를 추가합니다.
+
+```groovy
+stage('Build React') {
+    steps {
+        dir('react-frontend') {
+            sh '''
+            export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+            node -v
+            npm -v
+            npm ci
+            NODE_OPTIONS=--max-old-space-size=1024 \
+            REACT_APP_SERVER_URL=/api \
+            REACT_APP_AI_SERVER_URL=/ai-api \
+            npm run build
+            '''
+        }
+    }
+}
+```
+
+### Docker build 중 no space left on device가 나는 경우
+
+아래 오류는 Docker 이미지 빌드 마지막 단계에서 EC2 디스크 또는 Docker 저장소(`/var/lib/docker`) 공간이 부족하다는 뜻입니다.
+
+```text
+failed to solve: failed to extract layer ...
+no space left on device
+```
+
+먼저 디스크와 Docker 사용량을 확인합니다.
+
+```bash
+df -h
+docker system df
+```
+
+안 쓰는 Docker build cache와 dangling image를 정리합니다.
+
+```bash
+docker builder prune -f
+docker image prune -f
+```
+
+그래도 부족하면 사용하지 않는 Docker 이미지, 중지된 컨테이너, build cache를 한 번에 정리합니다.
+
+```bash
+docker system prune -af
+```
+
+주의: DB 데이터가 들어 있는 Docker volume은 삭제하면 안 됩니다. 아래 명령은 운영/배포 테스트 DB를 날릴 수 있으므로 실행하지 않습니다.
+
+```bash
+docker volume prune
+docker compose down -v
+```
+
+OS 패키지 캐시와 오래된 journal 로그도 정리할 수 있습니다.
+
+```bash
+sudo apt clean
+sudo journalctl --vacuum-time=7d
+```
+
+위 정리 후에도 공간이 부족하면 EC2 EBS 볼륨 크기를 늘린 뒤 Ubuntu에서 파티션/파일시스템 확장을 진행해야 합니다.
+
+#### EBS 용량을 추가 구매해서 확장하는 방법
+
+현재처럼 Docker AI 서버 이미지 빌드가 `no space left on device`로 반복 실패하면 루트 EBS 볼륨을 늘리는 것이 가장 확실합니다. 우리 프로젝트 기준으로는 최소 50GB, 여유 있게는 60GB 이상을 권장합니다.
+
+현재 용량과 사용량은 EC2에서 확인합니다.
+
+```bash
+df -h
+docker system df
+lsblk
+```
+
+AWS Console에서 EBS 볼륨을 확장합니다.
+
+```text
+1. AWS Console 접속
+2. EC2 -> Instances -> 현재 인스턴스 선택
+3. Storage 탭 -> Root volume 클릭
+4. EBS Volumes 화면에서 해당 volume 선택
+5. Actions -> Modify volume
+6. Size를 50 또는 60 GiB 등으로 변경
+7. Type은 gp3 유지
+8. IOPS/Throughput은 기본값 유지
+9. Modify 클릭
+```
+
+AWS에서 볼륨 크기를 늘린 뒤, Ubuntu 안에서 파티션과 파일시스템을 확장합니다. 먼저 루트 파티션을 확인합니다.
+
+```bash
+lsblk
+df -Th /
+```
+
+예를 들어 `/`가 `/dev/nvme0n1p1`에 붙어 있다면 다음처럼 실행합니다.
+
+```bash
+sudo growpart /dev/nvme0n1 1
+sudo resize2fs /dev/nvme0n1p1
+df -h
+```
+
+인스턴스에 따라 디바이스 이름은 `/dev/xvda1`처럼 다를 수 있습니다. `lsblk`에서 `/`가 붙어 있는 파티션을 기준으로 명령을 맞춥니다.
+
+참고 자료: [AWS EC2 인스턴스 용량 확장](https://velog.io/@harvey/AWS-EC2-%EC%9D%B8%EC%8A%A4%ED%84%B4%EC%8A%A4-%EC%9A%A9%EB%9F%89-%ED%99%95%EC%9E%A5). 이 글도 EBS 볼륨 확장과 Linux 파일 시스템 확장의 두 단계로 설명합니다.
+
+과금은 EBS의 프로비저닝한 GB/월 기준입니다. AWS Free Tier에는 일반적으로 EBS 30GB가 포함되므로, 50GB로 늘리면 초과분 약 20GB, 60GB로 늘리면 초과분 약 30GB에 대해 월 과금이 발생한다고 보면 됩니다. 정확한 금액은 리전, EBS 타입, 환율, 세금에 따라 달라지므로 AWS Pricing Calculator에서 `Amazon EBS`, 리전 `Asia Pacific (Seoul)`, 타입 `gp3`, 용량 `50GB` 또는 `60GB`로 계산합니다.
 
 ### PostgreSQL init SQL이 다시 실행되지 않는 경우
 

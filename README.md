@@ -155,8 +155,18 @@ v.260420
 ```xml
 ict06_team1_finalPJ                         # 스프링부트 메인 프로젝트
 ├── ai_server/                              # ⭐AI 작업용 파일
+│   ├── api/                                # FastAPI 라우터
+│   ├── repositories/                       # AI 서버 DB 조회/저장 로직
+│   ├── schemas/                            # Pydantic 요청/응답 스키마
+│   ├── services/                           # 문서 처리, 임베딩, 평가 등 AI 비즈니스 로직
+│   ├── utils/                              # AI 서버 공통 유틸
+│   ├── main.py                             # FastAPI 실행 진입점
+│   ├── database.py                         # DB 연결/초기화 설정
+│   ├── requirements.txt                    # Python 의존성 목록
 │   └── .env                                # ⚠️파이썬에 필요한 API 키 등 저장. github에 안 올라감
 ├── DB/                                     # ⭐DB 작업 시 필요한 쿼리/데이터 보관
+├── deploy/                                 # 배포 설정 예시와 EC2/Docker/Jenkins/Nginx 배포 문서
+├── docs/                                   # 엔티티/테이블 스키마, API 명세 등 프로젝트 문서
 ├── react-frontend/                         # 일반 직원/팀장용 React 프론트엔드
 │   ├── .gitignore                          # React 용 .gitignore 설정
 │   ├── src/
@@ -241,20 +251,22 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │   ├── approval/                  # 대분류: 전자결재
 │   │   │   │   ├── auth/                      # 대분류: 인증/인가 / 로그인·마이페이지
 │   │   │   │   ├── calendar/                  # 대분류: 캘린더 / 일정 등록·조회·수정·삭제
-│   │   │   │   ├── chatbot/                   # 대분류: 챗봇 / 사내 규정 Q&A·서비스 안내
-│   │   │   │   ├── common/                    # 도메인에 해당하지 않는 공통적으로 사용하는 dto 배치 
 │   │   │   │   ├── employee/                  # 대분류: 인사 관리 / 내 정보·조직도 조회
 │   │   │   │   ├── evaluation/                # 대분류: 인사평가(교육평가 AI 포함) / AI 퀴즈·자기평가·결과 조회
+│   │   │   │   ├── notification/              # 대분류: 알림 / 실시간 알림 조회·전송
 │   │   │   │   ├── onboarding/                # 대분류: 인사평가(교육평가 AI 포함) / 온보딩 로드맵·체크리스트·교육일정
-│   │   │   │   └── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
+│   │   │   │   ├── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
+│   │   │   │   └── BaseTimeEntity.java        # 생성/수정 시간 공통 필드
 │   │   │   ├── exception/                 # 예외 처리
 │   │   │   ├── response/                  # 공통 응답 형식
+│   │   │   ├── security/                  # JWT, 권한 체크 공통 처리
 │   │   │   ├── util/                      # 유틸 클래스
-│   │   │   └── security/                  # JWT, 권한 체크 공통 처리
+│   │   │   └── web/                       # 관리자 공통 모델/웹 계층 보조 처리
 │   │   │
 │   │   ├── domain/                        # ⭐기능(도메인) 중심 모듈
 │   │   │   ├── attendance/                # 대분류: 근태관리
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: excel, scheduler
 │   │   │   │      - 기본근무: 출근 등록, 퇴근 등록, 조퇴 관리, 근태 대시보드
 │   │   │   │      - 휴가관리: 연차 현황, 휴가계 조회, 연차 생성
 │   │   │   │      - 외근/출장: 외근 등록
@@ -263,6 +275,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │
 │   │   │   ├── approval/                  # 대분류: 전자결재
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: config
 │   │   │   │      - 새 결재 진행: 결재 정보 선택, 결재 내용 작성, OCR(후순위)
 │   │   │   │      - 개인 문서함 / 임시 저장함
 │   │   │   │      - 팀장 기능: 결재 대기 문서함, 결재 예정 문서함, 승인/반려 처리
@@ -277,6 +290,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │
 │   │   │   ├── employee/                  # 대분류: 인사 관리
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: config
 │   │   │   │      - 사원관리: 사원 등록, 목록 조회, 상세 조회, 수정, 삭제
 │   │   │   │      - 권한관리: 접근 권한 처리
 │   │   │   │      - 조직관리: 조직도 전체 조회, 부서별 조회, 구성원 상세
@@ -284,6 +298,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │
 │   │   │   ├── payroll/                   # 대분류: 급여 관리
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: config
 │   │   │   │      - 급여 대장 관리: 대장 생성, 저장, 마감, 삭제
 │   │   │   │      - 기본급 관리: 등록, 수정, 삭제, 목록 조회
 │   │   │   │      - 급여 요약: 급여 목록, 검색 필터, 상세 보기, 변동 추이
@@ -306,6 +321,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │
 │   │   │   ├── aiSecretary/               # 대분류: AI 비서
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: llm, response, scheduler
 │   │   │   │      - 문서 작성: 보고서 초안, 결재 사유 생성, 문서 교정, 템플릿 생성
 │   │   │   │      - 요약 + 액션: 회의록 요약, 데일리 업무 추천
 │   │   │   │      - 관리자 기능: 참조 문서 권한 검증, 생성 결과 권한 제한, 비인가 참조 차단
@@ -323,6 +339,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │   │
 │   │   │   ├── notification/              # 대분류: 알림
 │   │   │   │   └── ※ 내부에 MVC 구조 포함
+│   │   │   │      - 내부 보조 패키지: sse
 │   │   │   │      - 실시간 알림 처리 (출근 미체크, 퇴근 권장 등)
 │   │   │   │
 │   │   │   └── aiOps/                     # 대분류: AI 데이터 운영
@@ -334,13 +351,7 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   │   │          - RAG 검색 제어: 사용자 권한 기반 필터링
 │   │   │
 │   │   ├── external/                      # 외부 API/AI 연동 전용
-│   │   │   ├── ai/                        # Ollama, LangChain, 임베딩, 벡터DB
-│   │   │   ├── ocr/                       # CLOVA OCR
-│   │   │   ├── maps/                      # Kakao/Google Maps
-│   │   │   ├── weather/                   # OpenWeather 등
-│   │   │   ├── mail/                      # Gmail SMTP 등
-│   │   │   ├── crawling/                  # 뉴스/외부 데이터 크롤링
-│   │   │   └── storage/                   # 파일 업로드, 이미지/PDF 처리
+│   │   │   └── crawling/                  # 뉴스/외부 데이터 크롤링
 │   │   └── test                           # 📚 Test 예제
 
 │   │
@@ -350,8 +361,8 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │       │   ├── approval/                  # 대분류: 전자결재 / 상신·임시저장·문서함·결재대기/예정
 │       │   ├── calendar/                  # 대분류: 캘린더 / 일정 등록·조회·수정·삭제
 │       │   ├── employee/                  # 대분류: 인사 관리 / 내 정보·조직도 조회
-│       │   ├── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
 │       │   ├── onboarding/                # 대분류: 인사평가(교육평가 AI 포함) / 온보딩 로드맵·체크리스트·교육일정
+│       │   ├── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
 │       │   ├── evaluation/                # 대분류: 인사평가(교육평가 AI 포함) / AI 퀴즈·자기평가·결과 조회
 │       │   ├── aiSecretary/               # 대분류: AI 비서 / 초안 작성·문서 교정·요약
 │       │   ├── chatbot/                   # 대분류: 챗봇 / 사내 규정 Q&A·서비스 안내
@@ -400,29 +411,43 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 
 ### (백엔드) domain의 각 하위폴더 & test 폴더 패키지 내 구조
 
-domain의 각 하위폴더 & test 폴더의 각 패키지 내부는 MVC 패턴으로 구현. 
+domain의 각 하위폴더 & test 폴더의 각 패키지 내부는 MVC 패턴으로 구현.  
+단, 도메인 성격에 따라 `config`, `excel`, `llm`, `response`, `scheduler`, `sse` 같은 보조 패키지가 함께 존재할 수 있음.
 <details>
 <summary>전체 구조 개괄 접기/펼치기</summary>
 
 ```plain
 예시)
-Attendance/ 
+attendance/ 
 ├── controller/
 │   ├── AttendanceController   # 팀원용
-│   └── adAttendanceController # 관리자용
+│   └── AdAttendanceController # 관리자용
 │
 ├── entity/                     # DB의 테이블과 1:1 대응되는 엔티티 
 │
 ├── service/
 │   ├── AttendanceService       # 팀원용 인터페이스
 │   ├── AttendanceServiceImpl   # 팀원용 클래스
-│   ├── adAttendanceService     # 관리자용 인터페이스
-│   └── adAttendanceServiceImpl # 관리자용 클래스
+│   ├── AdAttendanceService     # 관리자용 인터페이스
+│   └── AdAttendanceServiceImpl # 관리자용 클래스
 │
 └── repository/
     ├── AttendanceRepo          # JPA 연결 리포지토리 (인터페이스). JPA 방식 사용 시 ServiceImpl에서 이걸 로드. 
     ├── AttendanceRepoCustom    # QueryDSL과 연결하는 리포지토리 (인터페이스)
-│   └── AttendanceRepoImpl      # 리포지토리 구현 클래스. QueryDSL 사용 시 ServiceImpl에서 이걸 로드. 
+    └── AttendanceRepoImpl      # 리포지토리 구현 클래스. QueryDSL 사용 시 ServiceImpl에서 이걸 로드.
+
+# 도메인별 현재 보조 패키지 예시)
+attendance/                     # 대분류: 근태관리
+├── excel/                       # 엑셀 출력 관련 처리
+└── scheduler/                   # 근태/휴가 자동 처리 스케줄러
+
+aiSecretary/                    # 대분류: AI 비서
+├── llm/                         # Gemini 등 LLM API 연동
+├── response/                    # AI 비서 응답 객체
+└── scheduler/                   # AI 문서 처리/동기화 스케줄러
+
+notification/                   # 대분류: 알림
+└── sse/                         # Server-Sent Events 실시간 알림 처리
 
 ```
 
@@ -436,8 +461,16 @@ Attendance/
 # mappers 예시)
 resources
 └── mappers
-    ├── AttendanceMapper   # 팀원용
-    └── adAttendanceMapper # 관리자용
+    ├── attendance/        # 대분류: 근태관리 / 출근·퇴근·조퇴·휴가·외근·초과근무
+    ├── approval/          # 대분류: 전자결재 / 상신·임시저장·문서함·결재대기/예정
+    ├── calendar/          # 대분류: 캘린더 / 일정 등록·조회·수정·삭제
+    ├── employee/          # 대분류: 인사 관리 / 내 정보·조직도 조회
+    ├── evaluation/        # 대분류: 인사평가(교육평가 AI 포함) / AI 퀴즈·자기평가·결과 조회
+    ├── onboarding/        # 대분류: 인사평가(교육평가 AI 포함) / 온보딩 로드맵·체크리스트·교육일정
+    ├── payroll/           # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
+    ├── aiSecretary/       # 대분류: AI 비서 / 초안 작성·문서 교정·요약
+    ├── chatbot/           # 대분류: 챗봇 / 사내 규정 Q&A·서비스 안내
+    └── auth/              # 대분류: 인증/인가 / 로그인·마이페이지
 
 # dto 위치)    
 │   ├── java/com/ict06/team1_fin_pj/
@@ -448,12 +481,12 @@ resources
 │   │   │   │   ├── approval/                  # 대분류: 전자결재
 │   │   │   │   ├── auth/                      # 대분류: 인증/인가 / 로그인·마이페이지
 │   │   │   │   ├── calendar/                  # 대분류: 캘린더 / 일정 등록·조회·수정·삭제
-│   │   │   │   ├── chatbot/                   # 대분류: 챗봇 / 사내 규정 Q&A·서비스 안내
-│   │   │   │   ├── common/                    # 도메인에 해당하지 않는 공통적으로 사용하는 dto 배치 
 │   │   │   │   ├── employee/                  # 대분류: 인사 관리 / 내 정보·조직도 조회
 │   │   │   │   ├── evaluation/                # 대분류: 인사평가(교육평가 AI 포함) / AI 퀴즈·자기평가·결과 조회
+│   │   │   │   ├── notification/              # 대분류: 알림 / 실시간 알림 조회·전송
 │   │   │   │   ├── onboarding/                # 대분류: 인사평가(교육평가 AI 포함) / 온보딩 로드맵·체크리스트·교육일정
-│   │   │   │   └── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인   
+│   │   │   │   ├── payroll/                   # 대분류: 급여 관리 / 개인 급여 조회·명세서 확인
+│   │   │   │   └── BaseTimeEntity.java        # 생성/수정 시간 공통 필드
 
 ```
 </details>
@@ -703,18 +736,18 @@ ict06_team1_finalPJ                         # 스프링부트 메인 프로젝�
 │   ├── java/com/ict06/team1_fin_pj/
 │   │   └── test                           # 📚 Test 예제 (리액트)
 │   │       ├── controller/
-│   │       │   ├── AttendanceController   # 팀원용
-│   │       │   └── adAttendanceController # 관리자용
+│   │       │   ├── TestController         # 팀원용
+│   │       │   └── AdTestController       # 관리자용
 │   │       ├── entity/                     # DB의 테이블과 1:1 대응되는 엔티티 
 │   │       ├── service/
-│   │       │   ├── AttendanceService       # 팀원용 인터페이스
-│   │       │   ├── AttendanceServiceImpl   # 팀원용 클래스
-│   │       │   ├── adAttendanceService     # 관리자용 인터페이스
-│   │       │   └── adAttendanceServiceImpl # 관리자용 클래스
+│   │       │   ├── TestService             # 팀원용 인터페이스
+│   │       │   ├── TestServiceImpl         # 팀원용 클래스
+│   │       │   ├── AdTestService           # 관리자용 인터페이스
+│   │       │   └── AdTestServiceImpl       # 관리자용 클래스
 │   │       └── repository/
-│   │           ├── AttendanceRepo          # ⭐ JPA 연결 리포지토리 (인터페이스). JPA 방식 사용 시 ServiceImpl에서 이걸 로드. 
-│   │           ├── AttendanceRepoCustom    # ⭐ QueryDSL과 연결하는 리포지토리 (인터페이스)
-│   │           └── AttendanceRepoImpl      # ⭐ 리포지토리 구현 클래스. QueryDSL 사용 시 ServiceImpl에서 이걸 로드. 
+│   │           ├── TestRepository          # ⭐ JPA 연결 리포지토리 (인터페이스). JPA 방식 사용 시 ServiceImpl에서 이걸 로드. 
+│   │           ├── TestRepositoryCustom    # ⭐ QueryDSL과 연결하는 리포지토리 (인터페이스)
+│   │           └── TestRepositoryImpl      # ⭐ 리포지토리 구현 클래스. QueryDSL 사용 시 ServiceImpl에서 이걸 로드. 
 │   │
 │   └── resources/                         # 리소스 
 │       ├── templates/                     # Thymeleaf HTML
