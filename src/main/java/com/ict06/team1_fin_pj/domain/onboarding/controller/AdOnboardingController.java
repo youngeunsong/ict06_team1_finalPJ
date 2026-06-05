@@ -72,6 +72,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -200,9 +201,7 @@ public class AdOnboardingController {
     public String documentList(Model model) {
         System.out.println("[AdOnboardingController] - documentList()");
 
-        model.addAttribute("documents", documentRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toDocumentListDto)
-                .toList());
+        model.addAttribute("documents", getAdminDocumentListDtos());
         return "admin/onboarding/documentList";
     }
 
@@ -211,9 +210,7 @@ public class AdOnboardingController {
     public List<AdDocumentListDto> documentStatus() {
         System.out.println("[AdOnboardingController] - documentStatus()");
 
-        return documentRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toDocumentListDto)
-                .toList();
+        return getAdminDocumentListDtos();
     }
 
     @PostMapping("/documents/{docId}/answer")
@@ -1048,11 +1045,77 @@ public class AdOnboardingController {
         return employee.getName() + " Onboarding Roadmap";
     }
 
+    private List<AdDocumentListDto> getAdminDocumentListDtos() {
+        Map<Integer, DocumentListStats> statsByDocId = loadDocumentListStats();
+        Map<Integer, String> previewByDocId = loadDocumentPreviewSnippets();
+
+        return documentRepository.findAllForAdminList().stream()
+                .map(document -> toDocumentListDto(
+                        document,
+                        statsByDocId.getOrDefault(document.getDocId(), DocumentListStats.empty()),
+                        previewByDocId.get(document.getDocId())
+                ))
+                .toList();
+    }
+
+    private Map<Integer, DocumentListStats> loadDocumentListStats() {
+        Map<Integer, DocumentListStats> statsByDocId = new LinkedHashMap<>();
+        for (Object[] row : documentRepository.findAdminListChunkVectorCounts()) {
+            Integer docId = toInteger(row[0]);
+            statsByDocId.put(docId, new DocumentListStats(toInteger(row[1]), toInteger(row[2])));
+        }
+        return statsByDocId;
+    }
+
+    private Map<Integer, String> loadDocumentPreviewSnippets() {
+        Map<Integer, List<PreviewChunk>> chunksByDocId = new LinkedHashMap<>();
+        for (Object[] row : documentRepository.findAdminListPreviewChunks()) {
+            Integer docId = toInteger(row[0]);
+            chunksByDocId.computeIfAbsent(docId, ignored -> new ArrayList<>())
+                    .add(new PreviewChunk(toInteger(row[1]), toStringValue(row[2]), toStringValue(row[3])));
+        }
+
+        Map<Integer, String> previewByDocId = new LinkedHashMap<>();
+        chunksByDocId.forEach((docId, chunks) -> {
+            String preview = chunks.stream()
+                    .map(chunk -> toReadableChunkSnippet(chunk.chunkNo(), chunk.sectionTitle(), chunk.content()))
+                    .filter(snippet -> snippet != null && !snippet.isBlank())
+                    .limit(2)
+                    .collect(Collectors.joining("\n\n"));
+            if (!preview.isBlank()) {
+                previewByDocId.put(docId, preview);
+            }
+        });
+        return previewByDocId;
+    }
+
+    private Integer toInteger(Object value) {
+        if (value == null) {
+            return 0;
+        }
+        if (value instanceof Number number) {
+            return Math.toIntExact(number.longValue());
+        }
+        return Integer.parseInt(String.valueOf(value));
+    }
+
+    private String toStringValue(Object value) {
+        return value != null ? String.valueOf(value) : null;
+    }
+
     private AdDocumentListDto toDocumentListDto(DocumentEntity document) {
         int chunkCount = document.getChunks() != null ? document.getChunks().size() : 0;
         int vectorCount = document.getChunks() == null ? 0 : (int) document.getChunks().stream()
                 .filter(chunk -> chunk.getVector() != null)
                 .count();
+        return toDocumentListDto(document, new DocumentListStats(chunkCount, vectorCount), buildKeyChunkPreview(document));
+    }
+
+    private AdDocumentListDto toDocumentListDto(
+            DocumentEntity document,
+            DocumentListStats stats,
+            String keyChunkPreview
+    ) {
         List<OnContentEntity> linkedContents = getExplicitRelatedContents(document);
         int generatedQuizCount = linkedContents.stream()
                 .mapToInt(content -> (int) evaluationQuestionRepository.findByContent_ContentId(content.getContentId()).stream()
@@ -1070,12 +1133,11 @@ public class AdOnboardingController {
                 .title(document.getTitle())
                 .filePath(document.getFilePath())
                 .summaryPreview(document.getSummaryPreview())
-                .keyChunkPreview(buildKeyChunkPreview(document))
                 .departmentName(document.getDepartment() != null ? document.getDepartment().getDeptName() : "공통")
                 .accessLevel(document.getAccessLevel())
                 .currentStage(document.getCurrentStage())
-                .chunkCount(chunkCount)
-                .vectorCount(vectorCount)
+                .chunkCount(stats.chunkCount())
+                .vectorCount(stats.vectorCount())
                 .linkedContentId(linkedContents.stream().findFirst().map(OnContentEntity::getContentId).orElse(null))
                 .linkedContentCount(linkedContents.size())
                 .generatedQuizCount(generatedQuizCount)
@@ -1083,7 +1145,17 @@ public class AdOnboardingController {
                 .createdByName(document.getCreatedBy() != null ? document.getCreatedBy().getName() : "-")
                 .lastErrorMessage(lastErrorMessage)
                 .updatedAt(document.getUpdatedAt())
+                .keyChunkPreview(keyChunkPreview)
                 .build();
+    }
+
+    private record DocumentListStats(int chunkCount, int vectorCount) {
+        private static DocumentListStats empty() {
+            return new DocumentListStats(0, 0);
+        }
+    }
+
+    private record PreviewChunk(Integer chunkNo, String sectionTitle, String content) {
     }
 
     private String buildKeyChunkPreview(DocumentEntity document) {
@@ -1100,8 +1172,12 @@ public class AdOnboardingController {
     }
 
     private String toReadableChunkSnippet(DocChunkEntity chunk) {
-        String content = normalizePreviewText(chunk.getContent());
-        String sectionTitle = normalizePreviewText(chunk.getSectionTitle());
+        return toReadableChunkSnippet(chunk.getChunkNo(), chunk.getSectionTitle(), chunk.getContent());
+    }
+
+    private String toReadableChunkSnippet(Integer chunkNo, String rawSectionTitle, String rawContent) {
+        String content = normalizePreviewText(rawContent);
+        String sectionTitle = normalizePreviewText(rawSectionTitle);
 
         if (content.isBlank()
                 || isPdfStructurePreview(sectionTitle + " " + content)
@@ -1110,7 +1186,7 @@ public class AdOnboardingController {
         }
 
         String prefix = sectionTitle.isBlank() || isPdfStructurePreview(sectionTitle)
-                ? "Chunk " + chunk.getChunkNo()
+                ? "Chunk " + chunkNo
                 : sectionTitle;
         String snippet = content.length() > 180 ? content.substring(0, 180) + "..." : content;
         return prefix + " : " + snippet;

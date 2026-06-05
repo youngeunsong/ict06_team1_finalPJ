@@ -996,6 +996,14 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /ai-api/health {
+        proxy_pass http://127.0.0.1:8000/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /ai-api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host $host;
@@ -1004,7 +1012,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location ~ ^/(calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    # Spring MVC admin pages, Spring static resources, existing helper calls, and uploaded files use backend root paths.
+    location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -1200,8 +1209,23 @@ pipeline {
             steps {
                 sh '''
                 docker ps
-                curl -f http://127.0.0.1/ || true
-                curl -f http://127.0.0.1/ai-api/health
+                for i in $(seq 1 60); do
+                  if curl -fsS http://127.0.0.1/ > /dev/null \
+                    && curl -fsS http://127.0.0.1:8000/health > /dev/null \
+                    && curl -fsS http://127.0.0.1/ai-api/health > /dev/null; then
+                    echo "Health check passed"
+                    exit 0
+                  fi
+
+                  echo "Waiting for services... ($i/60)"
+                  sleep 5
+                done
+
+                echo "Health check failed"
+                docker ps
+                docker logs --tail=100 team1-ai-server || true
+                docker logs --tail=100 team1-backend || true
+                exit 1
                 '''
             }
         }
@@ -2062,6 +2086,153 @@ target/*
 ```
 
 수정 후 commit/push하고 Jenkins에서 다시 `Build Now`를 실행합니다.
+
+### Jenkins Health Check에서 `/ai-api/health`가 502로 실패하는 경우
+
+Console Output 흐름이 아래처럼 보이면 Docker 이미지 빌드, 컨테이너 재생성, Nginx reload까지는 성공한 상태입니다.
+
+```text
+Image current-ai-server Built
+Image current-backend Built
+Container team1-ai-server Started
+Container team1-backend Started
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+curl -f http://127.0.0.1/ai-api/health
+curl: (22) The requested URL returned error: 502
+```
+
+이 경우 가장 흔한 원인은 AI 서버 컨테이너는 시작됐지만 FastAPI 앱이 아직 완전히 준비되지 않은 상태에서 Nginx 경유 health check가 너무 빨리 실행된 것입니다. `docker ps`에서 `Up 7 seconds`처럼 매우 짧게 보이면 특히 가능성이 높습니다.
+
+EC2에서 직접 확인합니다.
+
+```bash
+docker logs --tail=100 team1-ai-server
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1/ai-api/health
+```
+
+직접 호출(`:8000/health`)은 성공하는데 Nginx 경유(`/ai-api/health`)가 계속 실패하면 Nginx 설정을 확인합니다. 둘 다 잠시 후 성공한다면 Pipeline health check가 너무 빨랐던 것입니다.
+
+Jenkins Pipeline의 Health Check 단계는 즉시 한 번만 검사하지 말고 재시도 방식으로 작성합니다.
+
+```groovy
+stage('Health Check') {
+    steps {
+        sh '''
+        docker ps
+        for i in $(seq 1 60); do
+          if curl -fsS http://127.0.0.1/ > /dev/null \
+            && curl -fsS http://127.0.0.1:8000/health > /dev/null \
+            && curl -fsS http://127.0.0.1/ai-api/health > /dev/null; then
+            echo "Health check passed"
+            exit 0
+          fi
+
+          echo "Waiting for services... ($i/60)"
+          sleep 5
+        done
+
+        echo "Health check failed"
+        docker ps
+        docker logs --tail=100 team1-ai-server || true
+        docker logs --tail=100 team1-backend || true
+        exit 1
+        '''
+    }
+}
+```
+
+### 배포 후 특정 관리자 페이지가 504 Gateway Time-out이 되는 경우
+
+브라우저 콘솔이나 화면에 아래 오류가 나오면 Nginx가 upstream 서버(Spring Boot backend 또는 FastAPI AI server)의 응답을 제한 시간 안에 받지 못한 것입니다.
+
+```text
+504 Gateway Time-out
+Failed to load resource: the server responded with a status of 504
+```
+
+`/admin/onboarding/documents` 같은 Spring MVC 관리자 화면에서 504가 나면 먼저 backend 컨테이너 상태와 로그를 봅니다.
+
+```bash
+docker ps
+docker logs --tail=200 team1-backend
+sudo tail -n 100 /var/log/nginx/error.log
+free -h
+docker stats --no-stream
+```
+
+Nginx를 거치지 않고 backend에 직접 요청해서 어디서 막히는지 비교합니다.
+
+```bash
+curl -i --max-time 10 http://127.0.0.1:8081/admin/onboarding/documents
+curl -i --max-time 10 http://127.0.0.1/admin/onboarding/documents
+curl -i --max-time 10 http://127.0.0.1/
+```
+
+판단 기준:
+
+```text
+127.0.0.1:8081 직접 호출도 느리거나 timeout -> backend 문제
+127.0.0.1:8081 직접 호출은 빠른데 Nginx 경유만 504 -> Nginx 설정/timeout 문제
+docker ps에서 backend가 Restarting 또는 Exited -> backend 로그 확인 후 재기동 필요
+free -h에서 available memory가 매우 작고 swap 사용량이 높음 -> 메모리 부족 가능성
+```
+
+사이트 전체가 무한 로딩이면 우선 backend를 재기동해서 사용자 화면을 복구한 뒤 로그를 분석합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml restart backend
+docker logs -f team1-backend
+```
+
+로그에 `Started Team1FinPjApplication`이 다시 보이면 브라우저에서 `/`, `/admin/home`, 문제가 된 `/admin/onboarding/documents`를 다시 확인합니다.
+
+Nginx 설정에는 Spring MVC 관리자 페이지와 정적 리소스가 backend로 가도록 아래 location이 포함되어 있어야 합니다.
+
+```nginx
+location ~ ^/(admin|css|js|images|calendar|attendance|leave|test|approval/uploads|employee/uploads)(/|$) {
+    proxy_pass http://127.0.0.1:8081;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+`/admin/onboarding/documents`에서 timeout이 나고 backend 로그에 아래 메시지가 보이면, 문서 목록 조회 중 Java heap이 부족해진 것입니다.
+
+```text
+[AdOnboardingController] - documentList()
+java.lang.OutOfMemoryError: Java heap space
+```
+
+이 프로젝트에서는 `document` 수가 적어도 `doc_chunks`, `doc_vector`가 매우 많을 수 있습니다. 예를 들어 문서 22개에 청크/벡터가 40,682개인 경우, 목록 화면에서 `chunks.vector.embeddingData`까지 한 번에 로딩하면 backend가 OOM으로 멈출 수 있습니다.
+
+DB 규모 확인:
+
+```bash
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "select count(*) from document;"
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "select count(*) from doc_chunks;"
+docker exec -it team1-postgres psql -U postgres -d ict06_team1_finalpj -c "select count(*) from doc_vector;"
+```
+
+해결 방향:
+
+```text
+문서 목록 화면에서는 chunks.vector를 EntityGraph로 로딩하지 않음
+chunk/vector 개수는 count 쿼리로 조회
+주요 청크 미리보기는 문서당 앞쪽 몇 개 청크의 짧은 문자열만 조회
+상세/처리/질의 로직은 기존처럼 필요한 경우에만 chunk/vector를 로딩
+```
+
+수정 후 자동 배포를 다시 실행하고 아래를 확인합니다.
+
+```bash
+curl -i --max-time 10 http://127.0.0.1:8081/admin/onboarding/documents
+curl -i --max-time 10 http://127.0.0.1/admin/onboarding/documents
+docker logs --tail=100 team1-backend
+```
 
 ### Docker build 중 no space left on device가 나는 경우
 

@@ -15,6 +15,7 @@ package com.ict06.team1_fin_pj.domain.onboarding.repository;
 import com.ict06.team1_fin_pj.domain.onboarding.entity.DocumentEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,44 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Intege
 
     @EntityGraph(attributePaths = {"department", "createdBy", "relatedContent", "relatedContents", "chunks", "chunks.vector"})
     List<DocumentEntity> findAllByOrderByCreatedAtDesc();
+
+    @Query("""
+            select distinct d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent
+            left join fetch d.relatedContents
+            order by d.createdAt desc
+            """)
+    List<DocumentEntity> findAllForAdminList();
+
+    @Query("""
+            select d.docId, count(c.chunkId), count(v.vectorId)
+            from DocumentEntity d
+            left join d.chunks c
+            left join c.vector v
+            group by d.docId
+            """)
+    List<Object[]> findAdminListChunkVectorCounts();
+
+    @Query(value = """
+            select doc_id, chunk_no, section_title, left(content, 500) as content
+            from (
+                select c.doc_id,
+                       c.chunk_no,
+                       c.section_title,
+                       c.content,
+                       row_number() over (
+                           partition by c.doc_id
+                           order by c.chunk_no nulls last, c.chunk_id
+                       ) as rn
+                from doc_chunks c
+            ) ranked
+            where rn <= 5
+            order by doc_id, rn
+            """, nativeQuery = true)
+    List<Object[]> findAdminListPreviewChunks();
 
     @EntityGraph(attributePaths = {"department", "createdBy", "relatedContent", "relatedContents", "chunks", "chunks.vector"})
     Optional<DocumentEntity> findFirstByTitleIgnoreCaseOrderByCreatedAtDesc(String title);
