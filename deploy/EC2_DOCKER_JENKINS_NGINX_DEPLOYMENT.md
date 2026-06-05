@@ -367,6 +367,7 @@ Environment="JENKINS_PORT=9090"
 
 ```bash
 sudo mkdir -p /opt/team1
+sudo mkdir -p /opt/team1/current
 sudo mkdir -p /opt/team1/env
 sudo mkdir -p /opt/team1/uploads/ict_06_uploads
 sudo mkdir -p /opt/team1/uploads/employee
@@ -376,6 +377,8 @@ sudo mkdir -p /var/www/team1
 sudo chown -R ubuntu:ubuntu /opt/team1
 sudo chown -R www-data:www-data /var/www/team1
 ```
+
+`/opt/team1/current`는 실제 Docker Compose 배포 작업 디렉터리입니다. Jenkins 자동 배포 단계에서는 이 경로에 Git checkout 결과를 동기화하지만, 새 인스턴스에서 수동 DB 복원이나 Docker Compose 테스트를 먼저 진행할 수 있으므로 7번에서 미리 만들어둡니다.
 
 Git에 올리지 않는 업로드 파일은 EC2 호스트의 `/opt/team1/uploads` 아래에 보관합니다. backend 컨테이너를 재생성해도 이 디렉터리는 유지됩니다.
 
@@ -462,9 +465,51 @@ sudo chown root:docker /opt/team1/env/backend.env /opt/team1/env/ai.env
 sudo chmod 640 /opt/team1/env/backend.env /opt/team1/env/ai.env
 ```
 
+## 8.1 GitHub 프로젝트 clone
+
+9번부터는 프로젝트 루트에서 `deploy/` 폴더와 Docker/Jenkins/Nginx 배포용 파일을 확인합니다. 따라서 새 EC2 인스턴스에서는 9번을 진행하기 전에 먼저 GitHub 저장소를 clone해야 합니다.
+
+권장 clone 위치:
+
+```text
+/home/ubuntu/ict06_team1_finalPJ
+```
+
+EC2에서 아래 명령을 실행합니다.
+
+```bash
+cd ~
+git clone https://github.com/youngeunsong/ict06_team1_finalPJ.git
+cd ict06_team1_finalPJ
+```
+
+clone 후 프로젝트 루트인지 확인합니다.
+
+```bash
+pwd
+ls
+```
+
+아래 파일이나 디렉터리가 보이면 정상입니다.
+
+```text
+pom.xml
+react-frontend
+ai_server
+deploy
+```
+
+GitHub 저장소가 private이면 HTTPS clone 중 GitHub 계정 비밀번호가 아니라 Personal Access Token을 사용해야 합니다. SSH key를 Jenkins/EC2에 등록한 팀이라면 SSH 주소로 clone해도 됩니다.
+
+```bash
+git clone git@github.com:youngeunsong/ict06_team1_finalPJ.git
+```
+
+프로젝트를 clone한 뒤에는 바로 9번으로 넘어가 배포용 파일이 들어 있는 브랜치로 전환합니다.
+
 ## 9. 배포용 브랜치 확인 및 전환
 
-EC2에 받아온 프로젝트 브랜치에 `deploy/` 폴더나 Docker/Jenkins/Nginx 배포용 파일이 없으면 이후 명령이 실패합니다.
+EC2에 받아온 프로젝트 브랜치에 `deploy/` 폴더나 Docker/Jenkins/Nginx 배포용 파일이 없으면 이후 명령이 실패합니다. 아직 GitHub 프로젝트를 clone하지 않았다면 먼저 8.1번을 진행합니다.
 
 예를 들어 아래 오류는 현재 체크아웃된 브랜치에 `deploy/application.properties.example` 파일이 없을 때 발생합니다.
 
@@ -878,6 +923,31 @@ sha256sum /home/ubuntu/backup.sql
 ### 13.2 최초 기동 시 자동 복원
 
 PostgreSQL Docker 이미지는 데이터 디렉터리가 비어 있을 때 `/docker-entrypoint-initdb.d/*.sql`을 자동 실행합니다.
+
+13.2를 실행하기 전 `/opt/team1/current`에 배포용 프로젝트 파일이 있어야 합니다. 아직 Jenkins 자동 배포를 한 번도 실행하지 않은 새 인스턴스라면 `/opt/team1/current`가 비어 있을 수 있으므로, 8.1에서 clone한 프로젝트를 먼저 동기화합니다.
+
+```bash
+sudo mkdir -p /opt/team1/current
+sudo rsync -a --delete \
+  --exclude .git \
+  --exclude node_modules \
+  --exclude react-frontend/node_modules \
+  --exclude react-frontend/build \
+  --exclude target \
+  --exclude .env \
+  --exclude application.properties \
+  --exclude application-prod.properties \
+  ~/ict06_team1_finalPJ/ /opt/team1/current/
+sudo chown -R ubuntu:ubuntu /opt/team1/current
+```
+
+동기화 후 compose 파일이 있는지 확인합니다.
+
+```bash
+ls -lh /opt/team1/current/docker-compose.prod.yml
+```
+
+이 파일이 없다면 현재 브랜치에 배포용 파일이 없거나, 아직 배포용 브랜치로 전환하지 않은 상태입니다. 9번으로 돌아가 배포용 파일이 포함된 브랜치로 전환한 뒤 다시 동기화합니다.
 
 ```bash
 cd /opt/team1/current
@@ -1332,6 +1402,29 @@ sudo systemctl reload nginx
 curl -I https://YOUR_DOMAIN
 ```
 
+새 인스턴스에서 아직 React build 파일을 `/var/www/team1`에 배포하지 않았다면 이 시점의 `curl -I https://YOUR_DOMAIN`이 `500 Internal Server Error`로 나올 수 있습니다. 인증서 발급이 실패한 것이 아니라, Nginx의 `try_files $uri /index.html` 설정이 바라보는 `/var/www/team1/index.html` 파일이 아직 없어서 발생하는 경우가 흔합니다.
+
+확인:
+
+```bash
+ls -lh /var/www/team1
+sudo tail -n 50 /var/log/nginx/error.log
+```
+
+error log에 아래와 비슷한 메시지가 있으면 프론트 정적 파일이 아직 없는 상태입니다.
+
+```text
+rewrite or internal redirection cycle while internally redirecting to "/index.html"
+```
+
+이 경우에는 16번의 최초 수동 배포 테스트 또는 15번 Jenkins 배포를 통해 React build 결과를 `/var/www/team1`에 복사한 뒤 다시 확인합니다. 임시로 HTTPS/Nginx만 확인하고 싶다면 아래처럼 임시 index 파일을 넣어도 됩니다.
+
+```bash
+echo "nginx https ok" | sudo tee /var/www/team1/index.html
+sudo chown www-data:www-data /var/www/team1/index.html
+curl -I https://YOUR_DOMAIN
+```
+
 프리티어 시연 기준:
 
 ```bash
@@ -1679,8 +1772,8 @@ curl -I http://127.0.0.1/admin/login
 브라우저에서 확인:
 
 ```text
-http://EC2_PUBLIC_IP
-http://EC2_PUBLIC_IP/admin/login
+https://EC2_PUBLIC_IP
+https://EC2_PUBLIC_IP/admin/login
 ```
 
 ### 15.1 GitHub push 시 자동 실행으로 바꾸기
