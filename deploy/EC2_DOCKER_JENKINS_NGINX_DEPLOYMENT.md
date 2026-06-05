@@ -662,6 +662,8 @@ cd ~/ict06_team1_finalPJ
 
 11.1은 `Dockerfile.backend` 파일을 만들고 문서의 Dockerfile 코드를 그대로 넣는다는 의미입니다. 11.2도 같은 방식으로 `Dockerfile.ai` 파일을 만듭니다.
 
+Jenkins 자동 배포까지 사용할 경우 이 파일들은 EC2에서만 수동 생성하지 말고, 프로젝트 루트에 만든 뒤 Git에 commit/push해서 배포용 브랜치에 포함시킵니다. Jenkins는 Git checkout 결과를 `/opt/team1/current`에 동기화하므로, Git에 없는 Dockerfile은 자동 배포 때 사라질 수 있습니다.
+
 ### 11.1 Backend Dockerfile
 
 프로젝트 루트에 `Dockerfile.backend` 파일을 생성합니다.
@@ -716,6 +718,8 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 cd ~/ict06_team1_finalPJ
 nano docker-compose.prod.yml
 ```
+
+Jenkins 자동 배포를 사용할 경우 `docker-compose.prod.yml`도 Git에 commit/push해야 합니다. EC2의 `/opt/team1/current`에만 수동으로 만든 파일은 Jenkins의 `rsync --delete` 단계에서 삭제될 수 있습니다.
 
 ```yaml
 services:
@@ -1101,6 +1105,8 @@ pipeline {
                     node -v
                     npm -v
                     npm ci
+                    CI=false \
+                    GENERATE_SOURCEMAP=false \
                     NODE_OPTIONS=--max-old-space-size=1024 \
                     REACT_APP_SERVER_URL=/api \
                     REACT_APP_AI_SERVER_URL=/ai-api \
@@ -1145,6 +1151,9 @@ pipeline {
             steps {
                 sh '''
                 cd $DEPLOY_DIR
+                test -f docker-compose.prod.yml
+                test -f Dockerfile.backend
+                test -f Dockerfile.ai
                 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend ai-server
                 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d
                 '''
@@ -1503,6 +1512,8 @@ stage('Build React') {
             node -v
             npm -v
             npm ci
+            CI=false \
+            GENERATE_SOURCEMAP=false \
             NODE_OPTIONS=--max-old-space-size=1024 \
             REACT_APP_SERVER_URL=/api \
             REACT_APP_AI_SERVER_URL=/ai-api \
@@ -1915,12 +1926,93 @@ stage('Build React') {
             node -v
             npm -v
             npm ci
+            CI=false \
+            GENERATE_SOURCEMAP=false \
             NODE_OPTIONS=--max-old-space-size=1024 \
             REACT_APP_SERVER_URL=/api \
             REACT_APP_AI_SERVER_URL=/ai-api \
             npm run build
             '''
         }
+    }
+}
+```
+
+### Jenkins React build가 ESLint warning 때문에 실패하는 경우
+
+Jenkins Console Output에 아래 메시지가 나오면 React build 자체가 깨진 것이 아니라, Jenkins/CI 환경에서 warning을 error로 취급해서 중단된 것입니다.
+
+```text
+Treating warnings as errors because process.env.CI = true.
+Failed to compile.
+```
+
+`no-unused-vars`, `react-hooks/exhaustive-deps`, `unicode-bom` 같은 항목이 함께 출력될 수 있습니다. 장기적으로는 해당 warning을 코드에서 정리하는 것이 좋지만, 배포 자동화 확인 단계에서는 Pipeline의 React build 명령에 `CI=false`를 명시해서 build를 통과시킬 수 있습니다. 작은 EC2에서는 sourcemap 생성도 메모리를 많이 쓰므로 `GENERATE_SOURCEMAP=false`를 같이 둡니다.
+
+```groovy
+stage('Build React') {
+    steps {
+        dir('react-frontend') {
+            sh '''
+            export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+            node -v
+            npm -v
+            npm ci
+            CI=false \
+            GENERATE_SOURCEMAP=false \
+            NODE_OPTIONS=--max-old-space-size=1024 \
+            REACT_APP_SERVER_URL=/api \
+            REACT_APP_AI_SERVER_URL=/ai-api \
+            npm run build
+            '''
+        }
+    }
+}
+```
+
+이 설정은 warning을 숨기는 임시 배포 설정에 가깝습니다. 배포가 안정화된 뒤에는 `unicode-bom`, 사용하지 않는 import/state, Hook dependency warning을 정리해서 `CI=true`에서도 통과하는 상태로 만드는 것을 권장합니다.
+
+### Jenkins에서 docker-compose.prod.yml 파일이 없다고 실패하는 경우
+
+Console Output에서 아래 오류가 나오면 React build와 frontend 배포까지는 성공했고, Docker Compose 단계에서 배포용 compose 파일을 찾지 못한 것입니다.
+
+```text
+open /opt/team1/current/docker-compose.prod.yml: no such file or directory
+```
+
+가장 흔한 원인은 `docker-compose.prod.yml`, `Dockerfile.backend`, `Dockerfile.ai`를 EC2에서만 수동으로 만들고 Git 배포 브랜치에는 commit/push하지 않은 경우입니다. Jenkins Pipeline은 Git checkout 결과를 `/opt/team1/current`에 `rsync --delete`로 동기화하므로, Git에 없는 파일은 `/opt/team1/current`에서 삭제될 수 있습니다.
+
+EC2에서 현재 상태를 확인합니다.
+
+```bash
+cd /opt/team1/current
+ls -lh docker-compose.prod.yml Dockerfile.backend Dockerfile.ai
+```
+
+해결 방법은 프로젝트 루트에 아래 파일들을 만들고 배포용 브랜치에 commit/push하는 것입니다.
+
+```text
+Dockerfile.backend
+Dockerfile.ai
+docker-compose.prod.yml
+.dockerignore
+```
+
+그 다음 EC2 또는 Jenkins workspace에서 해당 브랜치를 다시 pull/checkout한 뒤 Jenkins `Build Now`를 다시 실행합니다.
+
+Pipeline의 Docker Compose 단계에 아래 확인 명령을 넣어두면 같은 문제가 더 빨리 드러납니다.
+
+```groovy
+stage('Docker Compose Build & Up') {
+    steps {
+        sh '''
+        cd $DEPLOY_DIR
+        test -f docker-compose.prod.yml
+        test -f Dockerfile.backend
+        test -f Dockerfile.ai
+        docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend ai-server
+        docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d
+        '''
     }
 }
 ```

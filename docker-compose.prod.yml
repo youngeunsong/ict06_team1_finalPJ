@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: team1-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ict06_team1_finalpj
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - /opt/team1/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - team1-net
+
+  redis:
+    image: redis:7
+    container_name: team1-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - team1-net
+
+  ai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: team1-ai-server
+    restart: unless-stopped
+    env_file:
+      - /opt/team1/env/ai.env
+    networks:
+      - team1-net
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: team1-backend
+    restart: unless-stopped
+    env_file:
+      - /opt/team1/env/backend.env
+    depends_on:
+      - postgres
+      - redis
+      - ai-server
+    volumes:
+      - /opt/team1/uploads/ict_06_uploads:/app/ict_06_uploads
+      - /opt/team1/uploads/employee:/app/employee
+    networks:
+      - team1-net
+    ports:
+      - "127.0.0.1:8081:8081"
+
+networks:
+  team1-net:
+
+volumes:
+  postgres-data:
+  redis-data:
