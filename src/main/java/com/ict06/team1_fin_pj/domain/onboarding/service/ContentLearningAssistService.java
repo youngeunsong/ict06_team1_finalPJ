@@ -1,14 +1,13 @@
-/**
+﻿/**
  * @FileName : ContentLearningAssistService.java
- * @Description : 학습 콘텐츠 AI 요약, 재설명, 직접 질문 처리 서비스
- * @Author : 김다솜
+ * @Description : ?숈뒿 肄섑뀗痢?AI ?붿빟, ?ъ꽕紐? 吏곸젒 吏덈Ц 泥섎━ ?쒕퉬?? * @Author : 源?ㅼ넑
  * @Date : 2026. 05. 15
  * @Modification_History
  * @
- * @ 수정일자        수정자        수정내용
+ * @ ?섏젙?쇱옄        ?섏젙??       ?섏젙?댁슜
  * @ ----------    ---------    -------------------------------
- * @ 2026.05.15    김다솜        최초 생성 및 콘텐츠 연계 AI 학습 도우미 기능 추가
- * @ 2026.05.18    김다솜        명시적 문서-콘텐츠 연결 우선 조회, 외부 참고 링크 보강 및 깨진 문자열 복구
+ * @ 2026.05.15    源?ㅼ넑        理쒖큹 ?앹꽦 諛?肄섑뀗痢??곌퀎 AI ?숈뒿 ?꾩슦誘?湲곕뒫 異붽?
+ * @ 2026.05.18    源?ㅼ넑        紐낆떆??臾몄꽌-肄섑뀗痢??곌껐 ?곗꽑 議고쉶, ?몃? 李멸퀬 留곹겕 蹂닿컯 諛?源⑥쭊 臾몄옄??蹂듦뎄
  */
 package com.ict06.team1_fin_pj.domain.onboarding.service;
 
@@ -21,6 +20,9 @@ import com.ict06.team1_fin_pj.domain.onboarding.repository.DocumentRepository;
 import com.ict06.team1_fin_pj.domain.onboarding.repository.OnContentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +49,7 @@ public class ContentLearningAssistService {
         validateExplainableContent(content);
 
         if (question == null || question.isBlank()) {
-            throw new IllegalArgumentException("질문 내용을 입력해 주세요.");
+            throw new IllegalArgumentException("吏덈Ц ?댁슜???낅젰??二쇱꽭??");
         }
 
         DocumentEntity document = findLinkedDocument(content);
@@ -76,32 +78,38 @@ public class ContentLearningAssistService {
 
     private OnContentEntity getContent(Integer contentId) {
         return onContentRepository.findById(contentId)
-                .orElseThrow(() -> new IllegalArgumentException("학습 콘텐츠를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("?숈뒿 肄섑뀗痢좊? 李얠쓣 ???놁뒿?덈떎."));
     }
 
     private void validateExplainableContent(OnContentEntity content) {
         ContentType type = content.getType();
         if (type != ContentType.PDF && type != ContentType.LINK) {
-            throw new IllegalArgumentException("문서형 콘텐츠에서만 AI 학습 도우미를 사용할 수 있습니다.");
+            throw new IllegalArgumentException("臾몄꽌??肄섑뀗痢좎뿉?쒕쭔 AI ?숈뒿 ?꾩슦誘몃? ?ъ슜?????덉뒿?덈떎.");
         }
     }
 
     private DocumentEntity findLinkedDocument(OnContentEntity content) {
-        DocumentEntity directDocument = documentRepository.findFirstByRelatedContents_ContentIdOrderByCreatedAtDesc(content.getContentId())
-                .or(() -> documentRepository.findFirstByRelatedContent_ContentIdOrderByCreatedAtDesc(content.getContentId()))
+        DocumentEntity directDocument = findFirst(documentRepository.findByRelatedContentsContentIdWithoutChunks(content.getContentId()))
+                .or(() -> findFirst(documentRepository.findByRelatedContentContentIdWithoutChunks(content.getContentId())))
                 .orElse(null);
         if (directDocument != null) {
             return directDocument;
         }
 
         if (content.getPath() != null && !content.getPath().isBlank()) {
-            return documentRepository.findFirstByFilePathOrderByCreatedAtDesc(content.getPath())
-                    .orElseGet(() -> documentRepository.findFirstByTitleIgnoreCaseOrderByCreatedAtDesc(content.getTitle())
-                            .orElseThrow(() -> new IllegalArgumentException("연결된 문서를 찾을 수 없어 AI 학습 도우미를 사용할 수 없습니다.")));
+            return findFirst(documentRepository.findByFilePathWithoutChunks(content.getPath()))
+                    .orElseGet(() -> findFirst(documentRepository.findByTitleIgnoreCaseWithoutChunks(content.getTitle()))
+                            .orElseThrow(() -> new IllegalArgumentException("?곌껐??臾몄꽌瑜?李얠쓣 ???놁뼱 AI ?숈뒿 ?꾩슦誘몃? ?ъ슜?????놁뒿?덈떎.")));
         }
 
-        return documentRepository.findFirstByTitleIgnoreCaseOrderByCreatedAtDesc(content.getTitle())
-                .orElseThrow(() -> new IllegalArgumentException("연결된 문서를 찾을 수 없어 AI 학습 도우미를 사용할 수 없습니다."));
+        return findFirst(documentRepository.findByTitleIgnoreCaseWithoutChunks(content.getTitle()))
+                .orElseThrow(() -> new IllegalArgumentException("?곌껐??臾몄꽌瑜?李얠쓣 ???놁뼱 AI ?숈뒿 ?꾩슦誘몃? ?ъ슜?????놁뒿?덈떎."));
+    }
+
+    private Optional<DocumentEntity> findFirst(List<DocumentEntity> documents) {
+        return documents == null || documents.isEmpty()
+                ? Optional.empty()
+                : Optional.of(documents.get(0));
     }
 
     private String normalizeMode(String mode) {
@@ -164,16 +172,16 @@ public class ContentLearningAssistService {
             return answer;
         }
 
-        return answer + "\n\n관련 참고 URL\n" + referenceLinks;
+        return answer + "\n\n愿??李멸퀬 URL\n" + referenceLinks;
     }
 
     private boolean isLowConfidenceAnswer(String answer) {
         String normalized = answer.replaceAll("\\s+", "");
-        return normalized.contains("문서에서확인할수없")
-                || normalized.contains("자료가부족")
-                || normalized.contains("명시적으로언급되지않")
-                || normalized.contains("정확한답변이어렵")
-                || normalized.contains("근거가충분하지않");
+        return normalized.contains("臾몄꽌?먯꽌?뺤씤?좎닔??)
+                || normalized.contains("?먮즺媛遺議?)
+                || normalized.contains("紐낆떆?곸쑝濡쒖뼵湲됰릺吏??)
+                || normalized.contains("?뺥솗?쒕떟蹂?댁뼱??)
+                || normalized.contains("洹쇨굅媛異⑸텇?섏???);
     }
 
     private String buildReferenceLinks(OnContentEntity content, String requestHint) {
@@ -184,14 +192,14 @@ public class ContentLearningAssistService {
 
         if (source.contains("spring")) {
             return """
-                    - Spring Framework 예외 처리 문서: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html
-                    - Spring Boot 오류 처리 문서: https://docs.spring.io/spring-boot/reference/web/servlet.html#web.servlet.spring-mvc.error-handling
+                    - Spring Framework ?덉쇅 泥섎━ 臾몄꽌: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html
+                    - Spring Boot ?ㅻ쪟 泥섎━ 臾몄꽌: https://docs.spring.io/spring-boot/reference/web/servlet.html#web.servlet.spring-mvc.error-handling
                     """.trim();
         }
         if (source.contains("react")) {
             return """
-                    - React 상태 관리: https://react.dev/learn/managing-state
-                    - React 컴포넌트 간 상태 공유: https://react.dev/learn/sharing-state-between-components
+                    - React ?곹깭 愿由? https://react.dev/learn/managing-state
+                    - React 而댄룷?뚰듃 媛??곹깭 怨듭쑀: https://react.dev/learn/sharing-state-between-components
                     """.trim();
         }
         if (source.contains("figma") || source.contains("design")) {
@@ -200,21 +208,21 @@ public class ContentLearningAssistService {
                     - W3C Design Systems: https://design-system.w3.org/
                     """.trim();
         }
-        if (source.contains("accessibility") || source.contains("접근성") || source.contains("a11y")) {
+        if (source.contains("accessibility") || source.contains("?묎렐??) || source.contains("a11y")) {
             return """
-                    - MDN 접근성 가이드: https://developer.mozilla.org/ko/docs/Learn/Accessibility
-                    - WAI 접근성 소개: https://www.w3.org/WAI/fundamentals/accessibility-intro/
+                    - MDN ?묎렐??媛?대뱶: https://developer.mozilla.org/ko/docs/Learn/Accessibility
+                    - WAI ?묎렐???뚭컻: https://www.w3.org/WAI/fundamentals/accessibility-intro/
                     """.trim();
         }
         if (source.contains("aws")) {
             return """
-                    - AWS 개요 문서: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html
+                    - AWS 媛쒖슂 臾몄꽌: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html
                     - AWS Documentation: https://docs.aws.amazon.com/
                     """.trim();
         }
-        if (source.contains("security") || source.contains("보안")) {
+        if (source.contains("security") || source.contains("蹂댁븞")) {
             return """
-                    - KISA 보호나라: https://www.boho.or.kr/
+                    - KISA 蹂댄샇?섎씪: https://www.boho.or.kr/
                     - OWASP Cheat Sheet Series: https://cheatsheetseries.owasp.org/
                     """.trim();
         }
@@ -222,3 +230,4 @@ public class ContentLearningAssistService {
         return "";
     }
 }
+

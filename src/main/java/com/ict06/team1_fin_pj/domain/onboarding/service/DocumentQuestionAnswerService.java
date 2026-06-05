@@ -75,7 +75,7 @@ public class DocumentQuestionAnswerService {
      * @return 문서 질문 응답 DTO
      */
     public AiDocumentQuestionResponseDto answerQuestion(Integer docId, String question) {
-        DocumentEntity document = documentRepository.findById(docId)
+        DocumentEntity document = documentRepository.findByIdWithoutChunks(docId)
                 .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다."));
 
         String normalizedQuestion = question == null ? "" : question.trim();
@@ -121,9 +121,10 @@ public class DocumentQuestionAnswerService {
      * @return 참고 청크 문자열 목록
      */
     private List<String> selectRelevantChunks(DocumentEntity document, String question) {
-        List<DocChunkEntity> chunks = document.getChunks().stream()
+        List<QuestionChunk> chunks = documentRepository.findQuestionChunks(document.getDocId()).stream()
+                .map(row -> new QuestionChunk(toInteger(row[0]), toStringValue(row[1]), toStringValue(row[2])))
                 .filter(chunk -> !isPdfStructureArtifact(chunk))
-                .sorted(Comparator.comparing(DocChunkEntity::getChunkNo))
+                .sorted(Comparator.comparing(chunk -> chunk.chunkNo() != null ? chunk.chunkNo() : Integer.MAX_VALUE))
                 .toList();
 
         if (chunks.isEmpty()) {
@@ -133,11 +134,11 @@ public class DocumentQuestionAnswerService {
         Set<String> questionTerms = extractTerms(question);
         questionTerms.addAll(extractTerms(document.getTitle()));
 
-        List<DocChunkEntity> topChunks = chunks.stream()
+        List<QuestionChunk> topChunks = chunks.stream()
                 .sorted(Comparator
-                        .comparingInt((DocChunkEntity chunk) -> scoreChunk(chunk, question, questionTerms))
+                        .comparingInt((QuestionChunk chunk) -> scoreChunk(chunk, question, questionTerms))
                         .reversed()
-                        .thenComparing(DocChunkEntity::getChunkNo))
+                        .thenComparing(chunk -> chunk.chunkNo() != null ? chunk.chunkNo() : Integer.MAX_VALUE))
                 .limit(3)
                 .toList();
 
@@ -146,8 +147,11 @@ public class DocumentQuestionAnswerService {
 
         Set<Integer> selectedChunkNos = new LinkedHashSet<>();
         if (hasUsefulMatch) {
-            for (DocChunkEntity topChunk : topChunks) {
-                int currentNo = topChunk.getChunkNo();
+            for (QuestionChunk topChunk : topChunks) {
+                if (topChunk.chunkNo() == null) {
+                    continue;
+                }
+                int currentNo = topChunk.chunkNo();
                 selectedChunkNos.add(currentNo - 1);
                 selectedChunkNos.add(currentNo);
                 selectedChunkNos.add(currentNo + 1);
@@ -158,7 +162,7 @@ public class DocumentQuestionAnswerService {
         selectedChunkNos.add(2);
 
         return chunks.stream()
-                .filter(chunk -> selectedChunkNos.contains(chunk.getChunkNo()))
+                .filter(chunk -> selectedChunkNos.contains(chunk.chunkNo()))
                 .limit(MAX_CONTEXT_CHUNKS)
                 .map(this::toChunkContext)
                 .toList();
@@ -174,6 +178,10 @@ public class DocumentQuestionAnswerService {
      * @return 관련도 점수
      */
     private int scoreChunk(DocChunkEntity chunk, String question, Set<String> questionTerms) {
+        return scoreChunk(new QuestionChunk(chunk.getChunkNo(), chunk.getSectionTitle(), chunk.getContent()), question, questionTerms);
+    }
+
+    private int scoreChunk(QuestionChunk chunk, String question, Set<String> questionTerms) {
         if (isPdfStructureArtifact(chunk)) {
             return Integer.MIN_VALUE;
         }
@@ -182,8 +190,8 @@ public class DocumentQuestionAnswerService {
             return 0;
         }
 
-        String content = chunk.getContent() == null ? "" : chunk.getContent();
-        String sectionTitle = chunk.getSectionTitle() == null ? "" : chunk.getSectionTitle();
+        String content = chunk.content() == null ? "" : chunk.content();
+        String sectionTitle = chunk.sectionTitle() == null ? "" : chunk.sectionTitle();
         String normalizedContent = normalizeForSearch(content);
         String normalizedSectionTitle = normalizeForSearch(sectionTitle);
         String normalizedQuestion = normalizeForSearch(question);
@@ -282,6 +290,19 @@ public class DocumentQuestionAnswerService {
      * @param chunk 청크 엔티티
      * @return 섹션 제목 포함 문맥 문자열
      */
+    private String toChunkContext(QuestionChunk chunk) {
+        StringBuilder context = new StringBuilder();
+        context.append("[Chunk ").append(chunk.chunkNo()).append("]");
+
+        String sectionTitle = chunk.sectionTitle();
+        if (sectionTitle != null && !sectionTitle.isBlank()) {
+            context.append("\n[Section] ").append(sectionTitle);
+        }
+
+        context.append("\n").append(chunk.content());
+        return context.toString();
+    }
+
     private String toChunkContext(DocChunkEntity chunk) {
         StringBuilder context = new StringBuilder();
         context.append("[청크 ").append(chunk.getChunkNo()).append("]");
@@ -293,6 +314,16 @@ public class DocumentQuestionAnswerService {
 
         context.append("\n").append(chunk.getContent());
         return context.toString();
+    }
+
+    private boolean isPdfStructureArtifact(QuestionChunk chunk) {
+        if (chunk == null) {
+            return true;
+        }
+
+        String content = chunk.content() == null ? "" : chunk.content();
+        String sectionTitle = chunk.sectionTitle() == null ? "" : chunk.sectionTitle();
+        return isPdfStructureArtifact(content + "\n" + sectionTitle);
     }
 
     private boolean isPdfStructureArtifact(DocChunkEntity chunk) {
@@ -332,5 +363,22 @@ public class DocumentQuestionAnswerService {
         boolean hasKoreanContent = sample.matches(".*[가-힣]{2,}.*");
         double markerRatio = markerWords / (double) meaningfulWords;
         return markerRatio >= 0.35 && !hasKoreanContent;
+    }
+
+    private Integer toInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return Math.toIntExact(number.longValue());
+        }
+        return Integer.parseInt(String.valueOf(value));
+    }
+
+    private String toStringValue(Object value) {
+        return value != null ? String.valueOf(value) : null;
+    }
+
+    private record QuestionChunk(Integer chunkNo, String sectionTitle, String content) {
     }
 }

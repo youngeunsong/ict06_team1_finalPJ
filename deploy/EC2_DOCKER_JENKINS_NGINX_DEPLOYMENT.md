@@ -2226,6 +2226,27 @@ chunk/vector 개수는 count 쿼리로 조회
 상세/처리/질의 로직은 기존처럼 필요한 경우에만 chunk/vector를 로딩
 ```
 
+학습 상세 화면(`/onboarding/learning/{contentId}`)에서 AI에게 문서 내용을 질의할 때 아래처럼 500이 나도 같은 계열의 문제일 수 있습니다.
+
+```text
+POST /api/onboarding/dashboard/content/{contentId}/question 500
+```
+
+이 경우 backend 로그를 먼저 확인합니다.
+
+```bash
+docker logs --tail=200 team1-backend
+docker logs --tail=200 team1-ai-server
+```
+
+질의 API도 연결 문서를 찾는 과정에서 `chunks.vector.embeddingData` 전체를 로딩하지 않아야 합니다. 해결 방향은 아래와 같습니다.
+
+```text
+contentId -> document 연결 조회는 chunks 없는 전용 쿼리 사용
+질의용 chunk 후보는 doc_chunks에서 chunk_no, section_title, left(content, 2000) 정도만 조회
+doc_vector.embedding_data는 질의 요청마다 Java heap에 올리지 않음
+```
+
 수정 후 자동 배포를 다시 실행하고 아래를 확인합니다.
 
 ```bash

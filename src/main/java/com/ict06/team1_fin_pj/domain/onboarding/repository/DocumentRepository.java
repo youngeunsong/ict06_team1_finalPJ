@@ -16,6 +16,7 @@ import com.ict06.team1_fin_pj.domain.onboarding.entity.DocumentEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +63,73 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Intege
             order by doc_id, rn
             """, nativeQuery = true)
     List<Object[]> findAdminListPreviewChunks();
+
+    @Query("""
+            select d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent
+            left join fetch d.relatedContents
+            where d.docId = :docId
+            """)
+    Optional<DocumentEntity> findByIdWithoutChunks(@Param("docId") Integer docId);
+
+    @Query("""
+            select distinct d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent
+            left join fetch d.relatedContents rc
+            where rc.contentId = :contentId
+            order by d.createdAt desc
+            """)
+    List<DocumentEntity> findByRelatedContentsContentIdWithoutChunks(@Param("contentId") Integer contentId);
+
+    @Query("""
+            select distinct d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent rc
+            left join fetch d.relatedContents
+            where rc.contentId = :contentId
+            order by d.createdAt desc
+            """)
+    List<DocumentEntity> findByRelatedContentContentIdWithoutChunks(@Param("contentId") Integer contentId);
+
+    @Query("""
+            select d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent
+            left join fetch d.relatedContents
+            where d.filePath = :filePath
+            order by d.createdAt desc
+            """)
+    List<DocumentEntity> findByFilePathWithoutChunks(@Param("filePath") String filePath);
+
+    @Query("""
+            select d
+            from DocumentEntity d
+            left join fetch d.department
+            left join fetch d.createdBy
+            left join fetch d.relatedContent
+            left join fetch d.relatedContents
+            where lower(d.title) = lower(:title)
+            order by d.createdAt desc
+            """)
+    List<DocumentEntity> findByTitleIgnoreCaseWithoutChunks(@Param("title") String title);
+
+    @Query(value = """
+            select chunk_no, section_title, left(content, 2000) as content
+            from doc_chunks
+            where doc_id = :docId
+            order by chunk_no nulls last, chunk_id
+            """, nativeQuery = true)
+    List<Object[]> findQuestionChunks(@Param("docId") Integer docId);
 
     @EntityGraph(attributePaths = {"department", "createdBy", "relatedContent", "relatedContents", "chunks", "chunks.vector"})
     Optional<DocumentEntity> findFirstByTitleIgnoreCaseOrderByCreatedAtDesc(String title);
