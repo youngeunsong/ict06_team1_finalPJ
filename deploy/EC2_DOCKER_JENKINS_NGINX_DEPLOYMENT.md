@@ -664,6 +664,33 @@ cd ~/ict06_team1_finalPJ
 
 Jenkins 자동 배포까지 사용할 경우 이 파일들은 EC2에서만 수동 생성하지 말고, 프로젝트 루트에 만든 뒤 Git에 commit/push해서 배포용 브랜치에 포함시킵니다. Jenkins는 Git checkout 결과를 `/opt/team1/current`에 동기화하므로, Git에 없는 Dockerfile은 자동 배포 때 사라질 수 있습니다.
 
+Docker build context가 너무 커지지 않도록 `.dockerignore`도 함께 둡니다. 단, backend 이미지는 `target/*.jar`를 복사해야 하므로 jar 파일은 제외하지 않아야 합니다.
+
+```dockerignore
+.git
+.idea
+.vscode
+node_modules
+react-frontend/node_modules
+react-frontend/build
+target/*
+!target/*.jar
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.log
+hs_err_pid*
+employee
+ict_06_uploads
+DB
+readme_images
+demoSampleImg
+embedding-payload.json
+embedding-result.json
+```
+
 ### 11.1 Backend Dockerfile
 
 프로젝트 루트에 `Dockerfile.backend` 파일을 생성합니다.
@@ -2016,6 +2043,25 @@ stage('Docker Compose Build & Up') {
     }
 }
 ```
+
+### Dockerfile.backend에서 target jar를 찾지 못하는 경우
+
+Console Output에 아래 오류가 나오면 Jenkins가 jar 빌드에는 성공했지만, Docker build context에서 `target/*.jar`를 보지 못한 것입니다.
+
+```text
+Dockerfile.backend:4
+COPY target/*.jar app.jar
+target backend: failed to solve: lstat /target: no such file or directory
+```
+
+가장 흔한 원인은 `.dockerignore`에 `target` 또는 `target/`을 통째로 제외해 둔 경우입니다. backend Dockerfile은 `target/*.jar`를 이미지 안으로 복사하므로 jar 파일은 예외 처리해야 합니다.
+
+```dockerignore
+target/*
+!target/*.jar
+```
+
+수정 후 commit/push하고 Jenkins에서 다시 `Build Now`를 실행합니다.
 
 ### Docker build 중 no space left on device가 나는 경우
 
