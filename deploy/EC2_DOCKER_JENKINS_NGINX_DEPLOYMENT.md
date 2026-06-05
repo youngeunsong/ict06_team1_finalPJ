@@ -412,8 +412,9 @@ sudo nano /opt/team1/env/backend.env
 SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=8081
 
-APP_FRONTEND_ORIGIN=http://EC2_PUBLIC_IP
-APP_CORS_ALLOWED_ORIGINS=http://EC2_PUBLIC_IP
+APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
 AI_SERVER_BASE_URL=http://ai-server:8000
 
 DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
@@ -434,6 +435,8 @@ GEMINI_API_KEY=운영키
 GROQ_API_KEY=운영키
 ```
 
+`APP_FRONTEND_ORIGIN`, `APP_CORS_ALLOWED_ORIGINS`, `APP_FRONTEND_LOGIN_URL`은 실제 브라우저 접속 주소와 정확히 일치해야 합니다. HTTPS를 적용한 뒤에도 이 값이 `http://EC2_PUBLIC_IP`, `corework.duckdns.org`, `YOUR_DOMAIN` 등으로 남아 있으면 로그인 API가 403으로 실패할 수 있습니다.
+
 AI 서버 환경변수:
 
 ```bash
@@ -441,7 +444,7 @@ sudo nano /opt/team1/env/ai.env
 ```
 
 ```env
-ALLOWED_ORIGINS=http://EC2_PUBLIC_IP
+ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
 
 GEMINI_API_KEY=운영키
 GROQ_API_KEY=운영키
@@ -1354,6 +1357,7 @@ sudo nano /opt/team1/env/backend.env
 ```env
 APP_FRONTEND_ORIGIN=https://YOUR_DOMAIN
 APP_CORS_ALLOWED_ORIGINS=https://YOUR_DOMAIN
+APP_FRONTEND_LOGIN_URL=https://YOUR_DOMAIN/auth/login
 ```
 
 프리티어 시연 기준:
@@ -1361,7 +1365,10 @@ APP_CORS_ALLOWED_ORIGINS=https://YOUR_DOMAIN
 ```env
 APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
 APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
 ```
+
+이 값들은 브라우저에서 실제 접속하는 origin과 정확히 같아야 합니다. 예를 들어 `https://43.200.198.243.sslip.io/auth/login`에서 로그인하는데 backend env가 `http://43.200.198.243` 또는 `https://corework.duckdns.org`로 남아 있으면 `/api/auth/login`이 403으로 실패할 수 있습니다.
 
 backend 컨테이너 재생성:
 
@@ -1594,9 +1601,17 @@ pipeline {
                 sh '''
                 docker ps
                 for i in $(seq 1 60); do
-                  if curl -fsS http://127.0.0.1/ > /dev/null \
-                    && curl -fsS http://127.0.0.1:8000/health > /dev/null \
-                    && curl -fsS http://127.0.0.1/ai-api/health > /dev/null; then
+                  FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ || true)
+                  AI_DIRECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health || true)
+                  AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ai-api/health || true)
+                  BACKEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/api/user/me || true)
+
+                  echo "front=$FRONT_CODE ai_direct=$AI_DIRECT_CODE ai_nginx=$AI_NGINX_CODE backend=$BACKEND_CODE"
+
+                  if [ "$FRONT_CODE" = "200" ] \
+                    && [ "$AI_DIRECT_CODE" = "200" ] \
+                    && [ "$AI_NGINX_CODE" = "200" ] \
+                    && [ "$BACKEND_CODE" = "401" ]; then
                     echo "Health check passed"
                     exit 0
                   fi
@@ -1608,7 +1623,7 @@ pipeline {
                 echo "Health check failed"
                 docker ps
                 docker logs --tail=100 team1-ai-server || true
-                docker logs --tail=100 team1-backend || true
+                docker logs --tail=150 team1-backend || true
                 exit 1
                 '''
             }
@@ -2055,15 +2070,18 @@ REACT_APP_AI_SERVER_URL=/ai-api
 `/opt/team1/env/backend.env`:
 
 ```env
-APP_FRONTEND_ORIGIN=http://EC2_PUBLIC_IP
-APP_CORS_ALLOWED_ORIGINS=http://EC2_PUBLIC_IP
+APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
 ```
 
 `/opt/team1/env/ai.env`:
 
 ```env
-ALLOWED_ORIGINS=http://EC2_PUBLIC_IP
+ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
 ```
+
+`/api/auth/login`이 403으로 실패하면 브라우저에서 접속한 주소와 위 origin 값이 정확히 같은지 먼저 확인합니다. `http://43.200.198.243`, `https://corework.duckdns.org`, `YOUR_DOMAIN` 등 예전 값이 남아 있으면 HTTPS 배포 주소와 origin이 달라져 실패할 수 있습니다.
 
 변경 후:
 
@@ -2503,7 +2521,7 @@ target/*
 
 수정 후 commit/push하고 Jenkins에서 다시 `Build Now`를 실행합니다.
 
-### Jenkins Health Check에서 `/ai-api/health`가 502로 실패하는 경우
+### Jenkins Health Check에서 404, 502, 000으로 실패하는 경우
 
 Console Output 흐름이 아래처럼 보이면 Docker 이미지 빌드, 컨테이너 재생성, Nginx reload까지는 성공한 상태입니다.
 
@@ -2513,11 +2531,20 @@ Image current-backend Built
 Container team1-ai-server Started
 Container team1-backend Started
 nginx: configuration file /etc/nginx/nginx.conf test is successful
-curl -f http://127.0.0.1/ai-api/health
-curl: (22) The requested URL returned error: 502
+front=200 ai_direct=000 ai_nginx=502 backend=000
 ```
 
-이 경우 가장 흔한 원인은 AI 서버 컨테이너는 시작됐지만 FastAPI 앱이 아직 완전히 준비되지 않은 상태에서 Nginx 경유 health check가 너무 빨리 실행된 것입니다. `docker ps`에서 `Up 7 seconds`처럼 매우 짧게 보이면 특히 가능성이 높습니다.
+이 경우 가장 흔한 원인은 컨테이너는 시작됐지만 Spring Boot 또는 FastAPI 앱이 아직 완전히 준비되지 않은 상태에서 health check가 너무 빨리 실행된 것입니다. `docker ps`에서 `Up 7 seconds`처럼 매우 짧게 보이면 특히 가능성이 높습니다.
+
+응답 코드 해석:
+
+```text
+front=404: HTTPS/server_name 적용 후 http://127.0.0.1/ 같은 잘못된 URL을 검사 중일 가능성
+ai_direct=000: AI 컨테이너 포트가 아직 응답하지 않음. curl 자체가 연결 실패
+ai_nginx=502: Nginx는 열렸지만 upstream AI 서버가 아직 준비되지 않음
+backend=000: backend가 아직 시작 중이거나 포트가 열리지 않음
+backend=401: /api/user/me를 토큰 없이 호출한 정상 응답. backend alive로 판단 가능
+```
 
 EC2에서 직접 확인합니다.
 
@@ -2529,7 +2556,7 @@ curl -i http://127.0.0.1/ai-api/health
 
 직접 호출(`:8000/health`)은 성공하는데 Nginx 경유(`/ai-api/health`)가 계속 실패하면 Nginx 설정을 확인합니다. 둘 다 잠시 후 성공한다면 Pipeline health check가 너무 빨랐던 것입니다.
 
-Jenkins Pipeline의 Health Check 단계는 즉시 한 번만 검사하지 말고 재시도 방식으로 작성합니다.
+Jenkins Pipeline의 Health Check 단계는 즉시 한 번만 검사하지 말고 재시도 방식으로 작성합니다. 또한 `curl`이 연결 실패로 non-zero exit code를 반환해도 루프가 중단되지 않도록 각 curl 뒤에 `|| true`를 붙입니다.
 
 ```groovy
 stage('Health Check') {
@@ -2537,9 +2564,17 @@ stage('Health Check') {
         sh '''
         docker ps
         for i in $(seq 1 60); do
-          if curl -fsS http://127.0.0.1/ > /dev/null \
-            && curl -fsS http://127.0.0.1:8000/health > /dev/null \
-            && curl -fsS http://127.0.0.1/ai-api/health > /dev/null; then
+          FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ || true)
+          AI_DIRECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health || true)
+          AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ai-api/health || true)
+          BACKEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/api/user/me || true)
+
+          echo "front=$FRONT_CODE ai_direct=$AI_DIRECT_CODE ai_nginx=$AI_NGINX_CODE backend=$BACKEND_CODE"
+
+          if [ "$FRONT_CODE" = "200" ] \
+            && [ "$AI_DIRECT_CODE" = "200" ] \
+            && [ "$AI_NGINX_CODE" = "200" ] \
+            && [ "$BACKEND_CODE" = "401" ]; then
             echo "Health check passed"
             exit 0
           fi
@@ -2551,7 +2586,7 @@ stage('Health Check') {
         echo "Health check failed"
         docker ps
         docker logs --tail=100 team1-ai-server || true
-        docker logs --tail=100 team1-backend || true
+        docker logs --tail=150 team1-backend || true
         exit 1
         '''
     }
@@ -2728,6 +2763,112 @@ Chrome 실행 옵션에 아래 값을 추가해서 테스트 PC에서만 HTTP IP
 ```
 
 GPS 권한이 정상으로 바뀐 뒤에도 실패한다면 그때는 backend의 회사 위치/허용 반경 검증 문제일 수 있습니다. backend 기준 위치는 `AttendanceServiceImpl`의 `COMPANY_LAT`, `COMPANY_LNG`, `ALLOWED_DISTANCE_METER` 값을 확인합니다.
+
+### GitHub Webhook 자동 배포가 실행되지 않는 경우
+
+GitHub에 push했는데 Jenkins 자동 배포가 실행되지 않으면 먼저 GitHub webhook의 최근 전송 결과를 확인합니다.
+
+```text
+GitHub repository
+-> Settings
+-> Webhooks
+-> 등록한 webhook 클릭
+-> Recent Deliveries 확인
+```
+
+프리티어 시연 기준 Payload URL:
+
+```text
+https://43.200.198.243.sslip.io/github-webhook/
+```
+
+아래처럼 예전 HTTP IP 주소로 되어 있으면 수정합니다.
+
+```text
+잘못된 예: http://43.200.198.243/github-webhook/
+권장 예: https://43.200.198.243.sslip.io/github-webhook/
+```
+
+`Invalid HTTP Response: 404`가 나오면 대부분 Nginx가 `/github-webhook/` 경로를 Jenkins로 넘기지 못한 상태입니다. Nginx HTTPS server block 안에 아래 location이 있는지 확인합니다.
+
+```bash
+sudo nano /etc/nginx/sites-available/team1
+```
+
+```nginx
+location /github-webhook/ {
+    proxy_pass http://127.0.0.1:8080/github-webhook/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+수정 후 적용합니다.
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+EC2에서 webhook 경로가 Jenkins까지 전달되는지 확인합니다.
+
+```bash
+curl -i https://43.200.198.243.sslip.io/github-webhook/
+```
+
+정상적으로 Jenkins까지 연결되면 `GET` 요청 기준으로는 `405 Method Not Allowed`가 나올 수 있습니다. 이 경우는 실패가 아니라, Jenkins webhook endpoint가 GitHub의 `POST` 요청을 받는 경로이기 때문에 자연스러운 응답입니다.
+
+정상 연결의 단서:
+
+```text
+HTTP/1.1 405 Method Not Allowed
+X-Jenkins: 2.555.2
+```
+
+즉 아래처럼 판단합니다.
+
+```text
+404: Nginx location 또는 webhook URL 문제 가능성이 큼
+405 + X-Jenkins 헤더: Nginx가 Jenkins까지 정상 프록시 중. GitHub POST 재전송 필요
+```
+
+GitHub에서 같은 payload를 다시 보내려면 `Redeliver`를 사용합니다.
+
+```text
+GitHub repository
+-> Settings
+-> Webhooks
+-> 등록한 webhook 클릭
+-> Recent Deliveries
+-> 실패한 delivery 클릭
+-> Redeliver 클릭
+```
+
+`Redeliver` 후 GitHub 응답 코드가 `200`인지 확인하고, Jenkins의 `Build History`에 새 빌드가 생기는지 확인합니다.
+
+Jenkins job 설정도 함께 확인합니다.
+
+```text
+Jenkins job
+-> Configure
+-> Build Triggers
+-> GitHub hook trigger for GITScm polling 체크
+```
+
+Pipeline이 특정 브랜치만 빌드하도록 되어 있다면 push한 브랜치와 설정 브랜치가 일치해야 합니다.
+
+```text
+예: */topic/aws_test
+```
+
+GitHub 화면에서 `Redeliver`를 찾기 어렵다면 테스트용 빈 커밋으로 webhook을 다시 발생시킬 수 있습니다.
+
+```bash
+git commit --allow-empty -m "Test webhook deployment"
+git push
+```
 
 ### Docker build 중 no space left on device가 나는 경우
 
