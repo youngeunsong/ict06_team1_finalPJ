@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @FileName : ContentLearningAssistService.java
  * @Description : ?숈뒿 肄섑뀗痢?AI ?붿빟, ?ъ꽕紐? 吏곸젒 吏덈Ц 泥섎━ ?쒕퉬?? * @Author : 源?ㅼ넑
  * @Date : 2026. 05. 15
@@ -177,11 +177,11 @@ public class ContentLearningAssistService {
 
     private boolean isLowConfidenceAnswer(String answer) {
         String normalized = answer.replaceAll("\\s+", "");
-        return normalized.contains("臾몄꽌?먯꽌?뺤씤?좎닔??)
-                || normalized.contains("?먮즺媛遺議?)
-                || normalized.contains("紐낆떆?곸쑝濡쒖뼵湲됰릺吏??)
-                || normalized.contains("?뺥솗?쒕떟蹂?댁뼱??)
-                || normalized.contains("洹쇨굅媛異⑸텇?섏???);
+        return normalized.contains("문서에서확인할수없")
+                || normalized.contains("자료가부족")
+                || normalized.contains("명시적으로언급되지않")
+                || normalized.contains("정확한답변이어렵")
+                || normalized.contains("근거가충분하지않");
     }
 
     private String buildReferenceLinks(OnContentEntity content, String requestHint) {
@@ -208,7 +208,7 @@ public class ContentLearningAssistService {
                     - W3C Design Systems: https://design-system.w3.org/
                     """.trim();
         }
-        if (source.contains("accessibility") || source.contains("?묎렐??) || source.contains("a11y")) {
+        if (source.contains("accessibility") || source.contains("접근성") || source.contains("a11y")) {
             return """
                     - MDN ?묎렐??媛?대뱶: https://developer.mozilla.org/ko/docs/Learn/Accessibility
                     - WAI ?묎렐???뚭컻: https://www.w3.org/WAI/fundamentals/accessibility-intro/
