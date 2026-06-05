@@ -5,7 +5,8 @@
 node_modules
 react-frontend/node_modules
 react-frontend/build
-target
+target/*
+!target/*.jar
 venv
 .venv
 __pycache__
