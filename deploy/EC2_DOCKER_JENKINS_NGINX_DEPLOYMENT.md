@@ -260,6 +260,14 @@ sudo apt update
 sudo apt install -y jenkins
 ```
 
+Ubuntu EC2에서 /tmp가 작은 tmpfs로 잡혀 있으면 Jenkins가 사용할 임시 디렉터리를 디스크 공간이 넉넉한 곳으로 바꿉니다.
+
+```bash
+sudo mkdir -p /var/lib/jenkins/tmp
+sudo chown jenkins:jenkins /var/lib/jenkins/tmp
+sudo chmod 750 /var/lib/jenkins/tmp
+```
+
 Jenkins가 Java 21로 실행되도록 systemd drop-in 파일을 작성합니다.
 
 ```bash
@@ -273,6 +281,7 @@ sudo nano /etc/systemd/system/jenkins.service.d/override.conf
 [Service]
 Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
 Environment="JENKINS_JAVA_CMD=/usr/lib/jvm/java-21-openjdk-amd64/bin/java"
+Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.io.tmpdir=/var/lib/jenkins/tmp"
 ```
 
 저장 확인:
@@ -415,9 +424,9 @@ sudo nano /opt/team1/env/backend.env
 SPRING_PROFILES_ACTIVE=prod
 SERVER_PORT=8081
 
-APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
-APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
-APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
+APP_FRONTEND_ORIGIN=https://EC2_PUBLIC_IP.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
+APP_FRONTEND_LOGIN_URL=https://EC2_PUBLIC_IP.sslip.io/auth/login
 AI_SERVER_BASE_URL=http://ai-server:8000
 
 DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
@@ -447,7 +456,7 @@ sudo nano /opt/team1/env/ai.env
 ```
 
 ```env
-ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
 
 GEMINI_API_KEY=운영키
 GROQ_API_KEY=운영키
@@ -883,6 +892,7 @@ sudo chmod 640 /opt/team1/.env
 
 ### 13.1 dump SQL 파일 업로드
 
+(덤프 백업 방법은 팀 노션 문서에서 확인해주세요)
 MobaXterm SFTP 패널에서 dump 방식으로 서버컴 db를 백업한 파일(형식: `dump-ict06_team1_finalpj-(백업날짜).sql`) 을 드래그 앤 드롭하여 `/home/ubuntu/backup.sql`로 업로드합니다.
 업로드 후 파일 우클릭->rename 기능 이용하여 `backup.sql`로 파일명 변경합니다.
 
@@ -1141,22 +1151,22 @@ sslip.io는 도메인 이름 앞부분의 IP를 그대로 DNS A 레코드로 응
 예시:
 
 ```text
-43.200.198.243.sslip.io -> 43.200.198.243
+EC2_PUBLIC_IP.sslip.io -> EC2_PUBLIC_IP
 ```
 
 이 프로젝트의 HTTPS 시연 주소:
 
 ```text
-YOUR_DOMAIN = 43.200.198.243.sslip.io
+YOUR_DOMAIN = EC2_PUBLIC_IP.sslip.io
 ```
 
 확인:
 
 ```bash
-nslookup 43.200.198.243.sslip.io
+nslookup EC2_PUBLIC_IP.sslip.io
 ```
 
-결과 IP가 EC2 탄력적 IP로 나오면 이후 문서의 `YOUR_DOMAIN` 자리에 `43.200.198.243.sslip.io`를 넣습니다.
+결과 IP가 EC2 탄력적 IP로 나오면 이후 문서의 `YOUR_DOMAIN` 자리에 `EC2_PUBLIC_IP.sslip.io`를 넣습니다.
 
 주의:
 
@@ -1182,7 +1192,7 @@ YOUR_SUBDOMAIN.duckdns.org -> EC2 탄력적 IP
 예시:
 
 ```text
-corework.duckdns.org -> 43.200.198.243
+corework.duckdns.org -> EC2_PUBLIC_IP
 ```
 
 확인:
@@ -1217,7 +1227,7 @@ TTL: 기본값 또는 300
 예시:
 
 ```text
-team1.example.com -> 43.200.198.243
+team1.example.com -> EC2_PUBLIC_IP
 ```
 
 DNS 전파 확인:
@@ -1266,8 +1276,8 @@ Create record
 예시:
 
 ```text
-example.com       A  43.200.198.243
-www.example.com   A  43.200.198.243
+example.com       A  EC2_PUBLIC_IP
+www.example.com   A  EC2_PUBLIC_IP
 ```
 
 이미 다른 업체에서 구매한 도메인을 Route 53 Hosted zone으로 관리하려면, Route 53 Hosted zone에 표시된 NS 레코드 4개를 도메인 구매처의 네임서버 설정에 등록해야 합니다.
@@ -1305,7 +1315,7 @@ sudo nano /etc/nginx/sites-available/team1
 프리티어 시연 기준:
 
 ```nginx
-server_name 43.200.198.243.sslip.io;
+server_name EC2_PUBLIC_IP.sslip.io;
 ```
 
 전체 예시:
@@ -1389,7 +1399,7 @@ sudo certbot --nginx -d YOUR_DOMAIN
 프리티어 시연 기준:
 
 ```bash
-sudo certbot --nginx -d 43.200.198.243.sslip.io
+sudo certbot --nginx -d EC2_PUBLIC_IP.sslip.io
 ```
 
 진행 중 이메일을 입력하고, HTTP를 HTTPS로 redirect할지 물으면 redirect를 선택합니다. 성공하면 Certbot이 Nginx 설정에 443 SSL server block과 인증서 경로를 추가합니다.
@@ -1428,7 +1438,7 @@ curl -I https://YOUR_DOMAIN
 프리티어 시연 기준:
 
 ```bash
-curl -I https://43.200.198.243.sslip.io
+curl -I https://EC2_PUBLIC_IP.sslip.io
 ```
 
 인증서 자동 갱신 확인:
@@ -1456,12 +1466,12 @@ APP_FRONTEND_LOGIN_URL=https://YOUR_DOMAIN/auth/login
 프리티어 시연 기준:
 
 ```env
-APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
-APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
-APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
+APP_FRONTEND_ORIGIN=https://EC2_PUBLIC_IP.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
+APP_FRONTEND_LOGIN_URL=https://EC2_PUBLIC_IP.sslip.io/auth/login
 ```
 
-이 값들은 브라우저에서 실제 접속하는 origin과 정확히 같아야 합니다. 예를 들어 `https://43.200.198.243.sslip.io/auth/login`에서 로그인하는데 backend env가 `http://43.200.198.243` 또는 `https://corework.duckdns.org`로 남아 있으면 `/api/auth/login`이 403으로 실패할 수 있습니다.
+이 값들은 브라우저에서 실제 접속하는 origin과 정확히 같아야 합니다. 예를 들어 `https://EC2_PUBLIC_IP.sslip.io/auth/login`에서 로그인하는데 backend env가 `http://EC2_PUBLIC_IP` 또는 `https://corework.duckdns.org`로 남아 있으면 `/api/auth/login`이 403으로 실패할 수 있습니다.
 
 backend 컨테이너 재생성:
 
@@ -1484,7 +1494,7 @@ Active: 체크
 프리티어 시연 기준:
 
 ```text
-Payload URL: https://43.200.198.243.sslip.io/github-webhook/
+Payload URL: https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 ```
 
 GitHub Webhook 상세 화면의 `Recent Deliveries`에서 응답 코드가 `200`인지 확인합니다.
@@ -1502,15 +1512,15 @@ https://YOUR_DOMAIN/ai-api/health
 프리티어 시연 기준:
 
 ```text
-https://43.200.198.243.sslip.io
-https://43.200.198.243.sslip.io/admin/login
-https://43.200.198.243.sslip.io/ai-api/health
+https://EC2_PUBLIC_IP.sslip.io
+https://EC2_PUBLIC_IP.sslip.io/admin/login
+https://EC2_PUBLIC_IP.sslip.io/ai-api/health
 ```
 
 출근/퇴근 GPS 테스트:
 
 ```text
-1. https://43.200.198.243.sslip.io 로 접속
+1. https://EC2_PUBLIC_IP.sslip.io 로 접속
 2. 주소창 왼쪽 사이트 설정에서 위치 권한 허용
 3. 출근하기 클릭
 4. 브라우저 콘솔에서 Only secure origins are allowed 오류가 사라졌는지 확인
@@ -1520,7 +1530,9 @@ https://43.200.198.243.sslip.io/ai-api/health
 
 이 단계부터는 수동으로 입력하던 빌드/복사/컨테이너 재생성 명령을 Jenkins가 대신 실행하게 만듭니다.
 
-처음에는 GitHub push 자동 트리거까지 바로 연결하지 말고, Jenkins 화면에서 `Build Now` 버튼을 누르면 배포되는 방식으로 구성합니다. 이 방식이 안정화된 뒤 GitHub webhook을 붙입니다.
+새 인스턴스에서 처음 배포 문서를 따라가는 경우에는 15번 Jenkins 자동화보다 16번 최초 수동 배포 테스트를 먼저 성공시키는 것을 권장합니다. 16번에서 Maven build, React build, Docker Compose, Nginx 연결이 한 번 검증된 뒤 15번으로 돌아와 Jenkins Pipeline을 등록하면 문제 원인을 훨씬 좁히기 쉽습니다.
+
+처음에는 GitHub push 자동 트리거까지 바로 연결하지 말고, Jenkins 화면에서 `Build Now(지금 빌드)` 버튼을 누르면 배포되는 방식으로 구성합니다. 이 방식이 안정화된 뒤 GitHub webhook을 붙입니다.
 
 자동 배포가 하는 일:
 
@@ -1552,12 +1564,14 @@ DB 복원, backup.sql 교체, 업로드 폴더 이관은 별도 운영 작업으
 Jenkins Item:
 
 ```text
-New Item 
+New Item (새로운 Item)
 -> item name = '(원하는 이름)', item type = Pipeline 
 -> OK
 ```
 
 처음 배포 테스트라면 이렇게 하시면 됩니다.
+
+'구성' 에서 General, Triggers, Pipeline을 아래 대로 작성 후 저장. 
 
 ### General
 
@@ -1568,7 +1582,7 @@ New Item
 ### Triggers
 
 - 전부 비워도 됨
-- 지금은 GitHub webhook이 아니라 Jenkins 화면에서 `Build Now`로 실행할 것이므로 필요 없습니다.
+- 지금은 GitHub webhook이 아니라 Jenkins 화면에서 `Build Now(지금 빌드)`로 실행할 것이므로 필요 없습니다.
 
 ### Pipeline
 
@@ -1592,7 +1606,9 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${BRANCH_NAME}", url: "${REPOSITORY_URL}"
+                retry(2) {
+                    git branch: "${BRANCH_NAME}", url: "${REPOSITORY_URL}"
+                }
             }
         }
 
@@ -1694,9 +1710,9 @@ pipeline {
                 sh '''
                 docker ps
                 for i in $(seq 1 60); do
-                  FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ || true)
+                  FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://EC2_PUBLIC_IP.sslip.io/ || true)
                   AI_DIRECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health || true)
-                  AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ai-api/health || true)
+                  AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://EC2_PUBLIC_IP.sslip.io/ai-api/health || true)
                   BACKEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/api/user/me || true)
 
                   echo "front=$FRONT_CODE ai_direct=$AI_DIRECT_CODE ai_nginx=$AI_NGINX_CODE backend=$BACKEND_CODE"
@@ -1725,6 +1741,7 @@ pipeline {
 }
 ```
 
+(참고: 우리 저장소는 public 타입이니 이 내용은 패스
 GitHub 저장소가 private이면 Jenkins Credentials에 GitHub token 또는 SSH key를 등록한 뒤 checkout 부분에 `credentialsId`를 추가합니다.
 
 ```groovy
@@ -1732,6 +1749,8 @@ git branch: "${BRANCH_NAME}",
     url: "${REPOSITORY_URL}",
     credentialsId: "github-credentials-id"
 ```
+
+)
 
 이후 EC2 터미널에서 Jenkins 사용자가 필요한 sudo 명령만 실행할 수 있게 제한합니다.
 
@@ -1778,9 +1797,9 @@ https://EC2_PUBLIC_IP/admin/login
 
 ### 15.1 GitHub push 시 자동 실행으로 바꾸기
 
-`Build Now` 방식이 안정화된 뒤에만 GitHub webhook을 연결합니다.
+`Build Now(지금 시작)` 방식이 안정화된 뒤에만 GitHub webhook을 연결합니다.
 
-Jenkins job 설정:
+Jenkins job 구성:
 
 ```text
 Triggers
@@ -1798,7 +1817,7 @@ Settings
 Webhook 값:
 
 ```text
-Payload URL: https://43.200.198.243.sslip.io/github-webhook/
+Payload URL: https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 Content type: application/json
 Events: Just the push event
 Active: 체크
@@ -1828,7 +1847,7 @@ sudo systemctl reload nginx
 Nginx 프록시 방식을 사용하면 GitHub Webhook 값은 아래처럼 설정합니다.
 
 ```text
-Payload URL: https://43.200.198.243.sslip.io/github-webhook/
+Payload URL: https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 Content type: application/json
 Events: Just the push event
 Active: 체크
@@ -1850,7 +1869,7 @@ Jenkins 자동화 전, EC2에서 한 번 수동으로 확인합니다.
 
 Linux에서 `./mvnw: Permission denied`가 나오면 Maven Wrapper에 실행 권한이 없는 상태입니다. 이 경우 `sudo`로 실행하지 말고 `chmod +x mvnw`를 먼저 실행합니다.
 
-(참고)Querydsl을 사용하는 프로젝트라면 개발 환경에서 Maven `clean` 후 `build/package`를 실행해 QClass를 생성했던 과정이 배포 시에도 빌드 단계에 포함되어야 합니다. 다만 별도 명령을 추가할 필요는 없고, Maven 설정이 정상이라면 아래의 `./mvnw clean package -DskipTests` 과정에서 annotation processing이 실행되며 QClass가 생성되고 jar에 포함됩니다. QClass 생성 문제가 있으면 보통 Docker 실행 후 런타임 오류가 아니라 Maven 빌드 중 `cannot find symbol Q...` 형태의 컴파일 오류로 실패합니다.
+(참고: Querydsl을 사용하는 프로젝트라면 개발 환경에서 Maven `clean` 후 `build/package`를 실행해 QClass를 생성했던 과정이 배포 시에도 빌드 단계에 포함되어야 합니다. 다만 별도 명령을 추가할 필요는 없고, Maven 설정이 정상이라면 아래의 `./mvnw clean package -DskipTests` 과정에서 annotation processing이 실행되며 QClass가 생성되고 jar에 포함됩니다. QClass 생성 문제가 있으면 보통 Docker 실행 후 런타임 오류가 아니라 Maven 빌드 중 `cannot find symbol Q...` 형태의 컴파일 오류로 실패합니다.)
 
 ```bash
 cd /opt/team1/current
@@ -1862,16 +1881,18 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 chmod +x mvnw
 ./mvnw clean package -DskipTests
+ls -lh target/*.jar
 
 cd react-frontend
 npm ci
-NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
 cd ..
 
 sudo rm -rf /var/www/team1/*
 sudo cp -r react-frontend/build/* /var/www/team1/
 sudo chown -R www-data:www-data /var/www/team1
 
+ls -lh target/*.jar
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d
 ```
@@ -1885,14 +1906,37 @@ docker logs -f team1-ai-server
 docker logs -f team1-postgres
 ```
 
+- `docker logs -f team1-backend` 실행 후 'Started Team1FinPjApplication
+Tomcat started on port 8081' 나오면 성공. Ctrl + C 눌러서 나가도 프로세스 진행 중
+- `docker logs -f team1-ai-server` 실행 후 'Application startup complete.
+Uvicorn running on http://0.0.0.0:8000.' 나오면 성공. Ctrl + C 눌러서 나가도 프로세스 진행 중.
+- `docker logs -f team1-postgres` 실행 후 'database system is ready to accept connections' 나오면 성공. Ctrl + C 눌러서 나가도 프로세스 진행 중.
+
+한 번에 상태만 짧게 보고 싶으면 -f 없이 이렇게 봐도 됩니다.
+
+```bash
+docker logs --tail=100 team1-backend
+docker logs --tail=100 team1-ai-server
+docker logs --tail=100 team1-postgres
+```
+
+최종 확인
+
+```bash
+docker ps
+curl -i http://127.0.0.1:8000/health
+curl -i https://EC2_PUBLIC_IP.sslip.io/ai-api/health
+curl -i https://EC2_PUBLIC_IP.sslip.io
+```
+
 ## 17. 배포 후 확인 URL
 
 ```text
 React
-http://EC2_PUBLIC_IP
+https://EC2_PUBLIC_IP.sslip.io
 
 AI health through Nginx
-http://EC2_PUBLIC_IP/ai-api/health
+https://EC2_PUBLIC_IP.sslip.io/ai-api/health
 
 AI health direct local on EC2
 curl http://127.0.0.1:8000/health
@@ -2158,23 +2202,179 @@ REACT_APP_SERVER_URL=/api
 REACT_APP_AI_SERVER_URL=/ai-api
 ```
 
+### React build에서 `react-scripts: not found`가 나는 경우
+
+16번 최초 수동 배포 테스트 또는 Jenkins Build React 단계에서 아래 오류가 나오면 React 의존성이 설치되지 않은 상태에서 `npm run build`가 실행된 것입니다.
+
+```text
+> react-frontend@0.1.0 build
+> react-scripts build
+
+sh: 1: react-scripts: not found
+cp: cannot stat 'react-frontend/build/*': No such file or directory
+```
+
+`cp: cannot stat 'react-frontend/build/*'`는 원인이 아니라 결과입니다. 앞 단계에서 React build가 실패했기 때문에 `react-frontend/build` 폴더가 생성되지 않은 것입니다.
+
+`node_modules`를 GitHub에 올리지 않는 것은 정상입니다. 배포 서버에서는 `package.json`과 `package-lock.json`을 기준으로 `npm ci`가 `node_modules`를 새로 만들어야 합니다.
+
+가장 흔한 원인:
+
+```text
+npm ci를 실행하지 않았음
+npm ci를 프로젝트 루트에서 실행하고 react-frontend 안에서는 실행하지 않았음
+rsync --exclude react-frontend/node_modules 때문에 /opt/team1/current에는 node_modules가 없음
+npm ci가 중간에 실패했는데 이어서 npm run build를 실행함
+EC2에서 npm ci 실패 후에도 쉘이 다음 명령을 계속 실행해서 react-scripts 오류만 눈에 보임
+npm ci가 Killed로 종료됨. 작은 EC2에서 메모리/swap 부족 가능성이 큼
+```
+
+EC2 수동 배포에서는 아래처럼 `react-frontend` 디렉터리 안에서 설치와 빌드를 실행합니다.
+
+```bash
+cd /opt/team1/current/react-frontend
+test -f package.json
+test -f package-lock.json
+rm -rf node_modules
+npm ci
+ls -lh node_modules/.bin/react-scripts
+CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+```
+
+`npm ci`가 실패하면 그 다음 build 명령을 실행하지 말고, 먼저 npm 오류를 해결합니다. 수동 작업 중에는 아래처럼 `&&`로 연결하면 앞 명령이 실패했을 때 다음 단계로 넘어가지 않아 원인을 놓치기 어렵습니다.
+
+```bash
+cd /opt/team1/current/react-frontend && \
+rm -rf node_modules && \
+npm ci && \
+ls -lh node_modules/.bin/react-scripts && \
+CI=false GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=2048 REACT_APP_SERVER_URL=/api REACT_APP_AI_SERVER_URL=/ai-api npm run build
+```
+
+빌드가 성공하면 아래 폴더가 생겨야 합니다.
+
+```bash
+ls -lh build
+```
+
+그 다음에만 프론트 파일을 Nginx 정적 파일 경로로 복사합니다.
+
+```bash
+sudo rm -rf /var/www/team1/*
+sudo cp -r /opt/team1/current/react-frontend/build/* /var/www/team1/
+sudo chown -R www-data:www-data /var/www/team1
+```
+
+Jenkins Pipeline에서는 `Build React` 단계에 `npm ci`가 포함되어 있어야 합니다.
+
+```groovy
+stage('Build React') {
+    steps {
+        dir('react-frontend') {
+            sh '''
+            export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+            node -v
+            npm -v
+            npm ci
+            CI=false \
+            GENERATE_SOURCEMAP=false \
+            NODE_OPTIONS=--max-old-space-size=1024 \
+            REACT_APP_SERVER_URL=/api \
+            REACT_APP_AI_SERVER_URL=/ai-api \
+            npm run build
+            '''
+        }
+    }
+}
+```
+
+만약 `npm ci` 자체가 실패하면 메모리 부족, 디스크 부족, Node/npm 설치 문제를 먼저 확인합니다.
+
+```bash
+node -v
+npm -v
+free -h
+df -h
+npm config get production
+npm config get omit
+```
+
+`node_modules/.bin/react-scripts`가 계속 없다면 `npm ci` 출력에서 `npm ERR!` 또는 `Killed`가 있었는지 확인합니다. 필요하면 설치 로그를 파일로 남깁니다.
+
+```bash
+cd /opt/team1/current/react-frontend
+rm -rf node_modules
+npm ci 2>&1 | tee /tmp/team1-npm-ci.log
+grep -Ei "npm ERR|Killed|ERR_SOCKET|ENOSPC|EACCES" /tmp/team1-npm-ci.log
+```
+
+`npm ci` 중 아래처럼 `Killed`가 나오면 Node 패키지 설치 과정이 메모리 부족으로 강제 종료된 것입니다.
+
+```text
+Killed                     npm ci
+```
+
+이 경우 `react-scripts`를 따로 GitHub에 올리거나 수동 복사하는 방식으로 해결하지 않습니다. EC2 메모리와 swap을 확보한 뒤 `npm ci`를 다시 실행합니다.
+
+```bash
+free -h
+swapon --show
+df -h
+```
+
+swap이 없거나 작다면 4G swap을 추가합니다.
+
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
+```
+
+이미 `/swapfile`이 사용 중이면 위 명령은 실패할 수 있습니다. 그때는 기존 파일을 건드리지 말고 추가 swap 파일을 만듭니다.
+
+```bash
+sudo fallocate -l 2G /swapfile2
+sudo chmod 600 /swapfile2
+sudo mkswap /swapfile2
+sudo swapon /swapfile2
+free -h
+swapon --show
+```
+
+재부팅 후에도 유지하려면 `/etc/fstab`에 추가합니다.
+
+```bash
+echo '/swapfile2 none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+그 다음 React 의존성을 다시 설치합니다.
+
+```bash
+cd /opt/team1/current/react-frontend
+rm -rf node_modules
+npm ci
+ls -lh node_modules/.bin/react-scripts
+```
+
 ### CORS 오류
 
 `/opt/team1/env/backend.env`:
 
 ```env
-APP_FRONTEND_ORIGIN=https://43.200.198.243.sslip.io
-APP_CORS_ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
-APP_FRONTEND_LOGIN_URL=https://43.200.198.243.sslip.io/auth/login
+APP_FRONTEND_ORIGIN=https://EC2_PUBLIC_IP.sslip.io
+APP_CORS_ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
+APP_FRONTEND_LOGIN_URL=https://EC2_PUBLIC_IP.sslip.io/auth/login
 ```
 
 `/opt/team1/env/ai.env`:
 
 ```env
-ALLOWED_ORIGINS=https://43.200.198.243.sslip.io
+ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
 ```
 
-`/api/auth/login`이 403으로 실패하면 브라우저에서 접속한 주소와 위 origin 값이 정확히 같은지 먼저 확인합니다. `http://43.200.198.243`, `https://corework.duckdns.org`, `YOUR_DOMAIN` 등 예전 값이 남아 있으면 HTTPS 배포 주소와 origin이 달라져 실패할 수 있습니다.
+`/api/auth/login`이 403으로 실패하면 브라우저에서 접속한 주소와 위 origin 값이 정확히 같은지 먼저 확인합니다. `http://EC2_PUBLIC_IP`, `https://corework.duckdns.org`, `YOUR_DOMAIN` 등 예전 값이 남아 있으면 HTTPS 배포 주소와 origin이 달라져 실패할 수 있습니다.
 
 변경 후:
 
@@ -2335,9 +2535,9 @@ sudo systemctl reload nginx
 브라우저에서 기존 DB에 저장된 파일 경로를 열어 확인합니다.
 
 ```text
-http://EC2_PUBLIC_IP/approval/uploads/파일명
-http://EC2_PUBLIC_IP/employee/uploads/profile/파일명
-http://EC2_PUBLIC_IP/employee/uploads/sign/파일명
+https://EC2_PUBLIC_IP.sslip.io/approval/uploads/파일명
+https://EC2_PUBLIC_IP.sslip.io/employee/uploads/profile/파일명
+https://EC2_PUBLIC_IP.sslip.io/employee/uploads/sign/파일명
 ```
 
 주의: `docker compose down -v`는 DB 볼륨을 지울 수 있으므로 업로드 폴더와 직접 관련은 없더라도 운영/테스트 데이터가 있는 상태에서는 신중하게 사용합니다.
@@ -2597,7 +2797,7 @@ stage('Docker Compose Build & Up') {
 
 ### Dockerfile.backend에서 target jar를 찾지 못하는 경우
 
-Console Output에 아래 오류가 나오면 Jenkins가 jar 빌드에는 성공했지만, Docker build context에서 `target/*.jar`를 보지 못한 것입니다.
+Console Output 또는 수동 Docker build 중 아래 오류가 나오면 Docker build context에서 `target/*.jar`를 보지 못한 것입니다.
 
 ```text
 Dockerfile.backend:4
@@ -2605,14 +2805,55 @@ COPY target/*.jar app.jar
 target backend: failed to solve: lstat /target: no such file or directory
 ```
 
-가장 흔한 원인은 `.dockerignore`에 `target` 또는 `target/`을 통째로 제외해 둔 경우입니다. backend Dockerfile은 `target/*.jar`를 이미지 안으로 복사하므로 jar 파일은 예외 처리해야 합니다.
+원인은 크게 두 가지입니다.
+
+```text
+1. 수동 배포에서 Maven package를 실행하지 않았거나 실패해서 target/*.jar 자체가 없음
+2. Jenkins 배포에서 jar 빌드는 성공했지만 .dockerignore가 target/*.jar까지 제외함
+```
+
+먼저 jar 파일이 실제로 있는지 확인합니다.
+
+```bash
+cd /opt/team1/current
+ls -lh target/*.jar
+```
+
+없다면 Docker build를 실행하기 전에 backend jar를 먼저 만들어야 합니다.
+
+```bash
+cd /opt/team1/current
+cp deploy/application.properties.example src/main/resources/application.properties
+cp deploy/application-prod.properties.example src/main/resources/application-prod.properties
+
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+chmod +x mvnw
+./mvnw clean package -DskipTests
+ls -lh target/*.jar
+```
+
+jar가 확인된 뒤 Docker build를 다시 실행합니다.
+
+```bash
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build backend
+```
+
+jar 파일이 있는데도 같은 오류가 나면 `.dockerignore`에 `target` 또는 `target/`을 통째로 제외해 둔 경우입니다. backend Dockerfile은 `target/*.jar`를 이미지 안으로 복사하므로 jar 파일은 예외 처리해야 합니다.
 
 ```dockerignore
 target/*
 !target/*.jar
 ```
 
-수정 후 commit/push하고 Jenkins에서 다시 `Build Now`를 실행합니다.
+Jenkins 자동 배포에서는 `Sync Deploy Files` 단계가 아래처럼 jar를 `/opt/team1/current/target`에 복사해야 합니다.
+
+```groovy
+sudo mkdir -p $DEPLOY_DIR/target
+sudo cp target/*.jar $DEPLOY_DIR/target/
+```
+
+수정 후 commit/push하고 Jenkins에서 다시 `Build Now`를 실행합니다. 수동 배포라면 Maven package와 `ls -lh target/*.jar` 확인 후 Docker build를 다시 실행합니다.
 
 ### Jenkins Health Check에서 404, 502, 000으로 실패하는 경우
 
@@ -2657,9 +2898,9 @@ stage('Health Check') {
         sh '''
         docker ps
         for i in $(seq 1 60); do
-          FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ || true)
+          FRONT_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://EC2_PUBLIC_IP.sslip.io/ || true)
           AI_DIRECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health || true)
-          AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://43.200.198.243.sslip.io/ai-api/health || true)
+          AI_NGINX_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://EC2_PUBLIC_IP.sslip.io/ai-api/health || true)
           BACKEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/api/user/me || true)
 
           echo "front=$FRONT_CODE ai_direct=$AI_DIRECT_CODE ai_nginx=$AI_NGINX_CODE backend=$BACKEND_CODE"
@@ -2816,16 +3057,16 @@ GPS 위치 정보가 없습니다.
 차단: http://EC2_PUBLIC_IP
 ```
 
-따라서 `http://43.200.198.243` 같은 HTTP IP 주소로 접속한 배포 환경에서는 출근/퇴근 GPS 기능이 정상 동작하지 않습니다. 통합테스트에서 출퇴근 기능까지 확인하려면 아래 중 하나를 선택합니다.
+따라서 `http://EC2_PUBLIC_IP` 같은 HTTP IP 주소로 접속한 배포 환경에서는 출근/퇴근 GPS 기능이 정상 동작하지 않습니다. 통합테스트에서 출퇴근 기능까지 확인하려면 아래 중 하나를 선택합니다.
 
 권장 방식: sslip.io + HTTPS 적용
 
 ```text
-43.200.198.243.sslip.io처럼 EC2 탄력적 IP 기반 sslip.io 주소 사용
+EC2_PUBLIC_IP.sslip.io처럼 EC2 탄력적 IP 기반 sslip.io 주소 사용
 별도 DNS 설정 없이 해당 주소가 EC2 탄력적 IP를 가리키는지 확인
 Nginx server_name을 sslip.io 주소로 변경
 Let's Encrypt/Certbot 등으로 SSL 인증서 발급
-https://43.200.198.243.sslip.io 로 접속해서 출근/퇴근 테스트
+https://EC2_PUBLIC_IP.sslip.io 로 접속해서 출근/퇴근 테스트
 ```
 
 DuckDNS를 사용할 수도 있지만, Let's Encrypt 인증서 발급 중 아래 오류가 반복되면 DuckDNS DNS CAA 조회 타임아웃 문제일 가능성이 있습니다.
@@ -2848,7 +3089,7 @@ Chrome 실행 옵션에 아래 값을 추가해서 테스트 PC에서만 HTTP IP
 확인 순서:
 
 ```text
-1. https://43.200.198.243.sslip.io 또는 임시 허용된 브라우저로 접속
+1. https://EC2_PUBLIC_IP.sslip.io 또는 임시 허용된 브라우저로 접속
 2. 주소창 왼쪽 사이트 설정에서 위치 권한 허용
 3. 출근하기 클릭
 4. 브라우저 콘솔에 Only secure origins are allowed가 사라졌는지 확인
@@ -2856,6 +3097,66 @@ Chrome 실행 옵션에 아래 값을 추가해서 테스트 PC에서만 HTTP IP
 ```
 
 GPS 권한이 정상으로 바뀐 뒤에도 실패한다면 그때는 backend의 회사 위치/허용 반경 검증 문제일 수 있습니다. backend 기준 위치는 `AttendanceServiceImpl`의 `COMPANY_LAT`, `COMPANY_LNG`, `ALLOWED_DISTANCE_METER` 값을 확인합니다.
+
+### Jenkins Build Now가 Checkout 단계에서 실패하는 경우
+
+Console Output에 아래 메시지가 나오면 GitHub 소스나 브랜치 문제가 아니라, Jenkins가 `git` checkout 중에 재시작되어 해당 step을 이어서 재개하지 못한 것입니다.
+
+```text
+Resuming build ... after Jenkins restart
+SynchronousResumeNotSupportedException: The Pipeline step `git` cannot be resumed after a controller restart.
+Stage "Prepare Spring Properties" skipped due to earlier failure(s)
+Finished: FAILURE
+```
+
+이 경우 이미 실패한 빌드를 살리는 것이 아니라, Jenkins가 완전히 다시 올라온 뒤 새 빌드를 다시 실행합니다.
+
+```bash
+sudo systemctl status jenkins --no-pager -l
+```
+
+Jenkins 상태가 `active (running)`이면 Jenkins 웹 화면에서 다시 실행합니다.
+
+```text
+Jenkins job
+-> Build Now
+```
+
+빌드 중에는 아래 작업을 하지 않습니다.
+
+```text
+sudo systemctl restart jenkins
+Jenkins 플러그인 설치/업데이트 후 재시작
+EC2 재부팅
+Jenkins 설정 변경 후 즉시 재시작
+```
+
+반복적으로 같은 문제가 나면 Jenkins job 설정에서 아래 항목을 체크해 혼란스러운 resume 동작을 줄일 수 있습니다. 이 경우 Jenkins 재시작 중이던 빌드는 재개되지 않고 실패 처리되므로, 재시작 후 다시 Build Now를 누릅니다.
+
+```text
+General
+-> Do not allow the pipeline to resume if the controller restarts 체크
+```
+
+Pipeline의 Checkout 단계에는 일시적인 checkout 실패에 대비해 `retry`를 넣습니다.
+
+```groovy
+stage('Checkout') {
+    steps {
+        retry(2) {
+            git branch: "${BRANCH_NAME}", url: "${REPOSITORY_URL}"
+        }
+    }
+}
+```
+
+그래도 checkout이 계속 실패하면 브랜치명과 저장소 접근 권한을 확인합니다.
+
+```text
+BRANCH_NAME이 실제 배포 브랜치와 일치하는지 확인
+public repository인지, private이면 Jenkins credentials가 필요한지 확인
+Jenkins Console Output에 Could not read from remote repository 또는 authentication failed가 있는지 확인
+```
 
 ### GitHub Webhook 자동 배포가 실행되지 않는 경우
 
@@ -2872,14 +3173,14 @@ GitHub repository
 프리티어 시연 기준 Payload URL:
 
 ```text
-https://43.200.198.243.sslip.io/github-webhook/
+https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 ```
 
 아래처럼 예전 HTTP IP 주소로 되어 있으면 수정합니다.
 
 ```text
-잘못된 예: http://43.200.198.243/github-webhook/
-권장 예: https://43.200.198.243.sslip.io/github-webhook/
+잘못된 예: http://EC2_PUBLIC_IP/github-webhook/
+권장 예: https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 ```
 
 `Invalid HTTP Response: 404`가 나오면 대부분 Nginx가 `/github-webhook/` 경로를 Jenkins로 넘기지 못한 상태입니다. Nginx HTTPS server block 안에 아래 location이 있는지 확인합니다.
@@ -2908,7 +3209,7 @@ sudo systemctl reload nginx
 EC2에서 webhook 경로가 Jenkins까지 전달되는지 확인합니다.
 
 ```bash
-curl -i https://43.200.198.243.sslip.io/github-webhook/
+curl -i https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 ```
 
 정상적으로 Jenkins까지 연결되면 `GET` 요청 기준으로는 `405 Method Not Allowed`가 나올 수 있습니다. 이 경우는 실패가 아니라, Jenkins webhook endpoint가 GitHub의 `POST` 요청을 받는 경로이기 때문에 자연스러운 응답입니다.
@@ -3179,14 +3480,18 @@ sudo chmod 644 /opt/team1/db/init/01_backup.sql
 4. Jenkins Java 21 실행 설정 및 JDK 17 빌드 설정 확인
 5. /opt/team1 디렉터리 준비
 6. backend.env, ai.env, /opt/team1/.env 작성
-7. DB dump SQL 업로드
-8. Dockerfile.backend, Dockerfile.ai, docker-compose.prod.yml 준비
-9. Nginx sites-available/team1 설정
-10. Jenkins Pipeline 등록
-11. Jenkins 빌드 실행
-12. PostgreSQL 복원 확인
-13. Docker 컨테이너 상태 확인
-14. Nginx reload
-15. 브라우저에서 http://EC2_PUBLIC_IP 접속 및 로그인 테스트
-16. 운영 DB 백업 스케줄 등록
+7. GitHub 프로젝트 clone
+8. 배포용 파일이 포함된 브랜치로 전환
+9. DB dump SQL 업로드 및 PostgreSQL 복원
+10. Dockerfile.backend, Dockerfile.ai, docker-compose.prod.yml 확인
+11. Nginx sites-available/team1 설정
+12. sslip.io 기준 HTTPS 인증서 발급
+13. 최초 수동 배포 테스트 성공 확인
+14. 브라우저에서 https://IP.sslip.io 접속 및 로그인 테스트
+15. Jenkins Pipeline 등록
+16. Jenkins Build Now 수동 실행 성공 확인
+17. GitHub Webhook 연결
+18. push 자동 배포 성공 확인
+19. Docker 컨테이너 상태 및 health check 확인
+20. 운영 DB 백업 스케줄 등록
 ```
