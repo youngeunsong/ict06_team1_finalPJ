@@ -15,6 +15,138 @@
 - Nginx
 - 기존 서버 DB dump backup SQL 파일
 
+## 0. 발표용 핵심 개념 정리
+
+이 섹션은 배포 절차를 발표하거나 팀원에게 공유할 때 먼저 설명하면 좋은 개념입니다. 실제 작업 명령은 1번 이후 절차를 따릅니다.
+
+### 0.1 전체 구조 한 줄 요약
+
+```text
+사용자 -> HTTPS Nginx -> React 정적 파일 또는 backend/AI API 프록시
+개발자 push -> GitHub Webhook -> Jenkins -> build -> Docker Compose 재기동
+```
+
+Nginx는 외부 요청을 받는 입구이고, Docker Compose는 내부 서비스들을 묶어 실행합니다. Jenkins는 GitHub의 배포 브랜치를 가져와 build와 재배포 명령을 자동으로 실행합니다.
+
+### 0.2 사용 기술과 역할
+
+| 기술 | 이 프로젝트에서의 역할 | 핵심 포인트 |
+|---|---|---|
+| AWS EC2 | Ubuntu 서버를 제공하는 가상 서버 | 프리티어에서는 CPU/메모리/디스크가 작아 swap과 디스크 관리가 중요 |
+| 탄력적 IP | EC2 재시작 후에도 유지되는 고정 public IP | `EC2_PUBLIC_IP.sslip.io` 주소와 HTTPS 인증서 발급에 사용 |
+| 보안 그룹 | EC2 앞단 방화벽 | 80/443은 공개, 22는 내 IP, DB/Redis/Spring/FastAPI 포트는 외부 비공개 |
+| SSH / MobaXterm | EC2 터미널 접속 및 파일 업로드 | dump 파일, 업로드 폴더 이관에 사용 |
+| Nginx | reverse proxy와 React 정적 파일 서버 | `/`는 React, `/api`는 Spring, `/ai-api`는 FastAPI, `/github-webhook`은 Jenkins로 전달 |
+| Certbot / Let's Encrypt | 무료 HTTPS 인증서 발급/갱신 | raw IP에는 인증서 발급이 어려워 `sslip.io` 주소 사용 |
+| sslip.io | IP 기반 무료 DNS 이름 제공 | `52.78.240.214.sslip.io`처럼 별도 DNS 설정 없이 IP를 도메인처럼 사용 |
+| Docker | 애플리케이션 실행 환경을 이미지/컨테이너로 격리 | 서버마다 환경 차이를 줄임 |
+| Docker Compose | 여러 컨테이너를 한 번에 정의/실행 | backend, ai-server, postgres, redis를 함께 관리 |
+| PostgreSQL 18 | 운영 DB | dump 파일 복원 후 backend가 접속 |
+| Redis | 캐시/세션/부가 기능용 인메모리 저장소 | Docker 내부 서비스명 `redis`로 접근 |
+| Spring Boot backend | 핵심 업무 API와 관리자 페이지 제공 | 컨테이너 내부 8081, 외부에는 Nginx `/api`, `/admin` 등으로 노출 |
+| FastAPI AI server | AI 기능 API 제공 | 컨테이너 내부 8000, 외부에는 Nginx `/ai-api`로 노출 |
+| React frontend | 사용자 화면 | `npm run build` 결과를 `/var/www/team1`에 배포 |
+| Jenkins | CI/CD 자동 배포 | checkout, Maven build, React build, Docker build/up, health check 실행 |
+| GitHub Webhook | push 이벤트를 Jenkins로 전달 | `https://EC2_PUBLIC_IP.sslip.io/github-webhook/`로 설정 |
+
+### 0.3 중요한 용어
+
+| 용어 | 의미 |
+|---|---|
+| Public IP | 인터넷에서 EC2에 접근할 때 쓰는 주소 |
+| Elastic IP | EC2에 고정 연결하는 public IP |
+| Port | 한 서버 안에서 서비스를 구분하는 번호. 예: 80 HTTP, 443 HTTPS, 8081 backend |
+| Reverse Proxy | Nginx가 요청을 받아 내부 서비스로 대신 전달하는 구조 |
+| SSL/TLS Termination | HTTPS 암호화 처리를 Nginx가 맡고 내부 컨테이너에는 HTTP로 전달하는 방식 |
+| Container | Docker 이미지로 실행된 프로세스 단위 |
+| Image | 컨테이너를 만들기 위한 실행 패키지 |
+| Volume / Bind Mount | 컨테이너 재생성 후에도 유지해야 하는 파일을 호스트 경로에 저장하는 방식 |
+| Docker Network | Compose 서비스들이 서비스명으로 서로 통신하는 내부 네트워크 |
+| Environment Variable | 비밀번호/API 키/운영 URL을 코드가 아닌 외부 설정으로 주입하는 값 |
+| Build Artifact | build 결과물. backend는 jar, frontend는 build 폴더 |
+| Health Check | 배포 후 서비스가 살아 있는지 확인하는 검사 |
+| Webhook | GitHub 이벤트 발생 시 Jenkins에 HTTP 요청을 보내는 자동 호출 |
+| CI/CD | CI는 build/test 자동화, CD는 배포 자동화 |
+| OOM / Killed | 메모리 부족으로 OS가 프로세스를 강제 종료한 상태 |
+| Swap | 메모리 부족 시 디스크 일부를 임시 메모리처럼 쓰는 공간 |
+
+### 0.4 요청 흐름
+
+사용자 화면 요청:
+
+```text
+브라우저
+-> https://EC2_PUBLIC_IP.sslip.io
+-> Nginx 443
+-> /var/www/team1/index.html, static/js, static/css
+```
+
+로그인/API 요청:
+
+```text
+브라우저 POST /api/auth/login
+-> Nginx location /api/
+-> Spring Boot backend :8081
+-> PostgreSQL / Redis
+```
+
+AI 요청:
+
+```text
+브라우저 또는 backend /ai-api/*
+-> Nginx location /ai-api/
+-> FastAPI ai-server :8000
+```
+
+자동 배포 요청:
+
+```text
+개발자 git push
+-> GitHub Webhook
+-> Nginx /github-webhook/
+-> Jenkins
+-> Git checkout
+-> Maven/React build
+-> Docker Compose build/up
+-> Health Check
+```
+
+### 0.5 자주 쓰는 명령어 의미
+
+| 명령어 | 의미 |
+|---|---|
+| `sudo systemctl status jenkins` | Jenkins 서비스 실행 상태 확인 |
+| `sudo nginx -t` | Nginx 설정 문법 검사 |
+| `sudo systemctl reload nginx` | Nginx 설정 재적용. 연결 중인 요청을 최대한 유지 |
+| `docker ps` | 실행 중인 컨테이너 목록 확인 |
+| `docker logs -f 컨테이너명` | 컨테이너 로그 실시간 확인. `Ctrl + C`로 로그 보기만 종료 |
+| `docker compose ... build` | Docker 이미지를 새로 build |
+| `docker compose ... up -d` | Compose 서비스들을 백그라운드로 실행/재생성 |
+| `docker exec -it 컨테이너명 명령` | 실행 중인 컨테이너 안에서 명령 실행 |
+| `curl -I URL` | 응답 헤더와 HTTP status 확인 |
+| `curl -i URL` | 응답 헤더와 본문 일부까지 확인 |
+| `free -h` | 메모리/swap 사용량 확인 |
+| `df -h` | 디스크 사용량 확인 |
+| `swapon --show` | swap 설정 확인 |
+| `journalctl -u 서비스명` | systemd 서비스 로그 확인 |
+| `rsync -a --delete` | 파일을 배포 디렉터리에 동기화 |
+
+### 0.6 이 배포 방식의 특징
+
+```text
+장점
+- Nginx만 외부에 공개하므로 내부 서비스 포트를 숨길 수 있음
+- Docker Compose로 backend/AI/DB/Redis 실행 방식을 문서화할 수 있음
+- Jenkins와 GitHub Webhook으로 push 기반 자동 배포 가능
+- 환경변수 파일로 운영 설정을 분리해 하드코딩을 줄임
+
+주의점
+- 현재 방식은 무중단 배포가 아님. 컨테이너 재생성 중 짧은 중단 가능
+- 프리티어 EC2는 메모리가 작아 npm ci, React build, Docker build 중 swap이 필요할 수 있음
+- /opt/team1/env/*.env 파일은 비밀값이 들어가므로 Git에 올리지 않음
+- DB dump 복원과 업로드 폴더 이관은 자동 배포와 분리해서 수동 관리
+```
+
 ## 1. 권장 배포 구조
 
 ```text
