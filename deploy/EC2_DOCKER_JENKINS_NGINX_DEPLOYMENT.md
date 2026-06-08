@@ -1,6 +1,6 @@
 ﻿# AWS EC2 + Docker + PostgreSQL 18 + Jenkins + Nginx 배포 절차
 
-이 문서는 Windows 개발환경에서 확인한 프로젝트를 Ubuntu EC2 운영환경에 배포하기 위한 절차입니다.
+이 문서는 Windows 개발환경에서 확인한 프로젝트를 AWS EC2 Ubuntu 운영환경에 배포하기 위한 절차입니다.
 
 사용 구성:
 
@@ -433,7 +433,7 @@ sudo systemctl start jenkins
 sudo systemctl status jenkins --no-pager -l
 ```
 
-초기 비밀번호 확인:
+초기 비밀번호 확인(젠킨스 페이지에 로그인 시 id는 admin, 비밀번호에 이 비밀번호 사용 예정):
 
 ```bash
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
@@ -1335,7 +1335,7 @@ sslip.io는 프리티어 시연, 통합테스트, 포트폴리오 확인 용도�
 다만 내 소유 도메인이 아니므로 장기 운영 또는 공식 서비스 주소로는 유료 도메인이나 안정적인 DNS를 권장합니다.
 ```
 
-DuckDNS를 대안으로 사용하는 경우:
+##### DuckDNS를 대안으로 사용하는 경우(참고)
 
 ```text
 YOUR_SUBDOMAIN.duckdns.org -> EC2 탄력적 IP
@@ -1374,6 +1374,8 @@ DNS problem: query timed out looking up CAA for duckdns.org
 ```
 
 이 경우 짧은 시간에 반복 재시도하지 말고, 프리티어 시연에서는 `sslip.io` 방식으로 우회하는 것을 권장합니다.
+
+##### 유료 도메인 사용 시 (참고)
 
 유료 도메인을 쓰는 경우에는 도메인 관리 화면에서 A 레코드를 추가합니다.
 
@@ -1660,7 +1662,7 @@ Payload URL: https://EC2_PUBLIC_IP.sslip.io/github-webhook/
 
 GitHub Webhook 상세 화면의 `Recent Deliveries`에서 응답 코드가 `200`인지 확인합니다.
 
-#### 14.1.7 HTTPS 접속 확인
+#### 14.1.7 HTTPS 접속 확인(참고)
 
 브라우저에서 아래를 확인합니다.
 
@@ -1691,7 +1693,7 @@ https://EC2_PUBLIC_IP.sslip.io/ai-api/health
 
 이 단계부터는 수동으로 입력하던 빌드/복사/컨테이너 재생성 명령을 Jenkins가 대신 실행하게 만듭니다.
 
-새 인스턴스에서 처음 배포 문서를 따라가는 경우에는 15번 Jenkins 자동화보다 16번 최초 수동 배포 테스트를 먼저 성공시키는 것을 권장합니다. 16번에서 Maven build, React build, Docker Compose, Nginx 연결이 한 번 검증된 뒤 15번으로 돌아와 Jenkins Pipeline을 등록하면 문제 원인을 훨씬 좁히기 쉽습니다.
+**새 인스턴스에서 처음 배포 문서를 따라가는 경우에는 15번 Jenkins 자동화보다 16번 최초 수동 배포 테스트를 먼저 성공시키는 것을 권장합니다.** 16번에서 Maven build, React build, Docker Compose, Nginx 연결이 한 번 검증된 뒤 15번으로 돌아와 Jenkins Pipeline을 등록하면 문제 원인을 훨씬 좁히기 쉽습니다.
 
 처음에는 GitHub push 자동 트리거까지 바로 연결하지 말고, Jenkins 화면에서 `Build Now(지금 빌드)` 버튼을 누르면 배포되는 방식으로 구성합니다. 이 방식이 안정화된 뒤 GitHub webhook을 붙입니다.
 
@@ -2143,7 +2145,7 @@ sudo tail -f /var/log/nginx/access.log
 sudo tail -f /var/log/nginx/error.log
 ```
 
-## 19. DB 백업
+## 19. DB 백업(참고)
 
 ```bash
 mkdir -p /opt/team1/backups
