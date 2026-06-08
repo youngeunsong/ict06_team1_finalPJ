@@ -28,6 +28,8 @@
 
 Nginx는 외부 요청을 받는 입구이고, Docker Compose는 내부 서비스들을 묶어 실행합니다. Jenkins는 GitHub의 배포 브랜치를 가져와 build와 재배포 명령을 자동으로 실행합니다.
 
+![배포 아키텍처](/readme_images/deploy_architecture.png)
+
 ### 0.2 사용 기술과 역할
 
 | 기술 | 이 프로젝트에서의 역할 | 핵심 포인트 |
@@ -2610,6 +2612,39 @@ docker logs --tail=100 team1-ai-server
 
 ```bash
 docker exec team1-backend printenv | grep AI_SERVER_BASE_URL
+```
+
+AI 서버 컨테이너가 `Up`으로 보이는데 health check가 아래처럼 실패할 수도 있습니다.
+
+```text
+curl: (56) Recv failure: Connection reset by peer
+502 Bad Gateway
+```
+
+이 경우 Nginx보다 `team1-ai-server` 컨테이너 내부의 uvicorn 프로세스 상태를 먼저 확인합니다.
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker inspect team1-ai-server --format '{{.Path}} {{json .Args}}'
+docker exec team1-ai-server sh -c 'ps -ef'
+docker exec team1-ai-server sh -c 'python - <<PY
+import urllib.request
+print(urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=5).read().decode())
+PY'
+docker logs --tail=200 team1-ai-server
+```
+
+`docker logs team1-ai-server`가 비어 있는데 health check가 reset되면 컨테이너는 살아 있지만 FastAPI 앱이 정상적으로 요청을 처리하지 못하는 상태일 수 있습니다. 이때는 AI 이미지를 다시 빌드하고 컨테이너를 재생성합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml build --no-cache ai-server
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate ai-server
+
+sleep 10
+docker logs --tail=100 team1-ai-server
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1/ai-api/health
 ```
 
 #### 파일 업로드 413 오류
