@@ -19,5 +19,5 @@ gemini.base-url=${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1be
 ncloud.ocr.receipt-url=${NCLOUD_OCR_RECEIPT_URL:}
 ncloud.ocr.secret-key=${NCLOUD_OCR_SECRET_KEY:}
 
-spring.servlet.multipart.max-file-size=10MB
-spring.servlet.multipart.max-request-size=10MB
+spring.servlet.multipart.max-file-size=${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:10MB}
+spring.servlet.multipart.max-request-size=${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:10MB}

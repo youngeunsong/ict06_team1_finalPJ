@@ -560,6 +560,10 @@ APP_FRONTEND_ORIGIN=https://EC2_PUBLIC_IP.sslip.io
 APP_CORS_ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
 APP_FRONTEND_LOGIN_URL=https://EC2_PUBLIC_IP.sslip.io/auth/login
 AI_SERVER_BASE_URL=http://ai-server:8000
+SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=50MB
+SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=50MB
+TZ=Asia/Seoul
+JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Seoul
 
 DB_URL=jdbc:postgresql://postgres:5432/ict06_team1_finalpj
 DB_USERNAME=postgres
@@ -576,10 +580,22 @@ JWT_REFRESH_EXPIRATION=1209600000
 OPENWEATHER_API_KEY=운영키
 HOLIDAY_API_SERVICE_KEY=운영키
 GEMINI_API_KEY=운영키
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GROQ_API_KEY=운영키
+NCLOUD_OCR_RECEIPT_URL=운영_OCR_Invoke_URL
+NCLOUD_OCR_SECRET_KEY=운영_OCR_Secret_Key
 ```
 
 `APP_FRONTEND_ORIGIN`, `APP_CORS_ALLOWED_ORIGINS`, `APP_FRONTEND_LOGIN_URL`은 실제 브라우저 접속 주소와 정확히 일치해야 합니다. HTTPS를 적용한 뒤에도 이 값이 `http://EC2_PUBLIC_IP`, `corework.duckdns.org`, `YOUR_DOMAIN` 등으로 남아 있으면 로그인 API가 403으로 실패할 수 있습니다.
+
+`AI_SERVER_BASE_URL`은 backend 컨테이너가 AI 서버 컨테이너를 호출할 때 쓰는 주소입니다. Docker Compose 내부에서는 `127.0.0.1` 또는 `localhost`가 backend 컨테이너 자기 자신을 의미하므로, 운영 환경에서는 반드시 서비스명인 `http://ai-server:8000`을 사용합니다.
+
+`SPRING_SERVLET_MULTIPART_*`와 Nginx의 `client_max_body_size`는 프로필 이미지, 영수증, 문서 업로드 크기 제한과 관련됩니다. 한쪽만 올리면 여전히 `413 Request Entity Too Large`가 발생할 수 있습니다.
+
+`TZ`, `JAVA_TOOL_OPTIONS`는 Java 애플리케이션의 기본 시간대를 한국 시간대로 맞추기 위한 값입니다. 전자결재 처리일시처럼 `LocalDateTime.now()`를 사용하는 기능이 UTC로 저장되는 것을 방지합니다.
+
+`NCLOUD_OCR_RECEIPT_URL`, `NCLOUD_OCR_SECRET_KEY`는 영수증 OCR 기능에 필요합니다. 값이 비어 있으면 전자결재 영수증 OCR 인식이 실패합니다.
 
 AI 서버 환경변수:
 
@@ -752,7 +768,11 @@ jwt.secret=${JWT_SECRET}
 app.frontend.origin=${APP_FRONTEND_ORIGIN}
 app.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:${app.frontend.origin}}
 
-ai.server.base-url=${AI_SERVER_BASE_URL:http://127.0.0.1:8000}
+ai.server.base-url=${AI_SERVER_BASE_URL:http://ai-server:8000}
+ncloud.ocr.receipt-url=${NCLOUD_OCR_RECEIPT_URL:}
+ncloud.ocr.secret-key=${NCLOUD_OCR_SECRET_KEY:}
+spring.servlet.multipart.max-file-size=${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:50MB}
+spring.servlet.multipart.max-request-size=${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:50MB}
 ```
 
 실제 값은 EC2의 이 파일에 둡니다.
@@ -972,6 +992,8 @@ services:
     restart: unless-stopped
     env_file:
       - /opt/team1/env/ai.env
+    environment:
+      TZ: Asia/Seoul
     networks:
       - team1-net
     ports:
@@ -985,6 +1007,9 @@ services:
     restart: unless-stopped
     env_file:
       - /opt/team1/env/backend.env
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
     depends_on:
       - postgres
       - redis
@@ -1195,6 +1220,7 @@ sudo nano /etc/nginx/sites-available/team1
 server {
     listen 80;
     server_name EC2_PUBLIC_IP;
+    client_max_body_size 50m;
 
     root /var/www/team1;
     index index.html;
@@ -1456,6 +1482,7 @@ server_name EC2_PUBLIC_IP.sslip.io;
 server {
     listen 80;
     server_name YOUR_DOMAIN;
+    client_max_body_size 50m;
 
     root /var/www/team1;
     index index.html;
@@ -2513,6 +2540,185 @@ ALLOWED_ORIGINS=https://EC2_PUBLIC_IP.sslip.io
 ```bash
 cd /opt/team1/current
 docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml restart backend ai-server
+```
+
+### 통합 테스트에서 AI, OCR, 업로드, 시간대 오류가 나는 경우
+
+배포 후 통합 테스트에서 아래 오류들이 동시에 보이면 기능별 문제가 아니라 운영 환경 설정 문제일 가능성이 큽니다.
+
+| 유형 | 대표 증상 | 주된 원인 |
+| --- | --- | --- |
+| AI 서버 연결 실패 | `Connection refused`, `http://127.0.0.1:8000/api/ai/...` | backend 컨테이너가 AI 서버 주소를 `localhost`로 보고 있음 |
+| 파일 업로드 실패 | `413 Request Entity Too Large` | Nginx 또는 Spring multipart 업로드 제한이 작음 |
+| OCR 실패 | 영수증 OCR 인식 오류 | Naver Cloud OCR URL/Secret Key 누락 또는 업로드 제한 |
+| 처리일시 UTC 저장 | 전자결재 승인 시간이 한국 시간이 아님 | backend JVM 시간대가 UTC |
+
+#### AI 서버 연결 실패
+
+아래 기능들이 실패하면 같은 원인으로 봅니다.
+
+```text
+AI 초안 문제 생성
+문서 및 RAG 데이터 처리
+문서 기반 AI 질의
+AI 퀴즈 자동 생성
+AI 온보딩 학습 도우미
+```
+
+backend 로그에 아래처럼 나오면 잘못된 상태입니다.
+
+```text
+I/O error on POST request for "http://127.0.0.1:8000/api/ai/..."
+Connection refused
+```
+
+Docker 컨테이너 내부에서 `127.0.0.1`은 EC2가 아니라 해당 컨테이너 자기 자신입니다. backend가 AI 서버 컨테이너를 호출하려면 Docker Compose 서비스명인 `ai-server`를 써야 합니다.
+
+`/opt/team1/env/backend.env`를 확인합니다.
+
+```bash
+grep '^AI_SERVER_BASE_URL' /opt/team1/env/backend.env
+```
+
+정상 값:
+
+```env
+AI_SERVER_BASE_URL=http://ai-server:8000
+```
+
+수정 후 backend를 재생성합니다.
+
+```bash
+sudo nano /opt/team1/env/backend.env
+sudo chown root:docker /opt/team1/env/backend.env
+sudo chmod 640 /opt/team1/env/backend.env
+
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+AI 서버 자체가 살아 있는지도 확인합니다.
+
+```bash
+docker ps | grep team1-ai-server
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1/ai-api/health
+docker logs --tail=100 team1-ai-server
+```
+
+`curl http://127.0.0.1:8000/health`와 `curl http://127.0.0.1/ai-api/health`가 모두 정상 응답이면 AI 서버와 Nginx 프록시는 살아 있는 상태입니다. 그래도 backend 로그에 `127.0.0.1:8000`이 계속 나오면 backend 컨테이너에 환경변수가 반영되지 않은 것이므로 아래로 확인합니다.
+
+```bash
+docker exec team1-backend printenv | grep AI_SERVER_BASE_URL
+```
+
+#### 파일 업로드 413 오류
+
+프로필 이미지, 전자결재 영수증, 문서 업로드에서 아래 오류가 나오면 업로드 크기 제한 문제입니다.
+
+```text
+413 Request Entity Too Large
+```
+
+Nginx 설정에 업로드 허용 크기를 추가합니다.
+
+```bash
+sudo nano /etc/nginx/sites-available/team1
+```
+
+`server { ... }` 안에 아래 줄이 있어야 합니다.
+
+```nginx
+client_max_body_size 50m;
+```
+
+Nginx 설정을 반영합니다.
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Spring Boot multipart 제한도 같이 확인합니다.
+
+```bash
+sudo nano /opt/team1/env/backend.env
+```
+
+```env
+SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=50MB
+SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=50MB
+```
+
+backend 컨테이너를 재생성합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+#### 영수증 OCR 오류
+
+전자결재 작성 화면에서 영수증 OCR 인식이 실패하면 OCR 키가 운영 환경에 들어갔는지 확인합니다.
+
+```bash
+grep -E '^NCLOUD_OCR_' /opt/team1/env/backend.env
+```
+
+정상 예시:
+
+```env
+NCLOUD_OCR_RECEIPT_URL=https://.../custom/v1/.../infer
+NCLOUD_OCR_SECRET_KEY=운영_OCR_Secret_Key
+```
+
+값을 수정한 뒤 backend를 재생성합니다.
+
+```bash
+sudo nano /opt/team1/env/backend.env
+sudo chown root:docker /opt/team1/env/backend.env
+sudo chmod 640 /opt/team1/env/backend.env
+
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+docker logs -f team1-backend
+```
+
+OCR 파일 업로드 단계에서 같이 실패할 수 있으므로 `413 Request Entity Too Large`가 함께 보이면 위의 업로드 크기 제한도 같이 처리합니다.
+
+#### 전자결재 처리일시가 UTC로 저장되는 경우
+
+Docker 컨테이너 기본 시간대가 UTC이면 승인/반려 처리일시가 한국 시간보다 9시간 느리게 저장될 수 있습니다.
+
+`/opt/team1/env/backend.env`에 아래 값을 둡니다.
+
+```env
+TZ=Asia/Seoul
+JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Seoul
+```
+
+`docker-compose.prod.yml`의 backend 서비스에도 아래 설정이 있으면 더 명확합니다.
+
+```yaml
+services:
+  backend:
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
+```
+
+수정 후 backend를 재생성합니다.
+
+```bash
+cd /opt/team1/current
+docker compose --env-file /opt/team1/.env -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
+컨테이너 시간대를 확인합니다.
+
+```bash
+docker exec team1-backend date
+docker exec team1-backend sh -c 'echo $TZ && echo $JAVA_TOOL_OPTIONS'
 ```
 
 ### Spring이 DB에 연결하지 못하는 경우

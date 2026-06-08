@@ -32,6 +32,8 @@ services:
     restart: unless-stopped
     env_file:
       - /opt/team1/env/ai.env
+    environment:
+      TZ: Asia/Seoul
     networks:
       - team1-net
     ports:
@@ -45,6 +47,9 @@ services:
     restart: unless-stopped
     env_file:
       - /opt/team1/env/backend.env
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
     depends_on:
       - postgres
       - redis

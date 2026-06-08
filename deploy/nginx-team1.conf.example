@@ -1,6 +1,7 @@
 server {
     listen 80;
     server_name EC2_PUBLIC_IP;
+    client_max_body_size 50m;
 
     root /var/www/team1;
     index index.html;
