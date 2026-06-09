@@ -35,7 +35,7 @@ Nginx는 외부 요청을 받는 입구이고, Docker Compose는 내부 서비�
 | 기술 | 이 프로젝트에서의 역할 | 핵심 포인트 |
 |---|---|---|
 | AWS EC2 | Ubuntu 서버를 제공하는 가상 서버 | 프리티어에서는 CPU/메모리/디스크가 작아 swap과 디스크 관리가 중요 |
-| 탄력적 IP | EC2 재시작 후에도 유지되는 고정 public IP | `EC2_PUBLIC_IP.sslip.io` 주소와 HTTPS 인증서 발급에 사용 |
+| 탄력적 IP | EC2 재시작 후에도 유지되는 고정 public IP | `EC2_PUBLIC_IP.sslip.io` 주소와 HTTPS 인증서 발급에 사용. 앞으로 이 문서에서 `EC2_PUBLIC_IP`라고 나오면 `발급받은 탄력적 IP 주소`를 의미합니다. |
 | 보안 그룹 | EC2 앞단 방화벽 | 80/443은 공개, 22는 내 IP, DB/Redis/Spring/FastAPI 포트는 외부 비공개 |
 | SSH / MobaXterm | EC2 터미널 접속 및 파일 업로드 | dump 파일, 업로드 폴더 이관에 사용 |
 | Nginx | reverse proxy와 React 정적 파일 서버 | `/`는 React, `/api`는 Spring, `/ai-api`는 FastAPI, `/github-webhook`은 Jenkins로 전달 |
