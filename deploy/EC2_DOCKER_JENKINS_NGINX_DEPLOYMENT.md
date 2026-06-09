@@ -305,6 +305,7 @@ MobaXterm을 사용할 수 있다면 대용량 dump 파일 업로드는 SFTP 패
 
 ## 4. EC2 기본 패키지 설치
 
+필요한 기본 패키지를 설치합니다.
 프로젝트 빌드는 JDK 17 기준이므로 JDK 17을 설치합니다.
 
 ```bash
@@ -316,7 +317,7 @@ sudo apt install -y \
   nginx fontconfig openjdk-17-jdk
 ```
 
-Java 17 확인:
+Java 17로 설치됐는 지 확인:
 
 ```bash
 /usr/lib/jvm/java-17-openjdk-amd64/bin/java -version
@@ -363,7 +364,7 @@ sudo systemctl enable docker
 sudo systemctl restart docker
 ```
 
-그룹 권한 반영을 위해 SSH를 재접속한 뒤 확인합니다.
+그룹 권한 반영을 위해 Mobaxterm에서 SSH를 재접속한 뒤 확인합니다.
 
 ```bash
 docker version
@@ -378,7 +379,7 @@ Jenkins 자체 실행용 Java 21 JRE를 설치합니다.
 sudo apt install -y openjdk-21-jre
 ```
 
-Jenkins 저장소 키와 apt source를 등록합니다. Jenkins 저장소 키는 `jenkins.io-2026.key`를 사용합니다.
+Jenkins 저장소 키와 apt source를 등록 후 Jenkins를 설치합니다. Jenkins 저장소 키는 `jenkins.io-2026.key`를 사용합니다.
 
 ```bash
 sudo mkdir -p /etc/apt/keyrings
