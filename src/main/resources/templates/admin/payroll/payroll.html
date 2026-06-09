@@ -16,6 +16,40 @@
 <!--end::Head-->
 <!--begin::Body-->
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+<style>
+  .payroll-item-table {
+    table-layout: auto;
+    min-width: 760px;
+  }
+
+  .payroll-item-name-col,
+  .payroll-item-name-cell,
+  .payroll-item-table th:first-child,
+  .payroll-item-table td:first-child {
+    min-width: 5em;
+    width: 5em;
+    max-width: 5em;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .payroll-item-table col.payroll-item-name-col {
+    width: 5em;
+  }
+
+  .payroll-item-table col.payroll-badge-col {
+    width: 5em;
+  }
+
+  .payroll-page-main > .app-content > .container-fluid {
+    max-width: 1680px;
+  }
+
+  .payroll-item-section {
+    --bs-gutter-x: 1rem;
+  }
+</style>
 <!--begin::App Wrapper-->
 <div class="app-wrapper">
   <!-- 헤더 시작 -->
@@ -27,7 +61,7 @@
   <!-- 사이드바 끝-->
 
   <!-- 메인 콘텐츠 시작 -->
-  <main class="app-main">
+  <main class="app-main payroll-page-main">
     <!--begin::App Content-->
     <div class="app-content">
       <!--begin::Container-->
@@ -287,15 +321,21 @@
               </button>
             </div>
 
-            <div class="row g-3">
+            <div class="row g-3 payroll-item-section">
 
               <!-- 지급항목 -->
-              <div class="col-md-6">
+              <div class="col-12 col-xxl-6">
                 <div class="border rounded p-3 h-100">
                   <h6 class="fw-bold mb-3">지급 항목</h6>
 
                   <div class="table-responsive">
-                    <table class="table table-bordered table-hover text-center align-middle mb-0">
+                    <table class="table table-bordered table-hover text-center align-middle mb-0 payroll-item-table">
+                      <colgroup>
+                        <col class="payroll-item-name-col">
+                        <col class="payroll-badge-col">
+                        <col class="payroll-badge-col">
+                        <col>
+                      </colgroup>
                       <thead class="table-light">
                       <tr>
                         <th style="width: 25%;">항목명</th>
@@ -336,12 +376,17 @@
               </div>
 
               <!-- 공제항목 -->
-              <div class="col-md-6">
+              <div class="col-12 col-xxl-6">
                 <div class="border rounded p-3 h-100">
                   <h6 class="fw-bold mb-3">공제 항목</h6>
 
                   <div class="table-responsive">
-                    <table class="table table-bordered table-hover text-center align-middle mb-0">
+                    <table class="table table-bordered table-hover text-center align-middle mb-0 payroll-item-table">
+                      <colgroup>
+                        <col class="payroll-item-name-col">
+                        <col class="payroll-badge-col">
+                        <col>
+                      </colgroup>
                       <thead class="table-light">
                       <tr>
                         <th style="width: 25%;">항목명</th>

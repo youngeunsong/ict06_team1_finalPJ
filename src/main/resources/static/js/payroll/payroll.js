@@ -1502,7 +1502,7 @@ $(document).ready(function () {
                    data-linked-attendance-type="${linkedAttendanceType}"
                    data-derived-adjustment="${item.derivedAdjustment === true}"
                    data-source-pay-month="${item.sourcePayMonth || ''}">
-                  <td class="fw-semibold text-center">
+                  <td class="fw-semibold text-center payroll-item-name-cell">
                       ${displayItemName}
                   </td>
                     <td>${taxBadge}</td>
@@ -1521,7 +1521,7 @@ $(document).ready(function () {
                     data-linked-attendance-type="${linkedAttendanceType}"
                     data-derived-adjustment="${item.derivedAdjustment === true}"
                     data-source-pay-month="${item.sourcePayMonth || ''}">
-                   <td class="fw-semibold text-center">
+                   <td class="fw-semibold text-center payroll-item-name-cell">
                        ${displayItemName}
                    </td>
                     <td>${calculationBadge}</td>
